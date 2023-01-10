@@ -1,4 +1,4 @@
-# RefracPy
+# PyRefra
 Software package for treatment and tomography of multishot refaction seismic data
 
 ## Installation

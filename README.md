@@ -70,4 +70,4 @@ Also at the very end, find line containing `WARNING_HEADER` and comment it out.
 
 This is not important for working of the program, but it avoids an annoyingly long warning message each time you start the program.
 
-If under Linux, you get this error message: AttributeError: 'numpy.int64' object has no attribute 'split', go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`
+If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`

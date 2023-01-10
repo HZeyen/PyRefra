@@ -12,7 +12,7 @@ In the beginning, the program shows a warning:
 
 This warning comes from “import obspy”. Hope, obspy developers will do something early enough…
 
-When opened, the GUI shows in the main window the data of the shot gather corresponding to the first shot point. A smaller window to the right shows all available shot point numbers. Clicking on one of the names plots the seismograms of the corresponding shot point in the main window. Beneath the main window, a help text is shown. To be visible, it may be necessary that the Windows task bar be automatically hidden.
+When opened, the GUI shows in the $\textcolor{blue}{\text{main window}}$ the data of the shot gather corresponding to the first shot point. A smaller window to the right shows all available $\textcolor{red}{\text{shot point numbers}}$. Clicking on one of the names plots the seismograms of the corresponding shot point in the $\textcolor{blue}{\text{main window}}$. Beneath the main window, a $\textcolor{green}{\text{help text}}$ is shown. To be visible, it may be necessary that the Windows task bar be automatically hidden. Above the main window, a $\textcolor{violet}{\text{menu bar}}$ is placed.
 
 ![Main_window_screen_copy](https://github.com/HZeyen/PyRefra/blob/main/Screen_shot_refrapy.png)
 

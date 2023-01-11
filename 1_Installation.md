@@ -17,7 +17,7 @@ This opens a command window. Then type the following commands:
     + `conda config --add channels gimli --add channels conda-forge`
 « channels » is the place where to find the source code, here « gimli » and “conda-forge”
     + `conda create -n pg pygimli pybert`
-(this may take quite some time, don’t worry about error messages as long as conda is running). Here, “pg” means the new environment called “pg”. Pybert is not necessary for refraPy, but if you want also to use Orsay ERT inversion programs, better to install everything together.
+(this may take quite some time, don’t worry about error messages as long as conda is running). Here, “pg” means the new environment called “pg”. Pybert is not necessary for PyRefra, but if you want also to use Orsay ERT inversion programs, better to install everything together.
         + `conda activate pg` (activation of the environment “pg”)
         + `conda install obspy`
         + `conda install statsmodels`

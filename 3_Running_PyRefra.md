@@ -24,16 +24,15 @@ The first thing to do will be to increase the GUI to full screen size. If the wi
 
 Increase or decrease amplitudes of traces
 
-**Keyboard arrows right or left**
-If you have made a zoom in X (showing only part of the traces), the arrow right will shift the view to the traces further to the right (larger X coordinates), the arrow to the left will show traces with smaller X coordinates. The size of the window in terms of X-coordinates will always be maintained. E.g., your zoom shows traces 1 to 50 out of 120 traces. The Right-Key will show traces 51 to 100, a further click will show traces 71 to 120 (still 50 traces are shown, but since the last trace is n° 120, the window starts at 71). A Left-Key click will now show traces 21 to 70 and a further Left-Key click will show again traces 1-50.
+**Keyboard arrows right or left**: 
+If you have made a zoom in X (showing only part of the traces), the arrow to the right will shift the view to the traces further to the right (larger X coordinates), the arrow to the left will show traces with smaller X coordinates. The size of the window in terms of X-coordinates will always be maintained. E.g., your zoom shows traces 1 to 50 out of 120 traces. The Right-Key will show traces 51 to 100, a further click will show traces 71 to 120 (still 50 traces are shown, but since the last trace is n° 120, the window starts at 71). A Left-Key click will now show traces 21 to 70 and a further Left-Key click will show again traces 1-50.
 
 ## The Menus
 
 ### **$\textcolor{red}{\text{File Menu}}$**
 
 **$\textcolor{violet}{\text{Choose Data File}}$** (keyboard shortcut: **CTRL-O**): 
-
- Usually, you will not need this menu point. It allows you to choose new data sets.
+Usually, you will not need this menu point. It allows you to choose new data sets.
 
 **$\textcolor{violet}{\text{Save SEGY}}$** (keyboard shortcut: **Y**): 
 
@@ -43,19 +42,19 @@ If you have made a zoom in X (showing only part of the traces), the arrow right 
      - only data visible on the screen (if zoomed)
      - all data, including possible data recorded before the trigger
      - all data recorded after the trigger
-   - Data of all shots or only of the active shot
+   - Data of all shots or only those of the active shot
    - Save all data in one single file (this file will be called prefix00000.sgy) or each shot in another file
 
 **$\textcolor{violet}{\text{Save SU}}$** (keyboard shortcut: **U**): 
 
-Save data in SU format (e.g., to continue with Seismic Unix). The same dialog box as for SEGY storing appears. It seems that in SU format, several header words are not correctly filled in. Therefore, in my experience, it is better to save the data in SEGY format and use the following command n SU (Linux) in order to erase the file header and pass to SU format:
+Save data in SU format (e.g., to continue with Seismic Unix). The same dialog box as for SEGY storing appears. It seems that in SU format, several header words are not correctly filled in by obspy. Therefore, in my experience, it is better to save the data in SEGY format and use the following command in Seismic Unix (Linux) in order to erase the file header and pass to SU format:
 `segyread tape=file_name verbose=1 | segyclean > data.su`
 
 **$\textcolor{violet}{\text{Save SEG2}}$** (keyboard shortcut: **2**): 
-Save data in SEG2 format (e.g., if you have done quite a few corrections via file_corrections.dat or receiver_corrections.dat and/or a number of files were eliminated, and you want a new list with continuous file numbering). You may save just the gather on the screen or all available gathers (into a single file or every gather into its own file). You may write file-gathers or shot-gathers. If only the gather on the screen is to be saved, also only the corresponding type of gather is written, where receiver gathers and distance gathers cannot be stored, and a warning message appears. File gathers are written into the interactively chosen folder as “file_nnnnn.seg2” and shot-gathers as “shot_nnnnn.seg2”, nnnnn being the renumbered file number (starting at 1) or the shot number.
+Save data in SEG2 format (e.g., if you have done quite a few corrections via file_corrections.dat or receiver_corrections.dat and/or a number of files were eliminated, and you want a new list with continuous file numbering). You may save just the gather on the screen or all available gathers (into a single file or every gather into its own file). You may write file-gathers or shot-gathers. If only the gather on the screen is to be saved, only the corresponding type of gather may be written, however, receiver gathers and distance gathers cannot be stored, and a warning message appears. File gathers are written into the interactively chosen folder as “file_nnnnn.seg2” and shot-gathers as “shot_nnnnn.seg2”, nnnnn being the renumbered file number (starting at 1) or the shot number.
 
 **$\textcolor{violet}{\text{Save FWI}}$** (no keyboard shortcut): 
-Save data only in binary format without any header (4 bytes)
+Save only data in binary format without any header (4 bytes)
 
 **$\textcolor{violet}{\text{Save ASCII}}$** (no keyboard shortcut): 
 Save data in ASCII format
@@ -65,7 +64,7 @@ Save data in ASCII format
 The amplitudes are calculated as stored_value/(maximum_value*factor)*corresponding_value
 “stored_value”: Integer values stored in the rest of the file; “corresponding_value” value in this Line 2 for each trace
 - Lines 3 to 5: X_receivers, Y_receivers, Z_receivers (each line ntrace values)
-- Following nsamp lines: Normalized values of all traces (one line per time interval)
+- Following nsamp lines: Normalized values of all traces (one line per time interval, one column per trace)
 
 **$\textcolor{violet}{\text{Save Plot}}$** (keyboard shortcut: **P**): 
 Save actual screen into png file. File names depend on what is actually shown
@@ -82,16 +81,16 @@ Plot the original, not treated data shown on the actual screen (e.g., to undo fi
 Plot the original, not treated data of all files (e.g., to undo airwave muting or velocity filter applied to all files). A potential zoom is maintained.
 
 **$\textcolor{violet}{\text{Shot gather}}$** (keyboard shortcut: **S**): 
-Plot shot gathers (in contrast to file gather), i.e., all traces from all acquired files that have been recorded from the same shot point position are plotted into one record section. If the same combination receiver point – shot point has been recorded several times, the traces are plotted overlapping. The list of plots on the “Available shots” window is updated and the gather corresponding to the first shot is shown in the main window.
+Plot shot gathers (in contrast to file gather), i.e., all traces from all acquired files that have been recorded from the same shot point position are plotted into one record section. If the same combination receiver point – shot point has been recorded several times, the traces are plotted overlapping. The list of plots on the “Available plots” window is updated and the gather corresponding to the first shot is shown in the main window. This is the default plot when starting the program.
 
 **$\textcolor{violet}{\text{Plot data of one file}}$** (keyboard shortcut: **F**): 
-Plot file gathers (in contrast to shot gather), i.e., the traces from the acquired files (one file = one shot) are plotted into one record section. The list of plots on the “Available shots” window is updated and the gather corresponding to the first file is shown in the main window.
+Plot file gathers (in contrast to shot gather), i.e., the traces from the acquired files (one file = one shot) are plotted into one record section. The list of plots on the “Available plots” window is updated and the gather corresponding to the first file is shown in the main window.
 
 **$\textcolor{violet}{\text{Receiver gather}}$** (keyboard shortcut: **R**): 
-Plot receiver gathers, i.e., all traces from all acquired files that have been recorded at the same receiver position are plotted into one record section. If the same combination receiver point – shot point has been recorded several times, the traces are plotted overlapping. The list of plots on the “Available shots” window is updated and the gather corresponding to the first receiver is shown in the main window.
+Plot receiver gathers, i.e., all traces from all acquired files that have been recorded at the same receiver position are plotted into one record section. If the same combination receiver point – shot point has been recorded several times, the traces are plotted overlapping. The list of plots on the “Available plots” window is updated and the gather corresponding to the first receiver is shown in the main window.
 
 **$\textcolor{violet}{\text{Distance gather}}$** (keyboard shortcut: **D**): 
-Plot distance gathers, i.e., all traces from all acquired files that have a common absolute offset are plotted into one record section. If the same offsets have been recorded several times, the traces are plotted with a slight lateral shift. The traces are plotted at the mid-point position between shot and receiver. The list of plots on the “Available shots” window is updated and the gather corresponding to the smallest offset is shown in the main window. This window may serve for quality control of the picks. Especially, in the case when receiver and shot point are switched both traces are plotted at the same position and should have the same arrival time.
+Plot distance gathers, i.e., all traces from all acquired files that have a common absolute offset are plotted into one record section. If the same offsets have been recorded several times, the traces are plotted with a slight lateral shift. The traces are plotted at the mid-point position between shot and receiver. The list of plots on the “Available plots” window is updated and the gather corresponding to the smallest offset is shown in the main window. This window may serve for quality control of the picks. Especially, in the case when receiver and shot point are switched both traces are plotted at the same position and should have the same arrival time.
 
 **$\textcolor{red}{\text{Zoom options}}$**:
 Most zoom options are maintained from one plotting window to the others
@@ -130,11 +129,11 @@ Allows to construct a 1D velocity model by tracing a series of straight lines ac
 
 To trace a line, press left mouse button and pull the line. Releasing the mouse button is accepting the line.
 
-The first straight line is considered to be the direct wave and is forced to pass through the origin. For all further lines, the position where the mouse is clicked is one point of the line, the position where the mouse is released is the second point.
+The first straight line on each side of the shot point is considered to be the direct wave and is forced to pass through the origin. For all further lines, the position where the mouse is clicked is one point of the line, the position where the mouse is released is the second point.
 
 When releasing the mouse, a dialog window opens which allows you to accept the line and trace the next one, to accept it and finish the model or to redo the line. In addition, when clicking on “Show details”, the velocity, and intercept times are given as well as the depth to the layer limit (refractor) and the thickness of the layer above the refractor.
 The lines plotted will disappear when a new plot is called (right window or different gather). A new call to P_Model creates a new model, starting with the direct wave.
-When the model is finished, it is written to a file in the data folder with the following name structure: prefix_number_data_time.1Dmod where prefix may be “shot_point”, “receiver_point” or “file” depending on the type of gather used (it is supposed that the routine is not used when a distance gather is shown.
+When the model is finished, it is written to a file in the data folder with the following name structure: prefix_number_data_time.1Dmod where prefix may be “shot_point”, “receiver_point” or “file” depending on the type of gather used (it is supposed that the routine is not used when a distance gather is shown).
 
 **$\textcolor{violet}{\text{Tomography}}$** (keyboard shortcut: **T**): 
 This tool is only activated if measured travel times exist. It uses **Pygimli** to invert travel times into a tomography model.
@@ -145,22 +144,24 @@ On call, a dialog box is opened asking for:
 - Smoothing in z direction: This value may be between 0 and 1. When 0, the different layers of the tomography will be independent from each other, if 1, the same smoothing factor will be used in vertical and horizontal direction.
 - Maximum iterations: The number of iterations may be limited with this value, e.g., for testing purposes. In general, the iterations are stopped if the data fit does not become better anymore, i.e., if the chi² value does not decrease by more than 1% of its actual value or if chi² becomes smaller than 1.
 - Initial and final velocities: Ray tracing needs an initial model with a vertical gradient. This initial model is defined by these two values. **TODO**: allow for a refined starting model.
-- Minimum and maximum allowed velocities: Pygimli allows to limit search space of model velocities. Give here the desired extreme velocities. **TODO**: Understand working of Pygimli: Even if very large upper velocity limit is given, pygimli limits the velocity model to a range of values much narrower than given. Only if the parameter “limits=[vmin,vmax]” is not at all used, velocities seem to be completely free. Therefore, if both given velocities are zero, program makes a call to mgr.invert without using key word limits
+- Minimum and maximum allowed velocities: Pygimli allows to limit search space of model velocities. Give here the desired extreme velocities. **TODO**: Understand working of Pygimli: Even if very large upper velocity limit is given, pygimli limits the velocity model to a range of values much narrower than given. Only if the parameter “limits=[vmin,vmax]” is not at all used, velocities seem to be completely free. Therefore, if both given velocities are zero, the program makes a call to mgr.invert without using key word "limits".
 - velocity color scale min and max: If you do inversions for different profiles, it may be interesting to have the same color scale for all. In this case, you may give the values of the minimum and maximum velocities appearing in the color bar.
 - Plot title: The default title is the name of the data folder. You may change it to any text. Appears only at main title of the inversion results plot.
 
 At the end of the inversion, the resulting model is shown in the upper 60% of the screen. Below, smaller sub-windows show the initial model, the rays of the final model with the “coverage” (i.e., a measure of resolution), the measured travel times as function of shot point position and receiver point position, the misfits in a similar plot calculated as “calculated times minus measured times” and finally, a plot showing average misfits for the different shot points and the different receiver points. This last plot allows you to verify if there are problems with certain shots or receivers.
-This plot is stored in a png file, together with other inversion results such as velocity model, misfits, rays of final model and chi²-evolution in a folder created automatically by Pygimli the name of which has the following structure: ./date-time/TravelTimeManager (where the “.” Is the data folder).
+This plot is stored in a png file, together with other inversion results such as velocity model, misfits, rays of final model and chi²-evolution in a folder created automatically by Pygimli named ./date-time (where the “.” is the data folder; date and time of folder creation).
 To leave this plot, click on an entrance in the “Available plots” window. To show the plot again, you should open the saved png outside of the program or you must do the inversion again.
 
 **$\textcolor{violet}{\text{Tau-P}}$** (keyboard shortcut: **CTRL-T**): 
-Tool calculates and shows Tau-P analysis. For the moment, only the plot is shown. If you want to save it, use $\textcolor{violet}{\text{File -> Save plot}}$
+Tool calculates and shows Tau-P analysis. For the moment, only the plot is shown. If you want to save it, use $\textcolor{violet}{\text{File -> Save plot}}$. **TODO** use obspy function for this.
 
 **$\textcolor{violet}{\text{False colour}}$** (keyboard shortcut: **SHFT-F**): 
-Possibility to plot 1 to 3 different indicators that may help for picking. This tool is for the moment only meant for display, to analyse data visually. Possible indicators are: Instant frequency, envelope, 2nd derivative of envelope, 2nd derivative of data, Sta-Lta transform, Akaike Information Criterium (AIC), max-min relation and autocorrelation. Max-min relation plots the relative amplitude difference between a maximum and its following minimum on the one hand and the same maximum and its preceding minimum on the other hand. Autocorrelation is usually plotted on its own since the time scale has no relation with the other options. On top of the autocorrelation, two traces are plotted: white is the average autocorrelation, yellow the average trace obtained from averaging the frequency spectra. A dialog box will open where you may check the desired indicators (1, 2 or 3 out of the 8 possibilities). The first indicator you click on will determine the red channel, the second one the green channel and the third one the blue channel. This implies also that if only one indicator is chosen, the plot will be between black and red. If 2 are chosen, colour may change between black, red, green, and yellow (no blue). If picks have been measured for the analysed gather, they are plotted on top of the false colour plot. In addition, a magenta line is plotted indication evolution of maxima of the combined indicators (maximum brightness, Pythagoras of color values), as well as a white line which represents an optimum fit of the positions of the maxima through two straight lines. The maxima are possible picks, the straight line indicates a possible two-layer velocity model. These lines are though not always meaningful.
+Possibility to plot 1 to 3 different indicators that may help for picking. This tool is for the moment only meant for display, to analyse data visually. Possible indicators are: Instant frequency, envelope, 2nd derivative of envelope, 2nd derivative of data, Sta-Lta transform, Akaike Information Criterium (AIC), max-min relation and autocorrelation. Max-min relation plots the relative amplitude difference between a maximum and its following minimum on the one hand and the same maximum and its preceding minimum on the other hand. Autocorrelation is usually plotted on its own since the time scale has no relation with the other options. On top of the autocorrelation, two traces are plotted: white is the average autocorrelation, yellow the average trace obtained from averaging the frequency spectra.
+
+A dialog box will open where you may check the desired indicators (1, 2 or 3 out of the 8 possibilities). The first indicator you click on will determine the red channel, the second one the green channel and the third one the blue channel. This implies also that if only one indicator is chosen, the plot will be between black and red. If 2 are chosen, colour may change between black, red, green, and yellow (no blue). If picks have been measured for the analysed gather, they are plotted on top of the false colour plot. In addition, a magenta line is plotted indicating evolution of maxima of the combined indicators (maximum brightness, Pythagoras of color values), as well as a white line which represents an optimum fit of the positions of the maxima via two straight lines. The maxima are possible picks, the straight lines indicate a possible two-layer velocity model. These lines are though not always meaningful.
 
 **$\textcolor{violet}{\text{Change trace sign}}$** (keyboard shortcut: **I**): 
-You may choose one or more traces which have wrong polarity (geophone or receiver electronics may have been reverse-cabled). Left click on one trace after the other. The last trace to be chosen should be marked a small red star will be plotted near the bottom of the trace plot. When all traces have been marked, press right mouse key.
+You may choose one or more traces which have wrong polarity (geophone or receiver electronics may have been reverse-cabled). Left click on one trace after the other. Each chosen trace is marked by a small red star plotted near the bottom of the trace plot. When all traces have been marked, press right mouse key.
 When the program is finished using $\textcolor{violet}{\text{File -> Quit}}$, a file “receivers modify.dat” is written indicating the muted traces, which may eventually be renamed to “receiver_corrections.dat” to make these changes durable.
 
 **$\textcolor{violet}{\text{Change sign}}$** (keyboard shortcut: **CTRL-I**): 
@@ -173,24 +174,33 @@ This option is only activated when a tomography model has been calculated and is
 Plots animation of wave evolution in time along the geophone line actually on the screen. Animation goes from first to last sample of actual time zoom. Data are smoothed with 3-point running average and amplitudes are cut at 99% quantile.
 
 **$\textcolor{violet}{\text{Attenuation}}$** (keyboard shortcut: **Q**): 
-Function searches for each trace the maximum of the envelopes of data plotted on the screen (you may use muting functions to focus surgically on certain phases). Amplitudes are multiplied by the absolute offset to counteract geometric spreading. Then, for each side of a shot point, an exponential function is fitted to the amplitude evolution, if at least 4 traces are available. If more than 6 traces exist on the corresponding side, two independent lines are fitted whose results may be interpreted as attenuation near the surface and deeper down. A plot is presented with the fitted logarithm of the amplitudes and the amplitude fit itself. Instead of slope, a Q value is indicated (-1/slope) as well as a r2 value for the ensemble of the two lines.
+Function searches for each trace the maximum of the envelopes of data plotted on the screen (you may use muting functions to focus surgically on certain phases). Amplitudes are multiplied by the absolute offset to counteract geometric spreading. Then, for each side of a shot point, an exponential function is fitted to the amplitude evolution, if at least 4 traces are available. If more than 6 traces exist on the corresponding side, two independent lines are fitted whose results may be interpreted as attenuation near the surface and deeper down. A plot is presented with the fitted logarithm of the amplitudes and the amplitude fit itself. Instead of slope, a Q value is indicated (-1/slope) as well as a r² value for the ensemble of the two lines.
 
 ### **$\textcolor{red}{\text{Picking Menu}}$**
 
-Introductory remarks: try to pick as many of your traces as possible before applying any filter or other data treatment. This is especially true for traces near the shot point, which have in general still high frequencies thus that their waveform is often be strongly affected by frequency or velocity filters.
+Introductory remarks: try to pick as many of your traces as possible before applying any filter or other data treatment. This is especially true for traces near the shot point, which have in general still high frequencies thus that their waveform is often strongly affected by frequency or velocity filters.
+
+From my experience, the best automatic picking results are mostly achieved using correlation picking, using it first on a good shot or file gather or doing first manual picking on one gather.
 
 **$\textcolor{violet}{\text{Manual picks}}$** (keyboard shortcut: **M**): 
+Manual picking.
 
-Manual picking. For all picks, two clicks with the left mouse button are needed: first you mark the position of the pick, then the uncertainty, which is considered to be symmetric around the pick position, so you may click above or below the pick position. A double click defines as default uncertainty 2 time-samples if no filter was applied to the data and 4 samples if a filter was applied.
+For all picks, two clicks with the left mouse button are needed: first you mark the position of the pick, then the uncertainty, which is considered to be symmetric around the pick position, so you may click above or below the pick position. A double click defines as default uncertainty 2 time-samples if no filter was applied to the data and 4 samples if a filter was applied.
 
 To finish, click right mouse button
 
 You may erase picks by clicking the central mouse button (or the mouse wheel). The program searches first the trace nearest to the mouse click and erases then the pick nearest to the click. If no pick is available for the corresponding trace, nothing will happen.
 
-When calling the tool, a stippled line is plotted showing the theoretical air-wave arrivals, which allows avoiding picking this wave as apparent direct wave, when working with near-surface data.
+When calling the tool, a stippled line is plotted showing the theoretical air-wave arrivals, which allows avoiding picking this wave as apparent direct wave, when working with near-surface data. In addition, a green stippled line is plotted, indicating picks done on other nearby traces at the same offset (maximum distance of nearby trace: 10 traces).
 
 **$\textcolor{violet}{\text{Amplitude picking}}$** (keyboard shortcut: **CTRL-A**): 
-Automatic picking tool that is based on finding subsequent maxima for which the relation is maximum after a time that is given by the “maximum velocity” asked for in the dialog box that opens on call. From the maxima found in this way, the program calculates a number of regression lines (number is given by the user) and looks for maximum amplitudes near these regression lines. The half-width of the maximum is a measure of frequency. Signal length allows avoiding the large amplitudes of surface waves from a certain distance on.
+Automatic picking tool that locates first arrivals by analysing full amplitudes.
+
+First all maxima and minima are determined. For each maximum (minimum), the function calculates first an amplitude parameter corresponding to `amp_pos = max-(min1+min2)` for maxima and `amp_neg = max1+max2-min` for minima, where 1 means the next extreme value before the actual one and 2 the next extreme value after the actual one.
+
+Then a vector is calculated with the relative amplitudes, i.e. `dmax[i] = amp_pos[i]/amp[i-1]` and `dmin = amp_neg[i]/amp_neg[i-1]`. The pick is located in a first try near the highest value of dmax, located later than a time `tstart`, precisely at the position of this maximum minus half the distance between the corrresponding maximum position and the following minimum position. `tstart` corresponds to the virtual arrival time of “maximum velocity” asked for in the dialog box that opens on call. If the maximum value of dmin is earlier than that of dmax and its value is larger than the one of dmax, then the pick is switched to the position of maximum dmin, shifted again by half the distance between this minimum and the following maximum.
+
+Then, as a last test, the function searches for a (near) zero-crossing between the chosen pick position and the corresponding maximum (minimum) of dmax (dmin). If there is one, it will be the final pick, if not the chosen pick is maintained.
 
 **$\textcolor{violet}{\text{Picking STA-LTA}}$** (keyboard shortcut: **SHFT-P**): 
 Standard STA-LTA picking. You must give window lengths for STA (short) and LTA (long). You have the possibility to do picking for all traces of the record section or first do a zoom and calculate picks only for the visible traces.
@@ -198,7 +208,7 @@ Standard STA-LTA picking. You must give window lengths for STA (short) and LTA (
 **$\textcolor{violet}{\text{Correlation picking}}$** (keyboard shortcut: **SHFT-C**): 
 Do first one manual pick on a good trace which will be used as reference trace. From this pick on, further picks are searched by cross correlation. If picks from other shots exist, they are used by the algorithm as guide (maximum correlation near to other picks made at the same offset). The picks are only calculated for the traces visible on the screen. So, if part of your data is noisy, you may first make a zoom on the good traces, do the correlation picking, then filter the data and do another zoom on the traces not yet picked. Uncertainties are set to 2 samples if no filter was applied to the data, else to 4 samples.
 
-**$\textcolor{violet}{\text{Plot picks}}$** (no keyboard shortcut)
+**$\textcolor{violet}{\text{Plot picks}}$** (no keyboard shortcut): 
 Plots all picks corresponding to actual data gather. Usually, you will not need this tool since picks are plotted automatically.
 
 **$\textcolor{violet}{\text{Move picks}}$** (keyboard shortcut: **CTRL-M**): 
@@ -216,14 +226,17 @@ Change uncertainties of picks. Use is similar as for moving picks: Vertical keyb
 **$\textcolor{violet}{\text{Erase all picks}}$** (keyboard shortcut: **CTRL-E**): 
 Erase all picks of the actually shown seismogram gather (other picks are maintained). Usually used if automatic picking gave too bad results.
 
-**$\textcolor{violet}{\text{Plot calculated times}}$** (no keyboard shortcut)
+**$\textcolor{violet}{\text{Plot calculated times}}$** (no keyboard shortcut): 
 Activated after using Tomography or if the program at start finds a file called “calc_picks.dat”. The calculated picks are plotted as a connected line. As long as this tool is not pressed again, calculated picks are plotted for all gathers. Deactivation of the tool takes only effect at the next screen refreshment (next gather, next zoom etc.)
 
 **$\textcolor{violet}{\text{Store picks}}$** (keyboard shortcut: **CTRL-S**): 
-Store all available picks (not only those of the actual seismogram gather) into two files. The standard file used by PyRefra is “picks.dat”. It has 5 columns:
-nr shot point, nr receiver pt, picked time, picked time minus uncertainty, picked time plus uncertainty
+Store all available picks (not only those of the actual seismogram gather) into file “picks.dat”. It has 5 columns:
+
+`nr shot point, nr receiver pt, picked time, picked time minus uncertainty, picked time plus uncertainty`
+
 nr shot point as in file shots.geo, nr receiver point as in file receivers.geo. The uncertainties are normally considered to be symmetric, but certain automatic picking routines may give different uncertainties before and after the pick.
-In the latest version, PyRefra stores automatically all picks each time manual picking is finished with right mouse key. However, automatic picking routines don’t do this yet, mainly because they are too uncertain. It is recommended to use CTRL-S after automatic picking if you are satisfied.
+
+PyRefra stores automatically all picks each time manual picking is finished with right mouse key. However, automatic picking routines don’t do this yet, mainly because they are too uncertain. It is recommended to use CTRL-S after automatic picking if you are satisfied.
 
 **$\textcolor{violet}{\text{Store Gimli format}}$** (no keyboard shortcut): 
 Stores calculated picks in Gimli format (file picks.sgt), used by the Tomography tool. Usually, you do not need this tool, since when calling Tomography, the measured picks are automatically stored in this format before starting inversion.
@@ -246,12 +259,12 @@ F-K filtering of all velocities less than 400 m/s.
 
 **$\textcolor{violet}{\text{Velocity filter}}$** (keyboard shortcut: **CTRL-V**): 
 F-K filtering choosing interactively the cutting velocity (all smaller velocities will be attenuated).
-The cutting velocity is defined interactively by pulling a slider to the desired position. To accept the chosen velocity, release the mouse. The program then asks you whether you want to apply the same filter to all gathers or only to the visible one. The chosen velocity as saved as default velocity for further velocity filtering.
+The cutting velocity is defined interactively by pulling a slider to the desired position. To accept the chosen velocity, release the mouse. The program then asks you whether you want to apply the same filter to all gathers or only to the visible one. The chosen velocity is saved as default velocity for further velocity filtering.
 
 ### **$\textcolor{red}{\text{Mute Menu}}$**
 
 **$\textcolor{violet}{\text{Mute/recover trace}}$** (keyboard shortcut: **CTRL-T**): 
-Click left on all trace you want to mute (small red star is plotted near the lower end of the trace) or which you want to plot again if it was muted (a small green star is plotted at that place). Finish with right click.
+Click left on all traces you want to mute (small red star is plotted near the lower end of the trace) or which you want to plot again if it was muted (a small green star is plotted at that place). Finish with right click.
 
 The muting will be applied to all traces having been recorded at the same receiver position.
 When the program is finished using “File -> Quit”, a file “receivers modify.dat” is written indicating the muted traces, which may eventually be renamed to “receiver_corrections.dat” to make these changes durable.
@@ -260,9 +273,9 @@ When the program is finished using “File -> Quit”, a file “receivers modif
 Mute a stripe around the air wave (mainly thought as preparation before treating data as reflection seismics). In the dialog box give estimated air-wave velocity, the total with of the stripe and the width of the taper to both sides. If you are not happy with the result, go back to original data (SHFT-O) and try again.
 
 **$\textcolor{violet}{\text{Mute before line}}$** (keyboard shortcut: **L**): 
-Click left and draw multiple line segments, finish with right click. Data before the traced line are eliminated for each trace before the nearest zero-crossing. Traces that are not crossed by the line (at the right or left side of the screen will not be muted!
+Click left and draw multiple line segments. The last segment is finished with right click (i.e. the right click defines one more point).  Data before the traced line are eliminated for each trace before the nearest zero-crossing. Traces that are not crossed by the line (at the right or left side of the screen will not be muted!
 
 **$\textcolor{violet}{\text{Mute after line}}$** (keyboard shortcut: **SHFT-L**): 
-Click left and draw multiple line segments, finish with right click. Data after the traced line are eliminated for each trace from the nearest zero-crossing on. Traces that are not crossed by the line (at the right or left side of the screen will not be muted!
+Click left and draw multiple line segments. The last segment is finished with right click (i.e. the right click defines one more point).  Data after the traced line are eliminated for each trace from the nearest zero-crossing on. Traces that are not crossed by the line (at the right or left side of the screen will not be muted!
 
 

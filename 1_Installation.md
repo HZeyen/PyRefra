@@ -6,7 +6,7 @@
 
 2. Copy the following files all into the same folder of your choice: 
 
-+ refraPy.py (the main program)
++ PyRefra.py (the main program)
 + refraData.py
 + refraPlot.py
 + refraWindow.ui
@@ -28,7 +28,7 @@ This opens a command window. Then type the following commands:
     + In the main window search for the icon “Spyder” and click on “Install” or, if it is already installed, on “Launch”.
 
 6. Open Spyder
-        + Open file refraPy.py (File -> open…)
+        + Open file PyRefra.py (File -> open…)
         + In the Spyder tool bar click Run -> Configuration per file -> Execute in dedicated console
 
 Then you may modify a few default settings in some packages for nicer plots or to avoid warnings:

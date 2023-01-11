@@ -7,4 +7,4 @@ For installation instructions see [1. Instruction](./1_Installation.md)
 
 [3_Running_PyRefra.md](./3_Running_PyRefra.md) is the main manual describing menu entries and other options
 
-All these instructions are combined in a file PyRefra.pdf](./PyRefra.pdf)
+All these instructions are combined in a file [PyRefra.pdf](./PyRefra.pdf)

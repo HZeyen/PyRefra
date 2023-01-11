@@ -96,7 +96,7 @@ Plot distance gathers, i.e., all traces from all acquired files that have a comm
 **$\textcolor{red}{\text{Zoom options}}$**:
 Most zoom options are maintained from one plotting window to the others
 
-**$\textcolor{violet}{\text{Zoom}}** (keyboard shortcut: **Z**): 
+**$\textcolor{violet}{\text{Zoom}}$** (keyboard shortcut: **Z**): 
 Trace a rectangle with left mouse key maintained pressed to select data to be shown (as well in time as in distance). When the mouse button is released, the zoom is accepted. The time limits of the zoom will be maintained from one plot to the next, however not the x limits. When calling a new plot, again all traces are plotted.
 
 **$\textcolor{violet}{\text{Zoom out}}$** (keyboard shortcut: **CTRL-Z**): 

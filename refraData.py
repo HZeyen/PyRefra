@@ -3,7 +3,7 @@
 Created on Sun Dec  8 18:51:50 2019
 last modified on Fri Dec 23, 2022
 
-@author: Hermann
+@author: Hermann Zeyen
 
 Contains the following Classes:
     Files

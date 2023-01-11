@@ -1,6 +1,6 @@
 # Running PyRefra
 
-To start **refrapy.py**, the best is to open it in Spyder and click on the green arrow or press F5. **If you configured Spyder as indicated in “Installation.5”, and you restart refraPy, you must first close the console of the earlier run. If not, a possible change of the folder will not be taken into account.**
+To start **PyRefra.py**, the best is to open it in Spyder and click on the green arrow or press F5. **If you configured Spyder as indicated in “Installation.5”, and you restart refraPy, you must first close the console of the earlier run. If not, a possible change of the folder will not be taken into account.**
 
 Before running the program, $\textcolor{red}{\text{you must define the path to the python files}}$ and may want to set manually the path to your data folder. For this go to **approximately line 90**. There, you will see a line starting with `sys_path = r”…”`. Replace the existing path by the path of the python files. In the following line, starting with `self.dir0 = r”…”`, replace the existing path by the path to the data files. This is not necessary, since you may choose the path interactively, but if you work for a longer time on the same data set, it avoids searching on each program start your data on the disk.
 

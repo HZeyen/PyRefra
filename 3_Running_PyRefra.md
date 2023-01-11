@@ -14,7 +14,7 @@ This warning comes from “import obspy”. Hope, obspy developers will do somet
 
 When opened, the GUI shows in the $\textcolor{blue}{\text{main window}}$ the data of the shot gather corresponding to the first shot point. A smaller window to the right shows all available $\textcolor{red}{\text{shot point numbers}}$. Clicking on one of the names plots the seismograms of the corresponding shot point in the $\textcolor{blue}{\text{main window}}$. Beneath the main window, a $\textcolor{green}{\text{help text}}$ is shown. To be visible, it may be necessary that the Windows task bar be automatically hidden. Above the main window, a $\textcolor{violet}{\text{menu bar}}$ is placed.
 
-![Main_window_screen_copy](https://github.com/HZeyen/PyRefra/blob/main/Screen_shot_refrapy.png)
+![Main_window_screen_copy](https://github.com/HZeyen/PyRefra/blob/main/images/Screen_shot_refrapy.png)
 
 The first thing to do will be to increase the GUI to full screen size. If the window is too small, certain graphs containing multiple partial windows (e.g., tomography results) will not show up correctly, even in the stored png files (overlapping axis texts of different sub-windows).
 

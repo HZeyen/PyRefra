@@ -68,4 +68,6 @@ Also at the very end, find line containing `WARNING_HEADER` and comment it out.
 
 This is not important for working of the program, but it avoids an annoyingly long warning message each time you start the program.
 
+In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg2.py** the line `if key == 'NOTE':` (line 337) in the line just above, change `value = ''` by `value = b''`
+
 If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`

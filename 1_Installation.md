@@ -10,15 +10,15 @@
 + refraData.py
 + refraPlot.py
 + refraWindow.ui
-3. Download and install Anaconda Individual Edition
+3. Download and install Anaconda
 4. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
 This opens a command window. Then type the following commands:
     + `conda update --all`
     + `conda config --add channels gimli --add channels conda-forge`
 « channels » is the place where to find the source code, here « gimli » and “conda-forge”
-    + `conda create -n pg pygimli pybert`
-(this may take quite some time, don’t worry about error messages as long as conda is running). Here, “pg” means the new environment called “pg”. Pybert is not necessary for PyRefra, but if you want also to use Orsay ERT inversion programs, better to install everything together.
-        + `conda activate pg` (activation of the environment “pg”)
+    + `conda create -n pg pygimli`
+(this may take quite some time, don’t worry about error messages as long as conda is running).
+        + `conda activate pg`
         + `conda install obspy`
         + `conda install statsmodels`
         + `conda update –all`  (just to be sure to have the latest versions)

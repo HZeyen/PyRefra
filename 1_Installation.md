@@ -4,14 +4,18 @@
 
     It is strongly recommended to use a mouse. The program needs the central mouse button (or wheel). If you are working with a touchpad, configure it such that it simulates the central mouse button. The simplest is certainly to configure a three-finger-touch as central button. For this, under Windows press the WINDOWS-Key+I. On the screen that appears, click on “Périfériques” (the English version may be "Devices"). There, on the left-side panel, search “Pavé tactile” ("Touch Pad" in English?). Scroll down until you see the image with three fingers. Below this image, under “Appuis”, change to “Button central de la souris” ("Central mouse button"?).
 
-2. Copy the following files all into the same folder of your choice: 
+2. Download/clone the following files all into the same folder of your choice : 
 
 + PyRefra.py (the main program)
 + refraData.py
 + refraPlot.py
 + refraWindow.ui
 3. Download and install Anaconda
-4. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
+
+4. Form here, the windows installation is presented, while [Linux Installations](Linux_Installation.md)  is provided as well.
+
+
+6. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
 This opens a command window. Then type the following commands:
     + `conda update --all`
     + `conda config --add channels gimli --add channels conda-forge`

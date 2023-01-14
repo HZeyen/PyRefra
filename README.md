@@ -1,4 +1,7 @@
 # PyRefra
+
+![PyRefra](./pics-AI.png)
+
 Software package for treatment and tomography of multishot refraction seismic data. Working under linux and widowns OS.
 
 For installation instructions see [1. Installation instructions](./1_Installation.md).

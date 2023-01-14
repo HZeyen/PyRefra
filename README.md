@@ -1,7 +1,7 @@
 # PyRefra
 Software package for treatment and tomography of multishot refraction seismic data. Working under linux and widowns OS.
 
-For installation instructions see [1. Instruction](./1_Installation.md).
+For installation instructions see [1. Installation instructions](./1_Installation.md).
 
 [2_Data_preparation.md](./2_Data_preparation.md) describes file naming conventions and necessary geometry files.
 

@@ -97,7 +97,7 @@ class Window(QMainWindow, Ui_MainWindow):
         super(Window, self).__init__()
         self.setupUi(self) #Set up main window based on file window.ui created with QT Designer
         self.setWindowTitle("Data window")
-        self.setWindowIcon(QtGui.QIcon(main.sys_path+"/Py_Refra_Image.png"))
+        self.setWindowIcon(QtGui.QIcon(main.sys_path+"/PyRefra_Logo.png"))
         self.fig = Figure() #create a first figure in central widget
         self.addMPL(self.fig)
         self.verticalSlider.setVisible(False)

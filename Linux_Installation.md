@@ -23,4 +23,31 @@ In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg
 
 If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`
 
-3. You can lauch spyder in the pg environment and run the example data-set
+3. For nicer plots in **PyGimli**, modify numbering format in drawDataMatrix
+The function is found in file **path_to_environment_site-packages/pygimli/viewer/mpl/dataview.py**
+
+There, search lines starting with
+
+`ax.set_xticklabels` and
+
+`ax.set_yticklabels`
+
+and change the rounding to 0 ciphers instead of the default 2 ciphers:
+
+`ax.set_xticklabels(['{:g}'.format(round(xx[int(ti)], 0)) for ti in xt])`
+
+4. In addition, it is interesting, though not absolutely necessary to add the following code to **pgimly** which allows summing up the number of rais having crossed each cell during all iterations and in this way plotting the final model avoiding the areas where no rai at all passed during any of the iterations:
+
+File **Epath_to_environment_site-packages/pygimli/frameworks/inversion.py**
+
+After line 522 (containing `startModel = self.startModel`) add:
+
+`self.fop.cov_sum = np.zeros(len(self.fop.startModel()))`
+
+After line 591 (starting with `self.modelHistory.append`) add:
+
+`self.fop.cov_sum += self.fop.jacobian().transMult(np.ones(self.fop.jacobian().rows()))`
+
+
+
+5. You can lauch spyder in the pg environment and run the example data-set

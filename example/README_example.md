@@ -22,9 +22,10 @@ Or open a command window (under Windows: Anaconda Prompt) and execute the follow
 
 The program starts asking for the data files you want to treat. Chose all available ones. Then the data from the first shot point show up, which correspond to those of file 1. Shot points 1 to 31 are available in the right window.
 
-![Main_window_screen_copy](https://github.com/HZeyen/PyRefra/blob/main/images/Screen_shot_refrapy.png)
+![Start_window](https://github.com/HZeyen/PyRefra/blob/main/example/images/First_screen_shot-point1.PNG)
 
 If you switch to file gather instead of shot gather, you will see that the available numbers change from 1 to 34, with a few missing numbers (missing files).
 
+![File_gather](https://github.com/HZeyen/PyRefra/blob/main/example/images/Second_screen_file_gather1.PNG)
 
 Stop the program, copy file file_corrections.dat and calc_picks.dat (perhaps also picks.dat) back to the data folder and run again. The trigger time corrections are done, and you may explore the program and do some picking, creating a new file picks.dat. Try also plotting the calculated arrival times.

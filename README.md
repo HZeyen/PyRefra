@@ -11,4 +11,4 @@ For installation instructions see [1. Installation instructions](./1_Installatio
 
 All these instructions are combined in a file [PyRefra.pdf](./PyRefra.pdf).
 
-Once installed, you can test and get familiar with the codes by using the [example](./example) folder.
+Once installed, you can test and get familiar with the codes by using the [example](./example) folder. See Readme file there.

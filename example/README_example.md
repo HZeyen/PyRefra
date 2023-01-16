@@ -22,6 +22,7 @@ Or open a command window (under Windows: Anaconda Prompt) and execute the follow
 
 The program starts asking for the data files you want to treat. Chose all available ones. Then the data from the first shot point show up, which correspond to those of file 1. Shot points 1 to 31 are available in the right window.
 
+![Main_window_screen_copy](https://github.com/HZeyen/PyRefra/blob/main/images/Screen_shot_refrapy.png)
 
 If you switch to file gather instead of shot gather, you will see that the available numbers change from 1 to 34, with a few missing numbers (missing files).
 

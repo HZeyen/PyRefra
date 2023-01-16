@@ -17,15 +17,20 @@
 
 6. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
 This opens a command window. Then type the following commands:
-    + `conda update --all`
-    + `conda config --add channels gimli --add channels conda-forge`
-« channels » is the place where to find the source code, here « gimli » and “conda-forge”
-    + `conda create -n pg pygimli`
+    1. `conda update --all`
+    2. `conda config --add channels gimli --add channels conda-forge`
+    3. `conda create -n pg pygimli`
 (this may take quite some time, don’t worry about error messages as long as conda is running).
-        + `conda activate pg`
-        + `conda install obspy`
-        + `conda install statsmodels`
-        + `conda update –all`  (just to be sure to have the latest versions)
+    4. `conda activate pg`
+    5. `conda install obspy`
+    6. `conda install statsmodels`
+    7. `conda update –all`  (just to be sure to have the latest versions)
+
+    I had sometimes problems with Conda blocking or installing only parts. In this case, after `conda update --all`, continue with
+
+         ii. `conda install mamba`    
+        iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels`
+    In this case, do **not** go to pg and update --all, this may destroy the environment.
         
 5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
     + In the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)

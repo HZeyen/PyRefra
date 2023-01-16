@@ -21,7 +21,7 @@ This is not important for working of the program, but it avoids an annoyingly lo
 
 In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg2.py** the line `if key == 'NOTE':` (line 337) in the line just above, change `value = ''` by `value = b''`
 
-If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`
+If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **path_to_environment_site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`
 
 3. For nicer plots in **PyGimli**, modify numbering format in drawDataMatrix
 The function is found in file **path_to_environment_site-packages/pygimli/viewer/mpl/dataview.py**

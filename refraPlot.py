@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Tue Dec 06, 2022
+last modified on Mon Jan 16, 2023
 @author: Hermann
 
 Contains the following Class:
@@ -97,7 +97,7 @@ class Window(QMainWindow, Ui_MainWindow):
         super(Window, self).__init__()
         self.setupUi(self) #Set up main window based on file window.ui created with QT Designer
         self.setWindowTitle("Data window")
-        self.setWindowIcon(QtGui.QIcon("C:\Documents\Orsay\logoIDES.jpg"))
+        self.setWindowIcon(QtGui.QIcon(main.sys_path+"/Py_Refra_Image.png"))
         self.fig = Figure() #create a first figure in central widget
         self.addMPL(self.fig)
         self.verticalSlider.setVisible(False)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Sun Dec 23, 2022
+last modified on Mon Jan 16, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -95,8 +95,8 @@ import os
 
 # Paths on HZ computer
 sys_path = r"C:/Sources_2010/Python_programs"
-#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
+dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
 #dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-13-14_profil1"
 
 # Example of paths for programs and data on department desktop
@@ -129,8 +129,10 @@ class Main(QtWidgets.QWidget):
             os.chdir(dir0)
             self.dir0 = dir0
             self.dir_flag = True
+            self.sys_path = sys_path
         except:
             self.dir0 = None
+            self.sys_path = sys_path
 
 # Input data
         self.fileOpen()

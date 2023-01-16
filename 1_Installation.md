@@ -10,6 +10,7 @@
 + refraData.py
 + refraPlot.py
 + refraWindow.ui
++ Py_Refra_Image.png
 3. Download and install Anaconda
 
 4. Form here, the windows installation is presented, while [Linux Installations](Linux_Installation.md)  is provided as well.

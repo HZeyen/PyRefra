@@ -95,7 +95,7 @@ import os
 
 # Paths on HZ computer
 sys_path = r"C:/Sources_2010/Python_programs"
-dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-16_Profil4"
 #dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
 #dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-13-14_profil1"
 

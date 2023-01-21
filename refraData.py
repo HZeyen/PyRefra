@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Fri Dec 23, 2022
+last modified on Sat Jan 21, 2023
 
-@author: Hermann Zeyen
+@author: Hermann
 
 Contains the following Classes:
     Files
@@ -1618,6 +1618,8 @@ class Traces():
         sensors_s = np.zeros((nsht,3))
         sensors_r = np.zeros((nrec,3))
         xs =np.array([self.geom.sht_dict[d]["x"] for d in self.geom.sht_dict])
+#         xs =np.array([self.traces.sht_pt_dict[d]["x"] for d in self.geom.sht_dict])
+# sht_pt_dict
         sensors_s[:,0] = xs
         ys = np.array([self.geom.sht_dict[d]["y"] for d in self.geom.sht_dict])
         sensors_s[:,1] = ys
@@ -1634,6 +1636,8 @@ class Traces():
         zmax = max(zmax1,zmax2)
         sensors_s[:,2] -= zmax
         sensors_r[:,2] -= zmax
+        shts = list(self.geom.sht_dict.keys())
+        recs = list(self.geom.rec_dict.keys())
 
         sensors = np.unique(np.concatenate((sensors_r,sensors_s)),axis=0)
 
@@ -1649,9 +1653,11 @@ class Traces():
         e = np.zeros((nsht,nrec))
         n = np.zeros((nsht,nrec),dtype=int)
         for i in range(nsht):
+            ii = shts[i]
             for j in range(nrec):
-                if (i,j) in self.sht_rec_dict:
-                    ntr = self.sht_rec_dict[(i,j)]
+                jj = recs[j]
+                if (ii,jj) in self.sht_rec_dict:
+                    ntr = self.sht_rec_dict[(ii,jj)]
                 else:
                     continue
                 if self.npick[ntr] > 0:
@@ -3495,9 +3501,10 @@ class Utilities:
                      "any letter in one of the two: special velocity scale",\
                      "Velocity color scale min [m/s]",\
                      "Velocity color scale max [m/s]",\
+                     "Plot rays on final model",\
                      "Plot title"],\
-                    ["e","e","e","e","e","e","e","e","e","l","e","e","e"],\
-                    [self.zmax,200,0.97,0.2,0,200,4000,150,6000,None,'v',-1,\
+                    ["e","e","e","e","e","e","e","e","e","l","e","e","c","e"],\
+                    [self.zmax,200,0.97,0.2,0,200,4000,150,6000,None,'v',None,-1,\
                      self.main.dir0],"Inversion parameters")
 
             if not okButton:
@@ -3526,12 +3533,16 @@ class Utilities:
                 self.scale_flag = True
             except:
                 self.scale_flag=False
-            self.plot_title = results[12]
+            if int(results[12]) > -1:
+                self.rays_flag = True
+            else:
+                self.rays_flag = False
+            self.plot_title = results[13]
 
 # Initialize PyGimli TravelTime Manager and set control parameters
             self.mgr = TravelTimeManager()
             self.mgr.inv.inv.setLambdaFactor(self.s_fact)
-            self.mgr.inv.setOptimizeLambda = True
+#            self.mgr.inv.setOptimizeLambda = True
 # Do tomography inversion. If maxiter == 0, stop iterationautomatically if
 #    chi2<1 of if error does not decrease by more than 1% (dPhi=0.01)
 #    if maxiter>0 stop iterations latest after maxiter iterations (but earlier if
@@ -3628,10 +3639,11 @@ class Utilities:
                                 " any letter in one of the two: special velocity scale",\
                                 "Velocity color scale min [m/s]",\
                                  "Velocity color scale max [m/s]",\
-                                 "Maximum depth [m]"],\
-                                ["l","e","e","e"],\
-                                [None,self.min_v,self.max_v,self.zmax_plt],\
-                                 "Change color scale")
+                                 "Maximum depth [m]",\
+                                 "Plot rays on final model"],\
+                                ["l","e","e","e","c"],\
+                                [None,self.min_v,self.max_v,self.zmax_plt,\
+                                None],"Change color scale")
             self.zmax_plt = float(res[3])
             try:
                 self.v_scale_min = float(res[1])
@@ -3639,6 +3651,10 @@ class Utilities:
                 self.scale_flag = True
             except:
                 self.scale_flag = False
+            if int(res[4]) > -1:
+                self.rays_flag = True
+            else:
+                self.rays_flag = False
         if self.scale_flag:
 # If color scales are negative (default in first dialog box), they are set
 #    to the quantiles rounded to the next 100 m/s
@@ -3656,7 +3672,7 @@ class Utilities:
             norm = mpl.colors.Normalize(vmin = 150, vmax = 6000)
             self.min_v = 150
             self.max_v = 6000
-# Set color scale and colors for values above and below extreme scale values
+# Define color scale and colors for values above and below extreme scale values
         vel_scale(self)
 
 # Define grid for different partial figures
@@ -3784,6 +3800,9 @@ class Utilities:
                          format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
                          orientation='vertical',aspect=25, shrink=0.9,\
                          extend='both')
+        if self.rays_flag:
+            _ = self.mgr.drawRayPaths(ax=self.ax_mod, color="black", lw=0.3,\
+                                      alpha=0.5)
         ticks_x_mod = self.window.set_ticks(self.xax_min,\
                             self.xax_max,ntick=10)
         self.ax_mod.set_xticks(ticks_x_mod)
@@ -3805,17 +3824,21 @@ class Utilities:
                                      for d in self.geom.sht_dict]),2)
             rpu = np.round(np.array([self.geom.rec_dict[d]["x"]\
                                      for d in self.geom.rec_dict]),2)
+            shts = list(self.geom.sht_dict.keys())
+            recs = list(self.geom.rec_dict.keys())
             for i,p in enumerate(rays.get_paths()):
                 ispt = self.mgr.fop.data.id("s")[i]
                 irpt = self.mgr.fop.data.id("g")[i]
                 cs = np.round(self.scheme.sensors().array()[ispt],2)[0]
                 cr = np.round(self.scheme.sensors().array()[irpt],2)[0]
                 try:
-                    ispt = np.where(spu == cs)[0][0]
+#                    ispt = shts[np.where(spu == cs)[0][0]]
+                    ispt = shts[np.where(spu == cs)[0][0]]
                 except:
                     continue
                 try:
-                    irpt = np.where(rpu == cr)[0][0]
+#                    irpt = recs[np.where(rpu == cr)[0][0]]
+                    irpt = recs[np.where(rpu == cr)[0][0]]
                 except:
                     continue
                 fo.write(f"{ispt+1} {irpt+1} {self.calc[i]:0.4f}\n")
@@ -3853,7 +3876,7 @@ class Utilities:
                     irpt = self.mgr.fop.data.id("g")[i]
                     cs = self.scheme.sensors().array()[ispt]
                     cr = self.scheme.sensors().array()[irpt]
-                    fo.write(f"{len(p.vertices)} : ray {i}, shot {cs}, rec {cr}"+\
+                    fo.write(f"{len(p.vertices)} : ray {i}, shot {ispt} {cs}, rec {irpt} {cr}"+\
                              f"     calc: {self.calc[i]:0.4f} ms, calc-meas: "+\
                              f"{diff_abs[i]:0.4f} ms\n")
                     for vert in p.vertices:
@@ -3941,6 +3964,9 @@ class Utilities:
         elif code == 67:
             self.window.figs[ip].savefig(os.path.join(self.p_aim,\
                                 "inversion_results.png"))
+        self.traces.calc_picks = False
+        self.traces.readCalcPicks()
+
 
     def invCol(self):
         """

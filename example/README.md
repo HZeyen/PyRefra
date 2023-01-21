@@ -6,9 +6,10 @@ Several shots had bad trigger timing, triggering too early. In file “file_corr
 
 Finally, there is a file “picks.dat” containing picks already done by myself and a file “calc_picks.dat” containing calculated picks from a tomography model.
 
-To test the program, you should copy all files into a folder which may be different from the program folder. Though not necessary, you may first store the path to this data folder in PyRefra.py, variable dir0.
+To test the program, you should copy all files into a folder which may be different from the program folder. Now, you may first store files file_corrections.dat, picks.dat and calc_picks.dat somewhere else (or change their names), just to see the original data with the wrong arrival times for the above-mentioned files.
 
-Now, you may first store files file_corrections.dat, picks.dat and calc_picks.dat somewhere else (or change their names), just to see the original data with the wrong arrival times for the above-mentioned files. 
+Edit PyRefra.py: Find line starting with `sys_path =` (approx. line 97) and replace the existing path with the path to the folder where the program files are stored.
+On the following line starting with `dir0 =`, you may replace the existing path with the one where the data files are stored.
 
 Open spyder and within spyder PyRefra.py and run the program,
 

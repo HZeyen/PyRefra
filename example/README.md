@@ -27,6 +27,9 @@ The program starts asking for the data files you want to treat. Chose all availa
 
 If you switch to file gather instead of shot gather, you will see that the available numbers change from 1 to 34, with a few missing numbers (missing files).
 
-![File_gather](https://github.com/HZeyen/PyRefra/blob/main/example/images/Second_screen_file_gather1.PNG)
+![File_gather](./images/Second_screen_file_gather1.PNG)
+
+Click on File 6 in the right window and see the wrong trigger time:
+![File_gather](./images/Wrong_file6.PNG)
 
 Stop the program, copy file file_corrections.dat and calc_picks.dat (perhaps also picks.dat) back to the data folder and run again. The trigger time corrections are done, and you may explore the program and do some picking, creating a new file picks.dat. Try also plotting the calculated arrival times.

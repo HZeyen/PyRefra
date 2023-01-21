@@ -1,6 +1,6 @@
 # PyRefra
 
-<img src="./images/pics-AI.png" alt="PyRefra" width="300"/>
+<img src="./images/PyRefra_Logo.png" alt="PyRefra" width="800"/>
 Software package for treatment and tomography of multishot refraction seismic data. Working under Linux and Windows OS.
 
 For installation instructions see [1. Installation instructions](./1_Installation.md).

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Sat Jan 21, 2023
+last modified on Tue Mar 21, 2023
 
-@author: Hermann
+@author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Classes:
     Files
@@ -17,12 +17,13 @@ Contains the following Classes:
             readData
             getFileCorrections
             getReceiverCorrections
+            mute_before_pick
             tr_head_seg2_y
-            seg2_write
             saveSEGY
             saveSU
             saveSEG2
                 print_float
+            seg2_write
             saveBinary
             saveASCII
 
@@ -57,14 +58,17 @@ Contains the following Classes:
             filterAll
             filterTrace
                 onPress
+            ffilter
             frequencyFilter
             FK_filt
             airWaveFilter
             velocityFilter
+            v_nmo
             inversion
                 vel_scale
             invCol
-            attenFFT
+            prepareSOFI2D
+            atten_amp
 
 
 """
@@ -81,6 +85,8 @@ import scipy.signal
 import sys
 from copy import deepcopy
 from datetime import datetime,date
+#import matplotlib.tri as tri
+from scipy.interpolate import griddata
 
 class Files():
     def __init__(self, dir0):
@@ -97,6 +103,10 @@ class Files():
         files = list(QtWidgets.QFileDialog.getOpenFileNames(None,\
                     "Select seismic data files", "",\
                     filter="seg2 (*.seg2 *.sg2) ;; segy (*.sgy *.segy) ;; all (*.*)"))
+        if len(files) == 0:
+            print("No file chosen, program finishes")
+            sys.exit("No file chosen")
+
 # Sort chosen file names
         files[0].sort()
 # Check data format (SEG2 or SEGY)
@@ -439,18 +449,64 @@ class Data():
     #         fo.write(f"{self.dt} {self.t0} dt [seconds], t0 [seconds]\n")
     #         np.savetxt(fo, np.transpose(v))
 
-    def tr_head_seg2_y(self,trace,tr,x_fact=100):
+    def mute_before_pick(self, tr, t, delay):
+        """
+        Function mutes data of a trace measured before a time t_cut calculated
+        as follows:
+        If a time-break has been measured, the function searches for the minimum
+        trace value in the time range pick-time+delay to pick-time+2*delay.
+        From this minimum on backwards, a linear slope of length delay/4 is
+        applied to the data to bring them gradually towards zero. All data
+        before time-of-minimum minus slope-length are set to zero. The returned
+        time t_cut is the time of centre of slope.
+        If no time break has been picked, the trace is returned unchanged and
+        t_cut is returned with zero velue.
+
+        Parameters
+        ----------
+        tr : Numpy float array
+            Contains data of trace
+        t : float
+            Picked travel time [s] with respect to the first sample.
+            If t is negative, it is supposed that no time break exists
+        delay : float
+            Supposed to be the approximate period of the signal near its
+            beginning [s].
+
+        Returns
+        -------
+        tr : numpy float array
+            Contains modified data of trace
+        t_cut : float
+           Contains cutting time [s] (see above in general comment for defintion)
+
+        """
+#        if self.main.traces.npick[t] == 0:
+        if t < 0.:
+            t_cut = 0.
+        else:
+            idel = int(delay/self.main.data.dt)
+#            i_start = int(self.main.traces.pick_times[t][0]/self.main.data.dt)+idel
+            i_start = int(t/self.main.data.dt)+idel
+            imax = i_start+idel
+            imin = np.argmin(tr[imax:imax+idel])+imax
+            n_slope = int(idel/4)
+            fac = np.arange(n_slope)/n_slope
+            i1 = imin-n_slope
+            tr[i1:imin] *= fac
+            tr[:i1] = 0.
+            t_cut = (i1+n_slope/2)*self.main.data.dt
+        return tr,t_cut
+
+    def tr_head_seg2_y(self,tr_in_file,trace,tr,x_fact=100):
         """
         Fill SEGY trace header with information from SEG2 header
 
         Input:
-        tr (Stream from obspy): Data of one trace
-        tr_in_shot: int
-                    number of trace in actual shot (not necessarily nr trace in
-                    file if the same shot point has been recorded in different
-                    files, natural counting)
         tr_in_file: int
-                    number of trace in the SEGY file to be written
+                    number of trace in the SEGY file to be written starting with 0
+        trace: number of trace from list of all recorded traces starting with 0
+        tr (Stream from obspy): Data of one trace
         x_fact : int
                     factor with which to multiply distances (potences of 10, default 100)
 
@@ -515,9 +571,10 @@ class Data():
         tr.stats.segy.trace_header.trace_number_within_the_original_field_record\
             = trace_nr+1
         tr.stats.segy.trace_header.trace_sequence_number_within_line =\
-            trace_nr+1
+            trace+1
+#            trace_nr+1
         tr.stats.segy.trace_header.trace_sequence_number_within_segy_file =\
-            trace_nr+1
+            tr_in_file+1
         tr.stats.segy.trace_header.group_coordinate_x = \
             round(self.main.geo.rec_dict[receiver_nr]["x"]*x_fact)
         tr.stats.segy.trace_header.group_coordinate_y = \
@@ -543,9 +600,341 @@ class Data():
         tr.stats.segy.trace_header.instrument_gain_constant = \
             int(tr.stats.seg2.FIXED_GAIN)
         tr.stats.segy.trace_header.gain_type_of_field_instruments = 1
-        tr.stats.segy.trace_header.data_use = 1
+#        tr.stats.segy.trace_header.data_use = 1
         tr.stats.segy.trace_header.coordinate_units = 1
         return tr
+
+    def saveSEGY(self):
+        """
+        Function saves data of all shot points or only one into one or several
+        files in SEGY or SU format.
+        The data stored are the ones actually on the screen, including all
+        filters and mutes.
+
+        Returns
+        -------
+        None.
+
+        """
+        from obspy.io.segy.segy import SEGYTraceHeader
+        from obspy.io.segy.segy import SEGYBinaryFileHeader
+        self.main.function = "save_SEGY"
+
+# Open dialog window for storing parameters:
+#   You may store all data, all data except for the ones stored before the trigger
+#      or just the ones of the zoom presented on the screen.
+#   You may store only the actual shot or all shots
+#   If all shots are stored, you may put them all into one file called rec00000.sgy
+#      or each shot into its own file called recnnnnn.sgy, nnnnn being the
+#      shotpoint number
+#   Since coordinates are stored as integers, you may multiply them, e.g., with
+#      100 if the precision should be cm.
+#   You may choose applying the last used frequency filter or not
+#   If there are several traces from the same shot and receiver points, you may
+#      store all multiple traces or only the first one found.
+        if self.main.utilities.high_cut_flag or self.main.utilities.low_cut_flag:
+            results, okButton = self.main.dialog(\
+#                              ["Start_time (a(ll)/0/w(indow))",\
+                              ["Start_time",\
+                               ["All data","Start at time break","save window",\
+                                "Zero and mute before pick"],\
+                               "All data in one file (y/n)",\
+                               "Only this shot (y/n)",\
+                               "Multiplicator for distances",\
+                               "Store multiple shot-receivers",\
+                               "Apply frequency filter (y/n)"],\
+                              ["l","r","e","e","e","e","e"],\
+                              ["b",2,"y","n","100","n","y"],"Save SEGY/SU format")
+        else:
+            results, okButton = self.main.dialog(\
+#                              ["Start_time (a(ll)/0/w(indow))",\
+                              ["Start_time",\
+                               ["All data","Start at time break","save window",\
+                                "Zero and mute before pick"],\
+                               "All data in one file (y/n)",\
+                               "Only this shot (y/n)",\
+                               "Multiplicator for distances",\
+                               "Store multiple shot-receievers"],\
+                              ["l","r","e","e","e","e"],\
+                              ["b",2,"y","n","100","n"],"Save SEGY/SU format")
+
+        if okButton == False:
+            print("SEGY saving cancelled")
+            return
+        S_time = int(results[1])
+        data_flag = results[2].lower()
+        one_file_flag = data_flag=="y"
+        file_flag = results[3].lower()
+        all_shots_flag = file_flag=="n"
+        multiplicator = int(results[4])
+        skip_multiple = results[5].lower()=="n"
+        if skip_multiple:
+            ismax = max(self.main.traces.shot)+1
+            irmax = max(self.main.traces.receiver)+1
+            stored = np.zeros((ismax,irmax))
+        try:
+            filter_flag = results[5].lower()=="y"
+        except:
+            filter_flag = False
+        if S_time == 3:
+            results, okButton = self.main.dialog(\
+                              ["Approx. signal period [ms]"],\
+                              ["e"],["5"],"Length of source signal")
+            delay = float(results[0])/1000.
+        else:
+            delay = 0.
+        i_store = -1
+        if all_shots_flag:
+            if one_file_flag:
+                nfiles = 1
+            else:
+                nfiles = len(self.main.geo.sht_dict)
+            file_out = "rec00000"
+            t_save = np.arange(self.main.traces.number_of_traces)
+            it_save = 0
+            nt_save = len(t_save)
+            progressBar = QtWidgets.QProgressBar(self.main.window)
+            self.main.window.mplvl.addWidget(progressBar)
+            progressBar.show()
+            progressBar.setValue(0)
+        else:
+            t_save = np.array(self.main.window.actual_traces, dtype=int)
+            nfiles = 1
+            data_flag = "y"
+            one_file_flag = True
+            file_out = f"rec{self.main.window.fig_plotted+1:0>5d}"
+
+        if self.save_su:
+            file_out = file_out+'.su'
+        else:
+            file_out = file_out+'.sgy'
+
+# If data should be filtered, make first a back-up of the actual data, since the
+#    filter is always applied on array self.main.window.v
+        stw = self.st.copy()
+        if filter_flag:
+            v_bak = np.copy(self.v)
+            for t in t_save:
+                ifile = self.main.traces.file[t]
+                itrace = self.main.traces.trace[t]
+                self.main.window.v = stw[ifile][itrace].data
+                self.main.utilities.frequencyFilter(-1, False)
+                stw[ifile][itrace].data = self.main.window.v
+            self.v = np.copy(v_bak)
+            del v_bak
+
+# Start loop over all shot points
+        it_save = 0
+        for i in range(nfiles):
+            print(f'Write file {i+1}: {file_out}')
+            sst = Stream()
+            if all_shots_flag:
+                if one_file_flag:
+                    tr_save = t_save
+                else:
+                    tr_save = t_save[self.main.traces.shot==i]
+                    file_out = f"{file_out[:3]}{i+1:0>5}{file_out[-4:]}"
+            else:
+                tr_save = t_save
+            if not hasattr(stw[i].stats, 'segy'):
+                stw[i].stats.segy = {}
+                stw[i].stats.segy.binary_file_header = SEGYBinaryFileHeader()
+                stw[0].stats.segy.binary_file_header.data_sample_format_code = 1
+
+# Loop over all traces to be saved in the actual file
+            for it,t in enumerate(tr_save):
+                ifile = self.main.traces.file[t]
+                itrace = self.main.traces.trace[t]
+                ishot = self.main.traces.shot[t]
+                irec = self.main.traces.receiver[t]
+                start = stw[ifile][itrace].stats.starttime
+                end = stw[ifile][itrace].stats.endtime
+                if (it+1)%50 == 0:
+                    print(f"Trace {it+1} written: shot {ishot}, receiver {irec}")
+                if skip_multiple:
+                    if stored[ishot,irec] > 0:
+                        continue
+                    else:
+                        stored[ishot,irec] += 1
+                if not hasattr(stw[ifile][itrace].stats, 'segy.trace_header'):
+                    stw[ifile][itrace].stats.segy = {}
+                    stw[ifile][itrace].stats.segy.trace_header = SEGYTraceHeader()
+                if S_time == 1 or S_time == 3:
+                    tr = stw[ifile].slice(starttime=start-self.t0,\
+                                endtime=end)[itrace].copy()
+                    tr.stats.segy.trace_header.delay_recording_time = 0
+                    if S_time == 3:
+                        if self.main.traces.npick[t] == 0:
+                            tt = -1.
+                        else:
+                            tt = self.main.traces.pick_times[t][0]
+                        tr.data,mute_t = self.mute_before_pick(tr.data, tt, delay)
+#                        print(f"    t_mute = {mute_t:0.3f}")
+                elif S_time == 2:
+                    tr = stw[ifile].slice(\
+                        starttime=start+self.main.window.time_plt_min-self.t0,\
+                        endtime=start+self.main.window.time_plt_max-self.t0)\
+                        [itrace].copy()
+                    tr.stats.segy.trace_header.delay_recording_time = \
+                        int((self.main.window.time_plt_min-self.t0)*1000)
+                else:
+                    tr = stw[ifile][itrace].copy()
+# Set specific SegY headder words
+                it_save += 1
+                if np.isclose(np.std(tr.data), 0.):
+                    continue
+                i_store += 1
+                tr = self.tr_head_seg2_y(i_store,t,tr,multiplicator)
+                if S_time == 3:
+                    if  np.isclose(mute_t, 0.):
+                        tr.stats.segy.trace_header.data_use = 0
+                    else:
+                        tr.stats.segy.trace_header.mute_time_end_time = \
+                            int(mute_t*1000.)
+                        tr.stats.segy.trace_header.data_use = 1
+                if S_time==1 or S_time==3:
+                    tr.stats.segy.trace_header.delay_recording_time = 0
+                tr.data *= self.main.traces.amplitudes[t]
+                tr.data = np.require(tr.data, dtype=np.float32)
+                sst.append(tr)
+                if all_shots_flag:
+                    completed = int((it_save)/(nt_save)*100)
+                    progressBar.setValue(completed)
+            if self.save_su:
+                sst.write(file_out, format='SU')
+            else:
+                sst.write(file_out, format='SEGY')
+            print(f"file {file_out} written")
+        if all_shots_flag:
+            progressBar.setValue(0)
+            self.main.window.mplvl.removeWidget(progressBar)
+            progressBar.close()
+            print("All data written\n")
+        self.main.window.drawNew(True)
+        print(f"{i_store} traces written")
+
+        del stw
+        del sst
+        self.save_su = False
+
+    def saveSU(self):
+        """
+        Save data in SU format.
+        Not recommended, since there seems to be a bug in obspy: not all header
+        entries are stored.
+
+        Function calls Save_SEGY, since the formats are the same except for
+        the file header, which is not stored in SU format
+
+        Returns
+        -------
+        None.
+
+        """
+        self.save_su = True
+        self.saveSEGY()
+
+    def saveSEG2(self):
+        """
+        Function saves data of all shot points or only one into one or several
+        files in SEG2 format.
+        The data stored are the ones actually on the screen, including all
+        filters and mutes.
+
+        Returns
+        -------
+        None.
+
+        """
+        from obspy.core import Stream
+        self.main.function = "save_SEG2"
+
+# Open dialog window for storing parameters:
+#   You may store only the actual shot/file or all shots/files
+#   If all shots are stored, you may put them all into one file called shot_00000.seg2
+#      or each shot into its own file called shot_nnnnn.sg2, nnnnn being the
+#      shotpoint or file number
+        folder = os.path.join(".","seg2_save")
+
+        results, okButton = self.main.dialog(\
+                          ["Output folder",\
+                           # "All data in one file (y/n)",\
+                           "Only this shot (y/n)",\
+                           "Store by:",\
+                           [" file"," shot"]],\
+                          ["e","e","l","r"],[folder,"n","None","1"],\
+                          # ["e","e","e","l","r"],[folder,"y","n","None","1"],\
+                          "Save SEG2 format")
+
+        if okButton == False:
+            print("SEG2 saving cancelled")
+            return
+        folder = results[0]
+        if not os.path.exists(folder):
+            try:
+                os.makedirs(folder)
+            except:
+                _ = QtWidgets.QMessageBox.warning(None, "Warning",
+                     f"Given output folder\n{folder}\n"+\
+                     "does not exists and cannot be created\n"+\
+                     "Try again clicking on save SEG2",
+                     QtWidgets.QMessageBox.Close)
+                return False
+
+        # one_file_flag = results[1].lower()=="y"
+        # single_shot_flag = results[2].lower()=="y"
+        # file_flag = int(results[4])==0
+        single_shot_flag = results[1].lower()=="y"
+        file_flag = int(results[3])==0
+# If only the data gather actually on the sceen should be saved and a shot
+#    gather is plotted, save this shot gather independent of the value given
+#    for file_flag. If it is a file gather, save as file gather. For receiver
+#    or distance gathers, it is not clear which shot or file gather number
+#    should be saved, therefore give a warning message and leave function
+        if single_shot_flag:
+            if self.main.window.sg_flag:
+                file_flag = False
+                file = os.path.join(folder,\
+                       f"shot_{self.main.window.fig_plotted+1:0>5}.seg2")
+                stream = Stream()
+                sh = self.main.window.fig_plotted
+                for i,nt in enumerate(self.main.traces.sht_pt_dict[sh]["trace"]):
+                    ifile = self.main.traces.sht_pt_dict[sh]["file"][i]
+                    irec = self.main.traces.sht_pt_dict[sh]["receiver"][i]
+                    stream.append(self.st[ifile][irec])
+                    if i == 0:
+                        stream.stats = self.st[ifile].stats
+            elif self.main.window.fg_flag:
+                file_flag = True
+                ifile = self.main.window.actual_shot-1
+                file = os.path.join(folder, f"file_{ifile+1:0>5}.seg2")
+                stream = self.st[ifile].copy()
+            else:
+                _ = QtWidgets.QMessageBox.warning(None, "Warning",
+                     "Only shot or file gathers may be saved in SEG2 format.\n"+\
+                     "Save all gathers or change plot to shot or file gather\n"+
+                     "     before trying again",QtWidgets.QMessageBox.Close)
+                return False
+            self.seg2_write(stream, file)
+# If all files or shots should be saved, do this here
+        else:
+            if file_flag:
+# Write all files to seg2 format with new headers
+                for i,stream in enumerate(self.st):
+                    file = os.path.join(folder, f"file_{i+1:0>5}.seg2")
+                    self.seg2_write(stream, file)
+            else:
+# Write all shot gathers to seg2 format
+                for k,sh in enumerate(self.main.traces.sht_pt_dict):
+                    stream = Stream()
+                    file = os.path.join(folder, f"shot_{sh+1:0>5}.seg2")
+                    for i,nt in enumerate(self.main.traces.sht_pt_dict[sh]["trace"]):
+                        ifile = self.main.traces.sht_pt_dict[sh]["file"][i]
+                        irec = self.main.traces.sht_pt_dict[sh]["receiver"][i]
+                        stream.append(self.st[ifile][irec])
+                        if i == 0:
+                            stream.stats = self.st[ifile].stats
+                    self.seg2_write(stream, file)
 
     def seg2_write(self,st,file):
         """
@@ -767,300 +1156,6 @@ class Data():
                 #     f.write(struct.pack("b",32))
                 np.asarray(st[i].data, dtype=np.float32).tofile(f)
         return True
-
-    def saveSEGY(self):
-        """
-        Function saves data of all shot points or only one into one or several
-        files in SEGY or SU format.
-        The data stored are the ones actually on the screen, including all
-        filters and mutes.
-
-        Returns
-        -------
-        None.
-
-        """
-        from obspy.io.segy.segy import SEGYTraceHeader
-        from obspy.io.segy.segy import SEGYBinaryFileHeader
-        self.main.function = "save_SEGY"
-
-# Open dialog window for storing parameters:
-#   You may store all data, all data except for the ones stored before the trigger
-#      or just the ones of the zoom presented on the screen.
-#   You may store only the actual shot or all shots
-#   If all shots are stored, you may put them all into one file called rec00000.sgy
-#      or each shot into its own file called recnnnnn.sgy, nnnnn being the
-#      shotpoint number
-#   Since coordinates are stored as integers, you may multiply them, e.g., with
-#      100 if the precision should be cm.
-#   You may choose applying the last used frequency filter or not
-#   If there are several traces from the same shot and receiver points, you may
-#      store all multiple traces or only the first one found.
-        if self.main.utilities.high_cut_flag or self.main.utilities.low_cut_flag:
-            results, okButton = self.main.dialog(\
-                              ["Start_time (a(ll)/0/w(indow))",\
-                               "All data in one file (y/n)",\
-                               "Only this shot (y/n)",\
-                               "Multiplicator for distances",\
-                               "Store multiple shot-receivers",\
-                               "Apply frequency filter (y/n)"],\
-                              ["e","e","e","e","e","e"],\
-                              [0,"y","n","100","n","y"],"Save SEGY/SU format")
-        else:
-            results, okButton = self.main.dialog(\
-                              ["Start_time (a(ll)/0/w(indow))",\
-                               "All data in one file (y/n)",\
-                               "Only this shot (y/n)",
-                               "Multiplicator for distances",
-                               "Store multiple shot-receievers"],\
-                              ["e","e","e","e","e"],\
-                              [0,"y","n","100","n"],"Save SEGY/SU format")
-
-        if okButton == False:
-            print("SEGY saving cancelled")
-            return
-        S_time = results[0]
-        data_flag = results[1].lower()
-        one_file_flag = data_flag=="y"
-        file_flag = results[2].lower()
-        all_shots_flag = file_flag=="n"
-        multiplicator = int(results[3])
-        skip_multiple = results[4].lower()=="n"
-        if skip_multiple:
-            stored = np.zeros((len(self.main.geo.sht_dict),\
-                               len(self.main.geo.rec_dict)))
-        try:
-            filter_flag = results[5].lower()=="y"
-        except:
-            filter_flag = False
-        if all_shots_flag:
-            if one_file_flag:
-                nfiles = 1
-            else:
-                nfiles = len(self.main.geo.sht_dict)
-            file_out = "rec00000"
-            t_save = np.arange(self.main.traces.number_of_traces)
-            it_save = 0
-            nt_save = len(t_save)
-            progressBar = QtWidgets.QProgressBar(self.main.window)
-            self.main.window.mplvl.addWidget(progressBar)
-            progressBar.show()
-            progressBar.setValue(0)
-        else:
-            t_save = np.array(self.main.window.actual_traces, dtype=int)
-            nfiles = 1
-            data_flag = "y"
-            one_file_flag = True
-            file_out = f"rec{self.main.window.fig_plotted+1:0>5d}"
-
-        if self.save_su:
-            file_out = file_out+'.su'
-        else:
-            file_out = file_out+'.sgy'
-
-# If data should be filtered, make first a back-up of the actual data, since the
-#    filter is always applied on array self.main.window.v
-        stw = self.st.copy()
-        if filter_flag:
-            v_bak = np.copy(self.v)
-            for t in t_save:
-                ifile = self.main.traces.file[t]
-                itrace = self.main.traces.trace[t]
-                self.main.window.v = stw[ifile][itrace].data
-                self.main.utilities.frequencyFilter(-1, False)
-                stw[ifile][itrace].data = self.main.window.v
-            self.v = np.copy(v_bak)
-            del v_bak
-
-# Start loop over all shot points
-        it_save = 0
-        for i in range(nfiles):
-            sst = Stream()
-            if all_shots_flag:
-                if one_file_flag:
-                    tr_save = t_save
-                else:
-                    tr_save = t_save[self.main.traces.shot==i]
-                    file_out = f"{file_out[:3]}{i+1:0>5}{file_out[-4:]}"
-            else:
-                tr_save = t_save
-            if not hasattr(stw[i].stats, 'segy'):
-                stw[i].stats.segy = {}
-                stw[i].stats.segy.binary_file_header = SEGYBinaryFileHeader()
-                stw[0].stats.segy.binary_file_header.data_sample_format_code = 1
-
-# Loop over all traces to be saved in the actual file
-            for t in tr_save:
-                ifile = self.main.traces.file[t]
-                itrace = self.main.traces.trace[t]
-                ishot = self.main.traces.shot[t]
-                irec = self.main.traces.receiver[t]
-                start = stw[ifile][itrace].stats.starttime
-                end = stw[ifile][itrace].stats.endtime
-                if skip_multiple:
-                    if stored[ishot,irec] > 0:
-                        continue
-                    else:
-                        stored[ishot,irec] += 1
-                if not hasattr(stw[ifile][itrace].stats, 'segy.trace_header'):
-                    stw[ifile][itrace].stats.segy = {}
-                    stw[ifile][itrace].stats.segy.trace_header = SEGYTraceHeader()
-                if S_time == "0":
-                    tr = stw[ifile].slice(starttime=start-self.t0,\
-                                endtime=end)[itrace].copy()
-                    tr.stats.segy.trace_header.delay_recording_time = 0
-                elif S_time == "w":
-                    tr = stw[ifile].slice(\
-                        starttime=start+self.main.window.time_plt_min-self.t0,\
-                        endtime=start+self.main.window.time_plt_max-self.t0)\
-                        [itrace].copy()
-                    tr.stats.segy.trace_header.delay_recording_time = \
-                        int((self.main.window.time_plt_min-self.t0)*1000)
-                else:
-                    tr = stw[ifile][itrace].copy()
-# Set specific SegY headder words
-                tr = self.tr_head_seg2_y(t,tr,multiplicator)
-                tr.data *= self.main.traces.amplitudes[t]
-                tr.data = np.require(tr.data, dtype=np.float32)
-                sst.append(tr)
-                it_save += 1
-                if all_shots_flag:
-                    completed = int((it_save)/(nt_save)*100)
-                    progressBar.setValue(completed)
-            if self.save_su:
-                sst.write(file_out, format='SU')
-            else:
-                sst.write(file_out, format='SEGY')
-            print(f"file {file_out} written")
-        if all_shots_flag:
-            progressBar.setValue(0)
-            self.main.window.mplvl.removeWidget(progressBar)
-            progressBar.close()
-            print("All data written\n")
-        self.main.window.drawNew(True)
-
-        del stw
-        del sst
-        self.save_su = False
-
-    def saveSU(self):
-        """
-        Save data in SU format.
-        Not recommended, since there seems to be a bug in obspy: not all header
-        entries are stored.
-
-        Function calls Save_SEGY, since the formats are the same except for
-        the file header, which is not stored in SU format
-
-        Returns
-        -------
-        None.
-
-        """
-        self.save_su = True
-        self.saveSEGY()
-
-    def saveSEG2(self):
-        """
-        Function saves data of all shot points or only one into one or several
-        files in SEG2 format.
-        The data stored are the ones actually on the screen, including all
-        filters and mutes.
-
-        Returns
-        -------
-        None.
-
-        """
-        from obspy.core import Stream
-        self.main.function = "save_SEG2"
-
-# Open dialog window for storing parameters:
-#   You may store only the actual shot/file or all shots/files
-#   If all shots are stored, you may put them all into one file called shot_00000.seg2
-#      or each shot into its own file called shot_nnnnn.sg2, nnnnn being the
-#      shotpoint or file number
-        folder = os.path.join(".","seg2_save")
-
-        results, okButton = self.main.dialog(\
-                          ["Output folder",\
-                           # "All data in one file (y/n)",\
-                           "Only this shot (y/n)",\
-                           "Store by:",\
-                           [" file"," shot"]],\
-                          ["e","e","l","r"],[folder,"n","None","1"],\
-                          # ["e","e","e","l","r"],[folder,"y","n","None","1"],\
-                          "Save SEG2 format")
-
-        if okButton == False:
-            print("SEG2 saving cancelled")
-            return
-        folder = results[0]
-        if not os.path.exists(folder):
-            try:
-                os.makedirs(folder)
-            except:
-                _ = QtWidgets.QMessageBox.warning(None, "Warning",
-                     f"Given output folder\n{folder}\n"+\
-                     "does not exists and cannot be created\n"+\
-                     "Try again clicking on save SEG2",
-                     QtWidgets.QMessageBox.Close)
-                return False
-
-        # one_file_flag = results[1].lower()=="y"
-        # single_shot_flag = results[2].lower()=="y"
-        # file_flag = int(results[4])==0
-        single_shot_flag = results[1].lower()=="y"
-        file_flag = int(results[3])==0
-# If only the data gather actually on the sceen should be saved and a shot
-#    gather is plotted, save this shot gather independent of the value given
-#    for file_flag. If it is a file gather, save as file gather. For receiver
-#    or distance gathers, it is not clear which shot or file gather number
-#    should be saved, therefore give a warning message and leave function
-        if single_shot_flag:
-            if self.main.window.sg_flag:
-                file_flag = False
-                file = os.path.join(folder,\
-                       f"shot_{self.main.window.fig_plotted+1:0>5}.seg2")
-                stream = Stream()
-                sh = self.main.window.fig_plotted
-                for i,nt in enumerate(self.main.traces.sht_pt_dict[sh]["trace"]):
-                    ifile = self.main.traces.sht_pt_dict[sh]["file"][i]
-                    irec = self.main.traces.sht_pt_dict[sh]["receiver"][i]
-                    stream.append(self.st[ifile][irec])
-                    if i == 0:
-                        stream.stats = self.st[ifile].stats
-            elif self.main.window.fg_flag:
-                file_flag = True
-                ifile = self.main.window.actual_shot-1
-                file = os.path.join(folder, f"file_{ifile+1:0>5}.seg2")
-                stream = self.st[ifile].copy()
-            else:
-                _ = QtWidgets.QMessageBox.warning(None, "Warning",
-                     "Only shot or file gathers may be saved in SEG2 format.\n"+\
-                     "Save all gathers or change plot to shot or file gather\n"+
-                     "     before trying again",QtWidgets.QMessageBox.Close)
-                return False
-            self.seg2_write(stream, file)
-# If all files or shots should be saved, do this here
-        else:
-            if file_flag:
-# Write all files to seg2 format with new headers
-                for i,stream in enumerate(self.st):
-                    file = os.path.join(folder, f"file_{i+1:0>5}.seg2")
-                    self.seg2_write(stream, file)
-            else:
-# Write all shot gathers to seg2 format
-                for k,sh in enumerate(self.main.traces.sht_pt_dict):
-                    stream = Stream()
-                    file = os.path.join(folder, f"shot_{sh+1:0>5}.seg2")
-                    for i,nt in enumerate(self.main.traces.sht_pt_dict[sh]["trace"]):
-                        ifile = self.main.traces.sht_pt_dict[sh]["file"][i]
-                        irec = self.main.traces.sht_pt_dict[sh]["receiver"][i]
-                        stream.append(self.st[ifile][irec])
-                        if i == 0:
-                            stream.stats = self.st[ifile].stats
-                    self.seg2_write(stream, file)
 
 
 
@@ -1446,7 +1541,8 @@ class Traces():
         """
         Read measured picks from file picks.dat (own format)
         File contains one line per measured pick and 5 rows:
-        shot_point_number, receiver_point_number, travel_time, lower and upper uncertainty limits
+        shot_point_number, receiver_point_number, travel_time, lower and upper
+        uncertainty limits
 
         Returns
         -------
@@ -1507,8 +1603,8 @@ class Traces():
                         while True:
                             try:
                                 numbers = f.readline().split()
-                                isht =int(numbers[0])
-                                irec =int(numbers[1])
+                                isht =int(numbers[0])-1
+                                irec =int(numbers[1])-1
                                 tpk[isht,irec,npk[isht,irec]] = float(numbers[2])
                                 tpkmn[isht,irec,npk[isht,irec]] = float(numbers[3])
                                 tpkmx[isht,irec,npk[isht,irec]] = float(numbers[4])
@@ -2735,12 +2831,17 @@ class Utilities:
             results,okButton = self.main.dialog(\
                               ["Low-cut  frequency",\
                                "High-cut frequency",\
-                               "Use this filter (y/n)?"],\
-                              ["e","e","e"],\
-                              [int(self.fmin),int(self.fmax),"y"],\
+                               "Use this filter (y/n)?",
+                               "Apply to all shots"],\
+                              ["e","e","e","c"],\
+                              [int(self.fmin),int(self.fmax),"y",None],\
                                "Frequency filter")
 
             if okButton and results[2].lower()=="y":
+                if int(results[3]) < 0:
+                    self.all_freq_filter = False
+                else:
+                    self.all_freq_filter = True
                 self.fmin = float(results[0])
                 if self.fmin > 0.:
                     self.low_cut_flag = True
@@ -2807,8 +2908,9 @@ class Utilities:
             self.fmax = round(xline[1],0)
             self.high_cut_flag = True
         results, okButton = self.main.dialog(["Low-cut  frequency",\
-                           "High-cut frequency"],["e","e"],\
-                          [int(self.fmin),int(self.fmax)],"Frequency filter")
+                           "High-cut frequency","Apply to all shots"],\
+                           ["e","e","c"],[int(self.fmin),int(self.fmax),None],\
+                           "Frequency filter")
 
         if okButton == False:
             print("Frequency filter cancelled")
@@ -2831,6 +2933,10 @@ class Utilities:
             self.high_cut_flag = True
         else:
             self.high_cut_flag = False
+        if int(results[2]) < 0:
+            self.all_freq_filter = False
+        else:
+            self.all_freq_filter = True
         print(f"Low-cut  frequency: {int(self.fmin)}\n"+\
               f"High-cut frequency: {int(self.fmax)}")
         return True
@@ -2858,6 +2964,37 @@ class Utilities:
         self.cidpress = self.lin.figure.canvas.mpl_connect('button_press_event',\
                                                            onPress)
 
+    def ffilter(self, data, fmin, fmax, dt):
+        """
+        Filters data of one single trace.
+        Uses Obspy zero-phase filter routines with order 8.
+
+        Parameters
+        ----------
+        data: Numpy 1D float array
+                Contains the data to be filtered
+        fmin: float
+                Low-cut frequency. If 0, only lowpass filtering done
+        fmax: float
+                High-cut frequency. If 0, only highpass filtering done
+        dt:   float
+                Time step between samples [s]
+
+        Returns
+        -------
+        d:    Numpy 1D float array (same shape as data)
+                Array with filtered data
+
+        """
+        import obspy.signal.filter as filter
+        if fmin==0 and fmax>0:
+            d = filter.lowpass(data, fmax, 1/dt, 8, zerophase=True)
+        elif fmin>0 and fmax==0:
+            d = filter.highpass(data, fmin, 1/dt, 8, zerophase=True)
+        elif fmin>0 and fmax>0:
+            d = filter.bandpass(data, fmin, fmax, 1/dt, 8, zerophase=True)
+        return d
+
     def frequencyFilter(self,trace_filt = -1, plot_flag=True):
         """
         Frequency filterig data
@@ -2878,7 +3015,7 @@ class Utilities:
         -------
         None.
         """
-        import obspy.signal.filter as filter
+#        import obspy.signal.filter as filter
         if trace_filt < 0 or not plot_flag:
             tr1 = 0
             tr2 = self.main.window.actual_number_traces
@@ -2888,69 +3025,45 @@ class Utilities:
         tr_filt = self.main.window.actual_traces[tr1:tr2]
         if plot_flag:
             _ = self.spectrum(tr1,tr2)
+            if self.all_freq_filter:
+                tr1 = 0
+                tr2 = len(self.main.traces.trace)
+                tr_filt = np.arange(tr2)
         if self.low_cut_flag==False and self.high_cut_flag==False:
             print("Frequency filter cancelled")
-        elif self.fmin==0 and self.fmax>0:
-            self.filtered = True
-            if plot_flag:
-                if trace_filt < 0:
-                    print(f"Low pass: {self.fmax:0.0f}, "+\
-                          f"{self.main.window.actual_number_traces} traces")
-                else:
-                    print(f"Low pass: {self.fmax:0.0f}, trace {tr1}")
+        else:
+            if self.fmin==0 and self.fmax>0:
+                print(f"\nLow pass filter {int(self.fmax)}Hz of ",\
+                      f"{len(tr_filt)} traces")
+            elif self.fmin>0 and self.fmax==0:
+                print(f"\nHigh pass filter {int(self.fmin)}Hz of ",\
+                      f"{len(tr_filt)} traces")
+            elif self.fmin>0 and self.fmax>0:
+                print(f"\nBand pass filter {int(self.fmin)}-{int(self.fmax)}",\
+                      f"Hz of {len(tr_filt)} traces")
+            else:
+                print("Error in frequencies, no filter applied")
+                return
             for ii,it in enumerate(range(tr1,tr2)):
+                if (ii+1)%500 == 0:
+                    print(f"     Trace {ii+1}")
                 t = tr_filt[ii]
-                sht = self.traces.shot[t]
-                rec = self.traces.receiver[t]
                 fnr = self.traces.file[t]
                 tnr = self.traces.trace[t]
-                self.main.window.v[it,:] = filter.lowpass(self.main.window.v[it,:],\
-                                      self.fmax,1/self.data.dt,8,zerophase=True)
-                if self.traces.amplitudes[t] > 0:
-                    self.data.st[fnr][tnr].data = np.float32(self.main.window.v[it,:])
-                elif self.traces.amplitudes[t] < 0:
-                    self.data.st[fnr][tnr].data = -np.float32(self.main.window.v[it,:])
-        elif self.fmin>0 and self.fmax==0:
-            self.filtered = True
-            if plot_flag:
-                if trace_filt < 0:
-                    print(f"High pass: {self.fmin:0.0f}, "+\
-                          f"{self.main.window.actual_number_traces} traces")
-                else:
-                    print(f"High pass: {self.fmin:0.0f}, trace {tr1}")
-            for ii,it in enumerate(range(tr1,tr2)):
-                t = tr_filt[ii]
-                sht = self.traces.file[t]
-                rec = self.traces.trace[t]
-                self.window.v[it,:] = filter.highpass(self.window.v[it,:],\
-                                      self.fmin,1/self.data.dt,8,zerophase=True)
-                if self.traces.amplitudes[t] > 0:
-                    self.data.st[sht][rec].data = np.float32(self.main.window.v[it,:])
-                elif self.traces.amplitudes[t] < 0:
-                    self.data.st[sht][rec].data = -np.float32(self.main.window.v[it,:])
-        elif self.fmin>0 and self.fmax>0:
-            self.filtered = True
-            if plot_flag:
-                if trace_filt < 0:
-                    print(f"Band pass: {self.fmin:0.2f}-{self.fmax:0.0f}, "+\
-                          f"{self.window.actual_number_traces} traces")
-                else:
-                    print(f"Band pass: {self.fmin:0.2f}-{self.fmax:0.0f}, "+\
-                          f"trace {tr1}")
-            for ii,it in enumerate(range(tr1,tr2)):
-                t = tr_filt[ii]
-                sht = self.traces.file[t]
-                rec = self.traces.trace[t]
-                self.window.v[it,:] = filter.bandpass(self.window.v[it,:],\
-                            self.fmin,self.fmax,1/self.data.dt,8,zerophase=True)
-                if self.traces.amplitudes[t] > 0:
-                    self.data.st[sht][rec].data = np.float32(self.window.v[it,:])
-                elif self.traces.amplitudes[t] < 0:
-                    self.data.st[sht][rec].data = -np.float32(self.window.v[it,:])
-        else:
-            print("Frequency filter module: Error in corner frequencies: "+\
-                  f"fmin={self.fmin:0.2f}, fmax={self.fmax:0.2f}")
+                # print(f"trace {t}, file {fnr}, trace in file: {tnr}, ",\
+                #       f"trace on screen {ii}, shot {self.traces.shot[t]}")
+                dat = self.ffilter(self.data.st[fnr][tnr].data, self.fmin,\
+                                   self.fmax, self.main.data.dt)
+                self.data.st[fnr][tnr].data = np.float32(dat)
+                if t in self.main.window.actual_traces:
+                    iit = np.where(self.main.window.actual_traces==t)[0][0]
+                    if self.traces.amplitudes[t] > 0:
+                        self.main.window.v[iit,:] = dat
+                    elif self.traces.amplitudes[t] < 0:
+                        self.main.window.v[iit,:] = -dat
+        print("     All traces filtered")
         if plot_flag:
+            self.window.v_set = False
             self.window.drawNew(True)
         self.window.setHelp(self.window.main_text)
 
@@ -2980,7 +3093,7 @@ class Utilities:
             of the original data
         v_red : float
             Applied reduction velocity [m/s]. This velocity is also the one
-            for whith the amplitudes are reduced to 50%
+            for which the amplitudes are reduced to 50%
             The default is 400.
         nk_el : int
             The slope to attenuate amplitudes is from -nk_el to +nk_el around
@@ -3011,10 +3124,13 @@ class Utilities:
             True if filter was applied, False if filter cancelled
 
         """
-        from refraPy import Seg2_Slide
+        from PyRefra import Seg2_Slide
         nsamp = np.size(data,0)
         ntrace = np.size(data,1)
         dx = x[1]-x[0]
+# nf_damp is the number of coefficients to each side of a slope for which
+# the velocity filter coefficients are damped
+        nf_damp = 10
 
 # The data array is expanded to twice its size (50% before and after the end)
 # and filled with zeros in order to avoid edge effects and in order to allow
@@ -3061,9 +3177,9 @@ class Utilities:
         Fabs = np.log10(np.abs(np.fft.fftshift(F))+1E-10)
         Fmin = np.min(Fabs)
         Fmax = np.max(Fabs)
+        cmp = plt.cm.gist_rainbow_r
         if plot_flag:
             self.window.drawNew(False)
-            cmp = plt.cm.gist_rainbow_r
             c = self.window.axes[self.window.fig_plotted].\
                   pcolormesh(k_shift,f_shift[nf:nf_p_max],Fabs[nf:nf_p_max,:],\
                   cmap=cmp,vmin=Fmin,vmax=Fmax,shading='auto')
@@ -3106,7 +3222,7 @@ class Utilities:
                 print("f-k filter cancelled")
                 return data,v_red,False
             v_red = float(SL.position)
-            print(f"Cut-off velocity: {v_red:0.0f} m/s")
+            print(f"\nCut-off velocity: {v_red:0.0f} m/s")
         elif abs(v_red)<100:
             return data,v_red,False
 
@@ -3131,11 +3247,27 @@ class Utilities:
 # ik designates all columns to be zeroed, ifr all lines to be zeroed
         F_filt = np.copy(F)
         ik = np.arange(len(k))[k<-nk_el*k0]
-        ifr = np.arange(len(freq))[freq>10*f0]
+        ifr = np.arange(len(freq))[freq>nf_damp*f0]
+        # ik = np.arange(len(k))[k<0]
+        # ifr = np.arange(len(freq))[freq>0]
         for i in ik:
             for j in ifr:
                 F_filt[j,i] = F_filt[j,i]*0.
-# Now ik designates the columnes where the ramp is applied
+            if self.neg_flag:
+                fr_slope = v_red*i*k0
+                ifr_slope = np.arange(len(freq))[freq<=0]
+                ff = freq[freq<=0]
+                ifr_slope = ifr_slope[ff>-fr_slope+nf_damp*f0]
+                ifs = np.arange(len(freq))[freq<=-fr_slope+nf_damp*f0]
+                ff = freq[freq<=-fr_slope+nf_damp*f0]
+                ifs = ifs[ff > -fr_slope-nf_damp*f0]
+                ff = ff[ff > -fr_slope-nf_damp*f0]
+                for j in ifr_slope:
+                    F_filt[j,i] = F_filt[j,i]*0.
+                for m,j in enumerate(ifs):
+                    F_filt[j,i] = F_filt[j,i]*(max(ff)-ff[m])/(2*nf_damp)*f0
+
+# # Now ik designates the columnes where the ramp is applied
         ikk = np.arange(len(k))
         ik0 = ikk[k>=-nk_el*k0]
         ik = ik0[k[ik0]<=nk_el*k0]
@@ -3143,34 +3275,62 @@ class Utilities:
             fac = (k[i]/k0+nk_el+1)/((nk_el+1)*2)
             for j in ifr:
                 F_filt[j,i] = F_filt[j,i]*fac
-        iff = np.arange(len(freq))
-        if0 = iff[freq>=-10*f0]
-        ifr = if0[freq[if0]<=10*f0]
-        ik = np.arange(len(k))[k<0]
-        for j in ifr:
-            fac = 1-(freq[j]/f0+11)/22
-            F_filt[j,ik] = F_filt[j,ik]*fac
+        if not self.neg_flag:
+            iff = np.arange(len(freq))
+            if0 = iff[freq>=-nf_damp*f0]
+            ifr = if0[freq[if0]<=nf_damp*f0]
+            ik = np.arange(len(k))[k<0]
+            for j in ifr:
+                fac = 1-(freq[j]/f0+2*nf_damp+1)/(2*nf_damp+1)
+                F_filt[j,ik] = F_filt[j,ik]*fac
 
 # Apply filter in the quadrant (f<0, k>0)
 # ik designates all columns to be zeroed, ifr all lines to be zeroed
-        ifr = np.arange(len(freq))[freq<-10*f0]
+        ifr = np.arange(len(freq))[freq<-5*f0]
         ik = np.arange(len(k))[k>nk_el*k0]
         for i in ik:
             for j in ifr:
                 F_filt[j,i] = F_filt[j,i]*0.
-# Now ik designates the columnes where the ramp is applied
+            if self.neg_flag:
+                fr_slope = v_red*i*k0
+                ifr_slope = np.arange(len(freq))[freq>=0]
+                ff = freq[freq>=0]
+                ifr_slope = ifr_slope[ff<fr_slope-nf_damp*f0]
+                ifs = np.arange(len(freq))[freq>=fr_slope-nf_damp*f0]
+                ff = freq[freq>=fr_slope-nf_damp*f0]
+                ifs = ifs[ff < fr_slope+nf_damp*f0]
+                ff = ff[ff < fr_slope+nf_damp*f0]
+                for j in ifr_slope:
+                    F_filt[j,i] = F_filt[j,i]*0.
+                for m,j in enumerate(ifs):
+                    F_filt[j,i] = F_filt[j,i]*(ff[m]-min(ff))/(2*nf_damp)*f0
+# # Now ik designates the columnes where the ramp is applied
         ik0 = ikk[k<=nk_el*k0]
         ik = ik0[k[ik0]>=-nk_el*k0]
         for i in ik:
             fac = 1-(k[i]/k0+nk_el+1)/((nk_el+1)*2)
             for j in ifr:
                 F_filt[j,i] = F_filt[j,i]*fac
-        if0 = iff[freq>=-10*f0]
-        ifr = if0[freq[if0]<=10*f0]
-        ik = np.arange(len(k))[k<0]
-        for j in ifr:
-            fac = (freq[j]/f0+11)/22
-            F_filt[j,ik] = F_filt[j,ik]*fac
+
+        if not self.neg_flag:
+            if0 = iff[freq>=-nf_damp*f0]
+            ifr = if0[freq[if0]<=nf_damp*f0]
+            ik = np.arange(len(k))[k<0]
+            for j in ifr:
+                fac = (freq[j]/f0+(2*nf_damp+1))/(2*nf_damp+1)
+                F_filt[j,ik] = F_filt[j,ik]*fac
+
+# Plot filtered spectrum
+        if plot_flag:
+            Fabs = np.log10(np.abs(np.fft.fftshift(F_filt))+1E-10)
+            Fmin = np.min(Fabs)
+            Fmax = np.max(Fabs)
+            c = self.window.axes[self.window.fig_plotted].\
+                  pcolormesh(k_shift,f_shift[nf:nf_p_max],Fabs[nf:nf_p_max,:],\
+                  cmap=cmp,vmin=Fmin,vmax=Fmax,shading='auto')
+# Show f-k spectrum and wait for key stroke
+            self.window.figs[self.window.fig_plotted].canvas.draw()
+            self.window.figs[self.window.fig_plotted].canvas.flush_events()
 
 # Calculate the inverse 2D Fourier transform
         d = np.fft.ifft2(F_filt)
@@ -3191,7 +3351,6 @@ class Utilities:
 # Final filtered data are the real part of the inverly transformed spectrum
 # In addition, extract the block of real data from the expanded block.
         data_filt = np.real(d[nsamp1_data:nsamp2_data,ntrace1_data:ntrace2_data])
-
         return data_filt,v_red,True
 
     def airWaveFilter(self):
@@ -3281,6 +3440,15 @@ class Utilities:
         ntrace_neg = np.size(np.where(xx<0))
         ntrace_pos = np.size(np.where(xx>=0))
         act = True
+        results, okButton = self.main.dialog(\
+                                ["Filter negative velocities ? [y/n]"],\
+                                ["c"],"Velocity filter")
+        if okButton == False:
+            print("Velocity filter cancelled")
+            self.window.drawNew(True)
+            self.window.setHelp(self.window.main_text)
+            return
+        self.neg_flag = results[0]>-1
         if ntrace_neg > 5:
             if ntrace_pos > 5:
                 if ntrace_neg > ntrace_pos:
@@ -3312,7 +3480,7 @@ class Utilities:
                                     data_treat,self.v_red,nk_el,idir,False)
                         else:
                             d,dum,dum1 = self.FK_filt(x_treat,self.data.dt,\
-                                    data_treat,0,nk_el,idir,False)
+                                    data_treat,0.,nk_el,idir,False)
 # Flip filtered array back and copy filtered data back into ariginal array v
                     vt[:,xx<0] = np.flip(d,axis=1)
             else:
@@ -3326,6 +3494,8 @@ class Utilities:
                     if idir == order[0]:
                         d,self.v_red,act = self.FK_filt(x_treat,self.data.dt,\
                                     data_treat,self.v_red,nk_el,idir,True)
+                        # d,self.v_red,act = self.FK_filt(x_treat,self.data.dt,\
+                        #             d,1.E6,nk_el,idir,False)
                     else:
                         if act:
                             d,dum,dum1 = self.FK_filt(x_treat,self.data.dt,\
@@ -3357,17 +3527,31 @@ class Utilities:
                 self.data.st[ifile][itrace].data = -np.float32(self.window.v[it,:])
 # If all data should be treated, do this now
         if all_flag:
+            nsht = len(self.traces.sht_pt_dict)
+            print(f'Number of shots to be treated: {nsht}')
             progressBar = QtWidgets.QProgressBar(self.window)
             self.window.mplvl.addWidget(progressBar)
             progressBar.show()
             progressBar.setValue(0)
-            for isht in range(self.files.file_count):
-                itraces = self.files.file_dict[isht]["traces"]
-                ntr = len(self.data.st[isht])
-                print("FK filter file",isht)
+# Loop over all shot points
+            for jsht,isht in enumerate(self.traces.sht_pt_dict):
+#            for isht in range(self.files.file_count):
+#                itraces = self.files.file_dict[isht]["traces"]
+                ifiles = self.traces.sht_pt_dict[isht]["file"]
+                itrac = self.traces.sht_pt_dict[isht]["trace"]
+                irec = self.traces.sht_pt_dict[isht]["receiver"]
+                itraces = []
+#                ntr = len(self.data.st[isht])
+                ntr = len(ifiles)
                 vv = np.zeros((ntr,self.data.nsamp))
-                for it,tr in enumerate(self.data.st[isht]):
-                    vv[it,:] = tr.data*self.traces.amplitudes[itraces[it]]
+#                for it,tr in enumerate(self.data.st[isht]):
+                for it in range(ntr):
+                    itr = self.traces.sht_rec_dict[(isht,irec[it])]
+                    itraces.append(itr)
+                    vv[it,:] = self.data.st[ifiles[it]][itrac[it]].data*\
+                               self.traces.amplitudes[itr]
+#                    vv[it,:] = tr.data*self.traces.amplitudes[itraces[it]]
+                itraces = np.array(itraces,dtype=int)
                 xx = np.array(self.traces.offset[itraces])
                 vt = np.zeros_like(np.transpose(vv))
                 for i in range(np.size(vv,0)):
@@ -3403,12 +3587,17 @@ class Utilities:
                             vt[:,xx>=0] = d
 #copy filtered data to stream st
                 vv = np.transpose(vt)
-                for it in range(len(self.data.st[isht])):
+#                for it in range(len(self.data.st[isht])):
+                for it in range(ntr):
                     if self.traces.amplitudes[itraces[it]] > 0:
-                        self.data.st[isht][it].data = np.float32(vv[it,:])
+                        self.data.st[ifiles[it]][itrac[it]].data = np.float32(vv[it,:])
+#                        self.data.st[isht][it].data = np.float32(vv[it,:])
                     elif self.traces.amplitudes[itraces[it]] < 0:
-                        self.data.st[isht][it].data = -np.float32(vv[it,:])
-                completed = int((isht+1)/self.files.file_count*100)
+                        self.data.st[ifiles[it]][itrac[it]].data = -np.float32(vv[it,:])
+#                        self.data.st[isht][it].data = -np.float32(vv[it,:])
+                completed = int((jsht+1)/nsht*100)
+                print(f"Shot {jsht+1}/{nsht} filtered; completed: {completed}%")
+#                completed = int((isht+1)/self.files.file_count*100)
                 progressBar.setValue(completed)
             progressBar.setValue(0)
             self.window.mplvl.removeWidget(progressBar)
@@ -3419,6 +3608,92 @@ class Utilities:
         self.window.setHelp(self.window.main_text)
         self.data.filtered = True
         return
+
+    def v_nmo(self):
+        """
+        Function write file with nmo velocities for every tenths cdp in SU
+        format.
+        For this, it interpolates first the velocities on a grid of 0.5 m
+        vertical grid-step and 10x dx_cdp. Then it calculates the two-way
+        vertical travel time of a wave in each cell and finally the RMS
+        velocity down to the base of every cell.
+        The results are written into file v_semblance.txt, which should be
+        copied to Linux for use in Seismic Unix.
+
+        Returns
+        -------
+        None.
+
+        """
+        from scipy.interpolate import LinearNDInterpolator
+        coor = self.mgr.paraDomain.cellCenters().array()
+        ymn = np.ceil(min(coor[:,1]))+0.25
+        ymx = float(int(max(coor[:,1])))-0.25
+        grd_x = np.unique(self.main.traces.xcdp)
+        grd_y = np.arange(ymn,ymx+0.5,0.5)
+        xg,yg = np.meshgrid(grd_x, grd_y)
+        interp = LinearNDInterpolator(coor[:,:2],self.mgr.model.array())
+        vg = interp(xg, yg)
+        x = grd_x[::10]
+        y = np.flip(-grd_y)
+        v = np.flip(vg[:,::10],axis=0)
+#        del interp,xg,yg
+# Replace nan's in v with nearest value within column
+        for i in range(len(x)):
+            for j in range(len(y)):
+                if not np.isnan(v[j,i]):
+                    break
+            if j>0:
+                v[:j,i] = v[j,i]
+            if j<len(y)-1:
+                for k in range(j+1,len(y)):
+                    if np.isnan(v[k,i]):
+                        v[k,i] = v[k-1,i]
+# t contains the vertical two-way traveltime (TWTT) a wave spends in one cell
+# The interpolation was done on cells with size 0.5m, therefore the TWTT is
+# 2*(0.5/v) = 1/v
+        t = 1./v
+# t0 contains the vertical TWTT down to the base of each cell
+        t0 = t*0.
+        t0[0,:] = t[0,:]
+        vnmo = v*0.
+        vnmo[0,:] = v[0,:]**2*t[0,:]
+        for i in range(1,len(y)):
+            t0[i,:] = t0[i-1,:]+t[i,:]
+            vnmo[i,:] = vnmo[i-1,:]+v[i,:]**2*t[i,:]
+        vnmo = np.sqrt(vnmo/t0)
+# Write NMO velocities into file with SU format
+        with open("v_semblance.txt","w") as fo:
+            fo.write("cdp=1")
+            for i in range(1,len(x)):
+                fo.write(f",{int(i*10+1)}")
+            fo.write(" \\")
+            fo.write("\n")
+            for i in range(len(x)):
+                fo.write(f"tnmo={t0[0,i]:0.6f}")
+                for k in range(1,len(y)):
+                    fo.write(f",{t0[k,i]:0.6f}")
+                fo.write(" \\")
+                fo.write("\n")
+                fo.write(f"vnmo={vnmo[0,i]:0.1f}")
+                for k in range(1,len(y)):
+                    fo.write(f",{vnmo[k,i]:0.1f}")
+                fo.write(" \\")
+                fo.write("\n")
+        with open("vnmo_test.dat","w") as fo:
+            for i in range(len(x)):
+                xx = i*10+1
+                for j in range(len(y)):
+                    fo.write(f"{xx} {t0[j,i]:0.6f} {vnmo[j,i]:0.1f} {v[j,i]:0.1f}\n")
+        # tmx = np.max(t0)
+        # tt = np.arange(0,0.03,0.002)
+        # xx1 = np.arange(1,len(x)*10+1-10,10)
+        # xx = np.arange(1,len(x)*10+1,10)
+        # xdat = np.outer(np.ones(len(y)),xx)
+        # X,Y = np.meshgrid(xx1,tt)
+        # interp = LinearNDInterpolator(list(zip(xdat.flatten(),t0.flatten())), vnmo.flatten())
+        # Z = interp(X,Y)
+        # plt.pcolormesh(X, Y, Z, shading='auto')
 
     def inversion(self, code=0):
         """
@@ -3438,13 +3713,21 @@ class Utilities:
         None.
 
         """
-        import pygimli as pg
         from pygimli.physics import TravelTimeManager
         import matplotlib as mpl
         from matplotlib.gridspec import GridSpec
         from matplotlib.path import Path
 #        import matplotlib.tri as tri
         import copy
+        try:
+            import pygimli as pg
+        except:
+            _ = QtWidgets.QMessageBox.warning(None,"Warning",\
+                 "PyGimli is not installed\n"+\
+                 "Tomography connot be executed\n",\
+                QtWidgets.QMessageBox.Ok,\
+                QtWidgets.QMessageBox.Ok)
+            return
 
         self.main.function = "inver"
         def vel_scale(self):
@@ -3489,7 +3772,7 @@ class Utilities:
 # Call dialog window for input of a number of inversion control parameters
             results, okButton = self.main.dialog(\
                     ["Maximum depth (m, positive down)",\
-                     "Initial smoothing parameter",\
+                     "Initial smoothing parameter (<0: optimize)",\
                      "Smoothing reduction per iteration",\
                      "Smoothing in z direction (0..1):",\
                      "Maximum iterations (0 = automatic)",\
@@ -3513,6 +3796,11 @@ class Utilities:
 
             self.zmax = float(results[0])
             self.smooth = float(results[1])
+            if self.smooth <0:
+                opt_flag=True
+                self.smooth *= -1.
+            else:
+                opt_flag = False
             self.s_fact = float(results[2])
             self.zSmooth = float(results[3])
             self.maxiter = int(results[4])
@@ -3541,8 +3829,8 @@ class Utilities:
 
 # Initialize PyGimli TravelTime Manager and set control parameters
             self.mgr = TravelTimeManager()
-            self.mgr.inv.inv.setLambdaFactor(self.s_fact)
-#            self.mgr.inv.setOptimizeLambda = True
+            if opt_flag:
+                self.mgr.inv.inv.setOptimizeLambda(True)
 # Do tomography inversion. If maxiter == 0, stop iterationautomatically if
 #    chi2<1 of if error does not decrease by more than 1% (dPhi=0.01)
 #    if maxiter>0 stop iterations latest after maxiter iterations (but earlier if
@@ -3551,18 +3839,18 @@ class Utilities:
                 if self.vmin_limit==0 and self.vmax_limit==0:
                     self.mgr.invert(self.scheme, secNodes=3, paraMaxCellSize=5.0,
                                zWeight=self.zSmooth, vTop=self.vmin, vBottom=self.vmax,
-                               verbose=1, paraDepth=self.zmax, dPhi=0.01, lam=self.smooth)
+                               verbose=1, paraDepth=self.zmax, dPhi=0.01, lam=self.smooth,lambdaFactor=self.s_fact)
                 else:
                     self.mgr.invert(self.scheme, secNodes=3, paraMaxCellSize=5.0,
                                zWeight=self.zSmooth, vTop=self.vmin, vBottom=self.vmax,
                                verbose=1, paraDepth=self.zmax, dPhi=0.01, lam=self.smooth,
-                               limits=[self.vmin_limit, self.vmax_limit])
+                               limits=[self.vmin_limit, self.vmax_limit],lambdaFactor=self.s_fact)
             else:
                 self.mgr.invert(self.scheme, secNodes=3, paraMaxCellSize=5.0,
                            zWeight=self.zSmooth, vTop=self.vmin,\
                            vBottom=self.vmax, maxIter=self.maxiter,
                            verbose=1, paraDepth=self.zmax, dPhi=0.01, lam=self.smooth,
-                           limits=[self.vmin_limit, self.vmax_limit])
+                           limits=[self.vmin_limit, self.vmax_limit],lambdaFactor=self.s_fact)
 # pass starting model from slowness to velocity
             self.startModel = 1./self.mgr.fop.startModel()
 # get final model
@@ -3581,8 +3869,8 @@ class Utilities:
                 self.mesh_coor[:,0] = mesh_x
                 self.mesh_coor[:,1] = mesh_y
                 self.mesh_coor[:,2] = mesh_v
+                self.cov_txt = "log10(Coverage) (cumulated ray lengths) and rays"
                 del mesh_x,mesh_y,mesh_v
-                self.cov_txt = "log(Coverage) (cumulated ray lengths) and rays"
                 self.endModel = self.endModel[self.cover > 0.]
                 self.cover[self.cover>0.] = np.log10(self.cover[self.cover>0.])
             except:
@@ -3590,6 +3878,7 @@ class Utilities:
                 self.cov_txt = "log10(Coverage) and rays"
 #            triang = tri.Triangulation(self.mesh_coor[:,0], self.mesh_coor[:,1])
 # pass pick times and calculated  from seconds to miliseconds
+            self.v_nmo()
             self.dat = self.mgr.fop.data("t")*1000
             self.calc = self.mgr.inv.response.array()*1000
 # Calculate minimum and maximum velocities for automaticcolor scale
@@ -3951,15 +4240,22 @@ class Utilities:
                 for i in range(len(self.endModel)):
                     fo.write(f"{self.mesh_coor[i,0]:0.3f} {self.mesh_coor[i,1]:0.3f} {self.endModel[i]:0.0f}\n")
             self.window.Change_colors.setEnabled(True)
+# Interpolate model on regular quadratic grid for use with Sofi2D
+
+            self.prepareSOFI2D()
 # Move all files from folder TravelTimeManager to its base folder, the name of
 #      which is date-hour in the format YYYYMMDD-hh.mm
 # Then delete folder TravelTimeManager
 # The reason is just practical, not to have to search the results deeper
 #     in the path tree than necessary
-            get_files = os.listdir(self.path)
-            for g in get_files:
-                os.replace(os.path.join(self.path,g), os.path.join(self.p_aim,g))
-            os.rmdir(self.path)
+            try:
+                get_files = os.listdir(self.path)
+                for g in get_files:
+                    os.replace(os.path.join(self.path,g), os.path.join(self.p_aim,g))
+                os.rmdir(self.path)
+            except:
+                print(f'path {self.path} not found.\n',\
+                      'Tomography results stay in original folder')
 
         elif code == 67:
             self.window.figs[ip].savefig(os.path.join(self.p_aim,\
@@ -3985,6 +4281,248 @@ class Utilities:
         """
         self.inversion(code=67)
         return
+
+    def prepareSOFI2D(self):
+        """
+        Write final model with estimated v_s and densities to binary files for
+        use with SOFI2D and prepare a sample json file for SOFI2D
+
+        Returns
+        -------
+        None.
+
+        """
+        x = self.mgr.paraDomain.cellCenters().array()[:,0]
+        z = self.mgr.paraDomain.cellCenters().array()[:,1]
+        v = self.mgr.model.array()
+        vmin = v.min()/2.
+        vmax = v.max()
+# Get some control parameters
+        res, okBut = self.main.dialog(\
+                            ["Central frequency [Hz]",\
+                             "Source signal length [number periods]",\
+                             "Calculation time [s]",\
+                             "Absorbing boundary [number of cells]",\
+                             "Absorbing boundary at surface (0: free surface)",\
+                             "Nr. of processors in X direction",\
+                             "Nr. of processors in Z direction",\
+                             "Cell step X for snapshots",\
+                             "Cell step Z for snapshots"],\
+                            ["e","e","e","e","e","e","e","e","e"],\
+                            [50,2,0.1,20,0,2,2,4,2],"Settings for Sofi2D")
+        if not okBut:
+            print("\nSOFI2D output not written\n")
+            return
+# fc is the central frequency of the source signal
+# dx is the cell size, calculated following the stability criteria given in
+#    SOFI2D manual and rounded to the next lower 2.5 cm.
+        fc = float(res[0])
+        dx = vmin/(16*fc)
+        dx = int(dx/0.025)*0.025
+# ts is length of simulated source signal
+        ts = float(res[1])/fc
+# tmax is length of traces to be calculated
+        tmax = float(res[2])
+# nbound is the number of cells to be added at the left, right and lower
+# edges for wave attenuation and avoiding reflections from those boundaries
+# X coordinates of the shot and receiver points are increased by bound
+        nbound = int(res[3])
+        bound = nbound*dx
+# n_surface_bound is the number of cells to be added to the model for wave
+# attenuation at the upper surface. If it is 0, free surface is assumed. If it
+# is >0, the shot and receiver points are placed at depth bound_s+0.05
+        n_surface_bound = int(res[4])
+        bound_s = n_surface_bound*dx
+# proc_x*proc_z is the number of CPU processors that will be used. The whole
+# domain will be split into proc_x blocks in X-direction and proc_z blocks in
+# Z-direction
+        proc_x = int(res[5])
+        proc_z = int(res[6])
+# SOFI2D writes snapshot files. In these files, every idx-th point is writte in
+# X direction and every idz-th point in Z direction
+        idx = int(res[7])
+        idz = int(res[8])
+        dt = 0.55*dx/vmax
+        dt = int(dt*1E6)/1E6
+        ndt = max(int(0.001/dt),1)
+#        tmax = np.ceil(np.nanmax(self.calc)*0.3)/100
+        print(f"tmax: {tmax}")
+        xmin = np.floor(np.min(x))-bound
+        xmax = np.ceil(np.max(x))+bound
+        zmin = np.floor(np.min(z))-bound
+        zmax = np.ceil(np.max(z))+bound_s
+        print(f"zmin: {zmin:0.3f}, zmax: {zmax:0.3f}")
+        nx = np.int((xmax-xmin)/dx+1)
+        nz = np.int((zmax-zmin)/dx+1)
+        ix = proc_x*idx
+        iz = proc_z*idz
+        if nx%ix != 0:
+            nx += ix-nx%ix
+        if nz%iz != 0:
+            nz += iz-nz%iz
+
+        # Defile X and Z coordinates of interpolated mesh
+        xi = np.linspace(xmin,xmax,nx)
+        zi = np.linspace(zmin,zmax,nz)
+
+        # Perform linear interpolation of the data given on original positions (x,z)
+        # on a grid defined by (xi,zi)
+        # triang = tri.Triangulation(x, z)
+        # interpolator = tri.LinearTriInterpolator(triang, self.mgr.model.array())
+        Xi, Zi = np.meshgrid(xi, zi)
+        data_p = griddata(self.mgr.paraDomain.cellCenters().array()[:,:2],\
+                          v, (Xi, Zi), method='linear')
+        # data_p = griddata(self.mgr.paraDomain.cellCenters().array()[:,:2],\
+        #                   self.mgr.model.array(), (Xi, Zi), method='cubic')
+        dpf = data_p.flatten()
+        Xif = Xi.flatten()
+        Zif = Zi.flatten()
+        Xi_nan = Xif[~np.isnan(dpf)]
+        Zi_nan = Zif[~np.isnan(dpf)]
+        centers = np.zeros((len(Xi_nan),2))
+        centers[:,0] = Xi_nan
+        centers[:,1] = Zi_nan
+        data_p_nan = dpf[~np.isnan(dpf)]
+        data_p = griddata(centers,data_p_nan, (Xi,Zi), method='nearest')
+        data_p = np.flip(np.transpose(data_p))
+#            data_p[np.isnan(data_p)] = 2000
+# For S-wave velocity suppose that for very small P-velocities, vs = vp/2 and
+# for 6 km/s, vs = vp/sqrt(3), in between: linear function
+        data_s = data_p/((np.sqrt(3)-2)/6000.*data_p+2.)
+# For densities suppose that for very small P-velocities, rho = 2000 and
+# for 6 km/s, rho = 2700, in between: linear function
+        data_r = data_p*(1000./6000.)+1700.
+        print(f"SOFI2D model: nx = {nx}, nz = {nz}, bytes = {nx*nz*4}")
+        print(f"              dx: {dx:0.3f}, dt: {dt:0.6f}\n")
+# Write inary files for P and S velocities and for densities
+        np.array(data_p.astype('float32')).tofile(os.path.join(self.p_aim,"model.vp"))
+        np.array(data_s.astype('float32')).tofile(os.path.join(self.p_aim,"model.vs"))
+        np.array(data_r.astype('float32')).tofile(os.path.join(self.p_aim,"model.rho"))
+        with open(os.path.join(self.p_aim,"sofi2D.json"),"w") as fo:
+            fo.write("#---------------------------------------------\n")
+            fo.write("#      JSON PARAMETER FILE FOR SOFI2D\n")
+            fo.write("#---------------------------------------------\n")
+            fo.write("# description:\n")
+            fo.write("# description/name of the model:/n#\n{\n")
+            fo.write('"Domain Decomposition" : "comment",\n')
+            fo.write(f'			"NPROCX" : "{proc_x}",\n')
+            fo.write(f'			"NPROCY" : "{proc_z}",\n\n')
+            fo.write('"FD stencil" : "comment",\n')
+            fo.write('			"RSG" : "0",\n\n')
+            fo.write('"FD order" : "comment",\n')
+            fo.write('			"FDORDER" : "8",\n')
+            fo.write('			"MAXRELERROR" : "1",\n\n')
+            fo.write('"2-D Grid" : "comment",\n')
+            fo.write(f'			"NX" : "{nx}",\n')
+            fo.write(f'			"NY" : "{nz}",\n')
+            fo.write(f'			"DH" : "{dx:0.3f}",\n\n')
+            fo.write('"Time Stepping" : "comment",\n')
+            fo.write(f'			"TIME" : "{tmax:0.3f}",\n')
+            fo.write(f'			"DT" : "{dt:0.6f}",\n\n')
+            fo.write('"Source" : "comment",\n')
+            fo.write('			"SOURCE_SHAPE" : "2",\n')
+            fo.write('			"SOURCE_SHAPE values: ricker=1;fumue=2;'+\
+                     'from_SIGNAL_FILE=3;SIN**3=4" : "comment",\n')
+            fo.write('			"SIGNAL_FILE" : "signal_mseis.tz",\n')
+            fo.write('			"SOURCE_TYPE" : "3",\n')
+            fo.write('			"SOURCE_TYPE values (point_source): explosive=1'+\
+                     ';force_in_x=2;force_in_y=3;custom_force=4" : "comment",\n')
+            fo.write('			"SRCREC" : "1",\n')
+            fo.write('			"SRCREC values :  read from SOURCE_FILE=1,'+\
+                     ' PLANE_WAVE=2 (internal)" : "comment"\n')
+            fo.write('			"SOURCE_FILE" : "./source_pts.dat",\n')
+            fo.write('			"RUN_MULTIPLE_SHOTS" : "1",\n')
+            fo.write('			"PLANE_WAVE_DEPTH" : "0.0",\n')
+            fo.write('			"PLANE_WAVE_ANGLE" : "0.0",\n')
+            fo.write(f'			"TS" : "{ts:0.6f}",\n\n')
+            fo.write('"Model" : "comment",\n')
+            fo.write('			"READMOD" : "1",\n')
+            fo.write('			"MFILE" : "model/model",\n')
+            fo.write('			"WRITE_MODELFILES" : "0",\n\n')
+            fo.write('"Q-approximation" : "comment",\n')
+            fo.write('			"L" : "0",\n')
+            fo.write('			"FL1" : "5.0",\n')
+            fo.write('			"TAU" : "0.00001",\n\n')
+            if n_surface_bound > 0:
+                free = 0
+            else:
+                free = 1
+            fo.write('"Boundary Conditions" : "comment",\n')
+            fo.write(f'			"FREE_SURF" : "{free}",\n')
+            fo.write('			"ABS_TYPE" : "1",\n')
+            fo.write('			"ABS_TYPE values : CPML-Boundary=1; '+\
+                     'Damping-Boundary=2" : "comment",\n')
+            fo.write(f'			"FW" : "{nbound}",\n')
+            fo.write('			"DAMPING" : "8.0",\n')
+            fo.write('			"BOUNDARY" : "0",\n\n')
+            fo.write('"Snapshots" : "comment",\n')
+            fo.write('			"SNAP" : "1",\n')
+            fo.write('			"TSNAP1" : "2e-3",\n')
+            fo.write(f'			"TSNAP2" : "{np.round(tmax,3):0.3f}",\n')
+            fo.write('			"TSNAPINC" : "0.002",\n')
+            fo.write(f'			"IDX" : "{idx}",\n')
+            fo.write(f'			"IDY" : "{idz}",\n')
+            fo.write('			"SNAP_FORMAT" : "3",\n')
+            fo.write('			"SNAP_FILE" : "snap/snapshots",\n\n')
+            fo.write('"Receiver" : "comment",\n')
+            fo.write('			"SEISMO" : "1",\n')
+            fo.write('			"READREC" : "1",\n')
+            fo.write('			"REC_FILE" : "receiver_pts.dat",\n')
+            fo.write('			"REFRECX, REFRECY" : "0.0 , 0.0",\n')
+            fo.write('			"XREC1,YREC1" : "54.0 , 2106.0",\n')
+            fo.write('			"XREC2,YREC2" : "5400.0 , 2106.0",\n')
+            fo.write('			"NGEOPH" : "1",\n\n')
+            fo.write('"Receiver array" : "comment",\n')
+            fo.write('			"REC_ARRAY" : "0",\n')
+            fo.write('			"REC_ARRAY_DEPTH" : "70.0",\n')
+            fo.write('			"REC_ARRAY_DIST" : "40.0",\n')
+            fo.write('			"DRX" : "4",\n\n')
+            fo.write('"Seismograms" : "comment",\n')
+            fo.write(f'			"NDT" : "{ndt}",\n')
+            fo.write('			"SEIS_FORMAT" : "1",\n')
+            fo.write('			"SEIS_FILE" : "su/record",\n\n')
+            fo.write('"Monitoring the simulation" : "comment",\n')
+            fo.write('			"LOG_FILE" : "log/test.log",\n')
+            fo.write('			"LOG" : "1",\n')
+            fo.write('			"OUT_TIMESTEP_INFO" : "100",\n\n')
+            fo.write('"Checkpoints" : "comment",\n')
+            fo.write('			"CHECKPTREAD" : "0",\n')
+            fo.write('			"CHECKPTWRITE" : "0",\n')
+            fo.write('			"CHECKPT_FILE" : "tmp/checkpoint_sofi2D",\n}\n')
+        nrec = np.unique(self.traces.receiver)
+        xrec = np.zeros(len(nrec))
+        zrec = np.zeros(len(nrec))
+        for i in range(len(nrec)):
+            if self.geom.x_dir:
+                xrec[i] = self.geom.rec_dict[nrec[i]]["x"]
+            else:
+                xrec[i] = self.geom.rec_dict[nrec[i]]["y"]
+            zrec[i] = self.geom.rec_dict[nrec[i]]["z"]
+        nshot = np.unique(self.traces.shot)
+        xshot = np.zeros(len(nshot))
+        zshot = np.zeros(len(nshot))
+        for i in range(len(nshot)):
+            if self.geom.x_dir:
+                xshot[i] = self.geom.sht_dict[nrec[i]]["x"]
+            else:
+                xshot[i] = self.geom.sht_dict[nrec[i]]["y"]
+            zshot[i] = self.geom.sht_dict[nrec[i]]["z"]
+#        xrec = np.unique(self.traces.receiver_pos)
+#        xshot = np.unique(self.traces.shot_pos)
+        xmnr = xrec.min()
+        xmns = xshot.min()
+        dx_stn = dx*nbound - min(xmnr,xmns)
+        xrec += dx_stn
+        xshot += dx_stn
+        zrec += bound_s+0.05
+        zshot += bound_s+0.05
+        with open(os.path.join(self.p_aim,"receiver_pts.dat"),"w") as fo:
+            for i in range(len(xrec)):
+                fo.write(f"{xrec[i]:0.3f} {zrec[i]:0.3f}\n")
+        with open(os.path.join(self.p_aim,"source_pts.dat"),"w") as fo:
+            for i in range(len(xshot)):
+                fo.write(f"{xshot[i]:0.3f} {zshot[i]:0.3f} "+\
+                         f"0.0 {fc:0.1f} 1.0\n")
 
     def atten_amp(self):
         """

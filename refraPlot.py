@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Mon Jan 16, 2023
-@author: Hermann
+last modified on Mon Feb 20, 2023
+@author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
     Window
@@ -963,13 +963,14 @@ class Window(QMainWindow, Ui_MainWindow):
         try:
             self.actual_axis = ax
             t = time[nt_min:nt_max]
-            ntrace = np.alen(x_pos)
+            dx = abs(x_pos[1]-x_pos[0])*2.
+            ntrace = len(x_pos)
             if ntrace == 0:
                 _ = QtWidgets.QMessageBox.warning(None,"Warning",\
                     f"No data in {text_t}\nChoose other gather",
                     QtWidgets.QMessageBox.Close)
                 return
-            nsamp = np.alen(t)
+            nsamp = len(t)
             if nt_max == 0:
                 nt_max = nsamp
             if traces == None or len(traces) == 0:
@@ -1013,7 +1014,12 @@ class Window(QMainWindow, Ui_MainWindow):
             for i in traces:
                 if np.isclose(dmax[i], 0.):
                     continue
-                x = np.array(x_pos[i]+d[i,:]/dmax[i]*amp)
+                dd = d[i,:]/dmax[i]*amp
+                dd[dd>dx] = dx
+                dd[dd<-dx] = -dx
+#                x = np.array(x_pos[i]+d[i,:]/dmax[i]*amp)
+                x = np.array(x_pos[i]+dd)
+                x = np.clip(x,x-2*dx,x+2*dx)
                 x = np.clip(x,xmin,xmax)
                 ax.plot(x,time[nt_min:nt_max])
                 if fill:
@@ -1198,7 +1204,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # Plot picks
         self.picksPlot()
         if self.PlotCalculatedTimes.isChecked():
-            self.Plot_calc_picks()
+            self.plotCalcPicks()
         self.main.function = "main"
 
     def plotDistance(self,ax,dist):
@@ -1566,13 +1572,13 @@ class Window(QMainWindow, Ui_MainWindow):
             xma = max(self.x)
             if self.zooms[self.i_zooms][1] >= xma:
                 return
-            zm1 = min(self.zooms[self.i_zooms][1]+dwin-1,xma+0.5)
+            zm1 = min(self.zooms[self.i_zooms][1]+dwin,xma+0.2)
             zm0 = zm1 - dwin
         else:
             xmi = min(self.x)
             if self.zooms[self.i_zooms][0] <= xmi:
                 return
-            zm0 = max(self.zooms[self.i_zooms][0]-dwin+1,xmi-0.5)
+            zm0 = max(self.zooms[self.i_zooms][0]-dwin,xmi-0.2)
             zm1 = zm0 + dwin
         self.zooms[self.i_zooms][0] = zm0
         self.zooms[self.i_zooms][1] = zm1
@@ -1596,11 +1602,17 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         if np.sum(np.array(self.traces.npick, dtype=int)[self.actual_traces]) > 0:
-            for i in range(self.actual_number_traces):
-                ntr = self.actual_traces[i]
+# Check which trace of the actual gather is the first one plotted on the screen.
+# Traces actually plotted on the screen ares stored in self.tr, the ones of the
+# actual gather are stored in self.actual_traces.
+            # i0 = np.where(np.array(self.actual_traces,dtype='int') == \
+            #         int(self.tr[0]))[0][0]
+            for itr in self.tr:
+#                i=ii+i0
+                ntr = self.actual_traces[itr]
                 if self.traces.npick[ntr]>0:
                     for j in range(self.traces.npick[ntr]):
-                        self.pickPlot(i,ntr,j,col)
+                        self.pickPlot(itr,ntr,j,col)
             renderer = self.figs[self.fig_plotted].canvas.renderer
             self.axes[self.fig_plotted].draw(renderer)
             self.PlotPicks.setEnabled(True)
@@ -1630,9 +1642,8 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         t = self.traces.pick_times[ntr][j]
-        if  t >= self.time_plt_min and t <= self.time_plt_max and\
-            self.x[i]>=self.zooms[self.i_zooms][0] and\
-            self.x[i]<=self.zooms[self.i_zooms][1]:
+# Picks outside the actual time zoom are not plotted
+        if  t >= self.time_plt_min and t <= self.time_plt_max:
             x_c = []
             x_c.append(self.x[i]-0.3)
             x_c.append(self.x[i]+0.3)
@@ -1640,11 +1651,13 @@ class Window(QMainWindow, Ui_MainWindow):
             self.line, = self.axes[self.fig_plotted].plot(x_c, y_c,col)
 # If plot pick is called before the uncertainty of a travel time has been
 #    picked, i.e. before the picking has been finished, add standard uncertainty
-            tmn = self.traces.pick_times_min[ntr][j]
             try:
+                tmn = self.traces.pick_times_min[ntr][j]
                 tmx = self.traces.pick_times_max[ntr][j]
             except:
-                self.traces.pick_times_max[ntr][j] = t-2*self.data.dt
+                self.traces.pick_times_min[ntr][j] = t-2*self.data.dt
+                self.traces.pick_times_max[ntr][j] = t+2*self.data.dt
+                tmn = self.traces.pick_times_min[ntr][j]
                 tmn = self.traces.pick_times_max[ntr][j]
             x_c = [self.x[i],self.x[i]]
             y_c = [max(tmn,self.time_plt_min),min(tmx,self.time_plt_max)]

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Mon Jan 16, 2023
+last modified on Mon Feb 27, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -93,11 +93,12 @@ import os
 #  sys_path is the folder where all python program files are located
 #  dir0 is the folder where the data are located
 
-# Paths on HZ computer
+# Paths on HZ computerall_freq_filter
 sys_path = r"C:/Sources_2010/Python_programs"
-dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-16_Profil4"
+#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"H:\Projet_geoscience_Lisa\Bloc3"
+dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Blocs_shifted"
 #dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
-#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-13-14_profil1"
 
 # Example of paths for programs and data on department desktop
 # sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"
@@ -150,14 +151,14 @@ class Main(QtWidgets.QWidget):
 
 # Define actions for Menu buttons
 # Actions for Menu File
-        self.window.openFile.triggered.connect(self.fileOpen) # In refraPy.py
+        self.window.openFile.triggered.connect(self.fileOpen) # In PyRefra.py
         self.window.Save_SEGY.triggered.connect(self.data.saveSEGY) # In refraData.py
         self.window.Save_SU.triggered.connect(self.data.saveSU) # In refraData.py
         self.window.Save_SEG2.triggered.connect(self.data.saveSEG2) # In refraData.py
-        self.window.Save_Bin.triggered.connect(self.data.saveBinary) # In RefraData.py
+        self.window.Save_Bin.triggered.connect(self.data.saveBinary) # In refraData.py
         self.window.Save_ASCII.triggered.connect(self.data.saveASCII) # In refraData.py
         self.window.Save_plot.triggered.connect(self.window.savePlot) # In refraPlot.py
-        self.window.quitAction.triggered.connect(self.closeApp) # In refraPy.py
+        self.window.quitAction.triggered.connect(self.closeApp) # In PyRefra.py
 # Actions for menu Plot
         self.window.originalDataScreen.triggered.connect(self.window.originalScreen) # In refraPlot.py
         self.window.originalDataAll.triggered.connect(self.window.original) # In refraPlot.py
@@ -182,7 +183,7 @@ class Main(QtWidgets.QWidget):
         self.window.TraceSign.triggered.connect(self.window.traceSign) # In refraPlot.py
         self.window.ChangeSign.triggered.connect(self.window.changeSign) # In refraPlot.py
         self.window.Change_colors.triggered.connect(self.utilities.invCol) # In refraData.py
-        self.window.Animation.triggered.connect(self.window.animateLine) # In refraPy.py
+        self.window.Animation.triggered.connect(self.window.animateLine) # In PyRefra.py
         self.window.Attenuation.triggered.connect(self.utilities.atten_amp) # In refraData.py
 # Actions for menu Picking
         self.window.ManualPicks.triggered.connect(self.window.pickManual) # In refraPlot.py
@@ -409,21 +410,26 @@ class Main(QtWidgets.QWidget):
             QtCore.QCoreApplication.processEvents()
 
         results = []
+        iline = 0
         l = len(values)
         if l > 0:
             for it,t in enumerate(types):
                 if t.lower() == "e":
-                    results.append(D.dlines[it].text())
+                    results.append(D.dlines[iline].text())
+                    iline += 1
                 elif t.lower() == "r":
                     results.append(None)
                     for i in range(len(labels[it])):
+                        iline += 1
                         if D.rbtn[it][i].isChecked():
                             results[-1] = i
-                            break
+#                            break
                 elif t.lower() == 'c':
                     results.append(D.ck_order[it]-1)
+                    iline += 1
                 else:
                     results.append(None)
+                    iline += 1
         return results, D.Dbutton
 
     def closeApp(self):
@@ -536,28 +542,29 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
+                self.mainLayout.addWidget(self.dlabels[ilin], ilin, 0, 1, 2)
                 ilin += 1
-                self.mainLayout.addWidget(self.dlabels[i], ilin, 0, 1, 2)
             elif types[i].lower() == 'e':
                 self.dlabels.append(QtWidgets.QLabel(labels[i]))
                 self.dlines.append(QtWidgets.QLineEdit())
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
-                ilin += 1
-                self.mainLayout.addWidget(self.dlabels[i], ilin, 0, 1, 1)
-                self.mainLayout.addWidget(self.dlines[i], ilin, 1, 1, 1)
+                self.mainLayout.addWidget(self.dlabels[ilin], ilin, 0, 1, 1)
+                self.mainLayout.addWidget(self.dlines[ilin], ilin, 1, 1, 1)
                 try:
                     s = str(values[i])
-                    self.dlines[i].setText(s)
+                    self.dlines[ilin].setText(s)
                 except:
                     pass
+                ilin += 1
             elif types[i].lower() == 'r':
                 self.ckb.append(None)
-                self.dlabels.append(None)
-                self.dlines.append(None)
+                # self.dlabels.append(None)
+                # self.dlines.append(None)
                 self.rbtn.append([])
                 self.btngroup.append(QButtonGroup())
+#                ilin += 1
                 rck = int(values[i])-1
                 if rck<0 or rck>=len(labels[i]):
                     rck = 0
@@ -566,12 +573,12 @@ class Dialog(QtWidgets.QWidget):
                     self.dlines.append(None)
                     self.rbtn[i].append(QRadioButton(l))
                     self.btngroup[-1].addButton(self.rbtn[i][-1])
-                    ilin += 1
                     self.mainLayout.addWidget(self.rbtn[i][-1], ilin, 0, 1, 2)
                     if il == rck:
                         self.rbtn[i][-1].setChecked(True)
                     else:
                         self.rbtn[i][-1].setChecked(False)
+                    ilin += 1
             elif types[i].lower() == 'c':
                 self.dlabels.append(None)
                 self.dlines.append(None)
@@ -579,9 +586,9 @@ class Dialog(QtWidgets.QWidget):
                 self.btngroup.append(None)
                 self.ckb.append(QtWidgets.QCheckBox(self))
                 self.ckb[i].setText(self.labels[i])
-                ilin += 1
                 self.mainLayout.addWidget(self.ckb[i], ilin, 0, 1, 2)
                 self.ckb[i].stateChanged.connect(self.checked)
+                ilin += 1
         ilin += 2
         self.mainLayout.addWidget(self.YesBtn, ilin, 0)
         self.mainLayout.addWidget(self.CancelBtn, ilin, 1)

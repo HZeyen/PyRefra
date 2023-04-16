@@ -66,6 +66,10 @@ The amplitudes are calculated as stored_value/(maximum_value*factor)*correspondi
 - Lines 3 to 5: X_receivers, Y_receivers, Z_receivers (each line ntrace values)
 - Following nsamp lines: Normalized values of all traces (one line per time interval, one column per trace)
 
+**$\textcolor{violet}{\text{Save headers}}$** (keyboard shortcut: **H**)
+Writes headers of all traces to ASCII files. Every data file has its corresponding header file "header_nnnnn.dat". These header files are written to folder Headers. If this folder does not exist, it is created.
+
+
 **$\textcolor{violet}{\text{Save Plot}}$** (keyboard shortcut: **P**): 
 Save actual screen into png file. File names depend on what is actually shown
 
@@ -91,6 +95,10 @@ Plot receiver gathers, i.e., all traces from all acquired files that have been r
 
 **$\textcolor{violet}{\text{Distance gather}}$** (keyboard shortcut: **D**): 
 Plot distance gathers, i.e., all traces from all acquired files that have a common absolute offset are plotted into one record section. If the same offsets have been recorded several times, the traces are plotted with a slight lateral shift. The traces are plotted at the mid-point position between shot and receiver. The list of plots on the “Available plots” window is updated and the gather corresponding to the smallest offset is shown in the main window. This window may serve for quality control of the picks. Especially, in the case when receiver and shot point are switched both traces are plotted at the same position and should have the same arrival time.
+
+**$\textcolor{violet}{\text{Choose component}}$** (keyboard shortcut: **G** (for “geophone type”))
+If several components have been recorded, choose the one to be plotted or to plot all components
+
 
 **$\textcolor{red}{\text{Zoom options}}$**:
 Most zoom options are maintained from one plotting window to the others

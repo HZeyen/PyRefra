@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Mon Feb 27, 2023
+last modified on Sun Apr 16, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -11,49 +11,20 @@ Before running the program the first time, change the folders around line 95:
 
 Needed Python packages:
     obspy
-        In obspy, you may find file seg2.py
-           (usually in User\your_name\anaconda_folder\Lib\site-packages\obspy\io\seg2)
-           There find line "if 'DELAY' in header['seg2']:" and comment out the whole
-           "if" block.
-           Also at the very end, find line containing "WARNING_HEADER" and comment it out.
-        This is not important for working of the program, but it avoids an annoyingly
-        long warning message each time you start the program.
-
-        It is, however necessary to correct one bug in the same file:
-            After line 327 add the following try/except structure:
-            if key == 'NOTE':
-                try:
-                    value = [cleanup_and_decode_string(line)
-                             for line in value.split(self.line_terminator)
-                             if line]
-                except:
-                    value = ''
-        If the program stops after having written to the screen “folder: …”
-        followed by “files read” without a list of files, the most probable
-        reason is that there was an update, a new version of obspy has been
-        installed and you must do the above corrections again!
+    pygimli
+        In obspy and pygimli, some changes should be done.
+            See installation manual for details.
     PyQt5
     matplotlib
     numpy
     os
-    time
     sys
     copy
     struct
     signal
-    scipy
+    scikit-learn
     datetime
     statsmodels
-    Pygimli
-        For nicer plots, modify numbering format in drawDataMatrix
-        The function is found in file
-        Environment_path/Lib/site-packages/pygimli/viewer/mpl
-        For me, Environment path is C:/Users/Hermann/anaconda37/envs/pg
-        There go to lines 458 and 462 starting with
-        ax.set_xticklabels and
-        ax.set_yticklabels
-        and change the rounding to 0 ciphers instead of the default 2 ciphers
-
 
 Needed private packages:
 
@@ -95,9 +66,10 @@ import os
 
 # Paths on HZ computerall_freq_filter
 sys_path = r"C:/Sources_2010/Python_programs"
-#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-#dir0 = r"H:\Projet_geoscience_Lisa\Bloc3"
-dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Blocs_shifted"
+dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Bloc2-5"
+#dir0 = r"H:/Seg2Dat/Alina/L3"
+#dir0 = r"H:/Seg2Dat/Pierre-Perthuis/Sismique_2019"
 #dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
 
 # Example of paths for programs and data on department desktop
@@ -139,6 +111,8 @@ class Main(QtWidgets.QWidget):
         self.fileOpen()
 # Initialize main frame widget
         self.window = rP.Window(self, self.files, self.data, self.traces, self.geo)
+        if len(self.geo.types) > 1:
+            self.window.component.setEnabled(True)
 # Check whether measured picks exist and if so, activate tomography button
         sp = sum(self.traces.npick)
         if sp > 0:
@@ -157,6 +131,7 @@ class Main(QtWidgets.QWidget):
         self.window.Save_SEG2.triggered.connect(self.data.saveSEG2) # In refraData.py
         self.window.Save_Bin.triggered.connect(self.data.saveBinary) # In refraData.py
         self.window.Save_ASCII.triggered.connect(self.data.saveASCII) # In refraData.py
+        self.window.Save_headers.triggered.connect(self.data.saveHeader) # In refraData.py
         self.window.Save_plot.triggered.connect(self.window.savePlot) # In refraPlot.py
         self.window.quitAction.triggered.connect(self.closeApp) # In PyRefra.py
 # Actions for menu Plot
@@ -166,6 +141,7 @@ class Main(QtWidgets.QWidget):
         self.window.fileGather.triggered.connect(self.window.plotFG) # refraPlot.py
         self.window.receiverGather.triggered.connect(self.window.plotRG) # refraPlot.py
         self.window.distanceGather.triggered.connect(self.window.plotDG) # refraPlot.py
+        self.window.component.triggered.connect(self.window.chooseComponent) # refraPlot.py
         self.window.zoom.triggered.connect(self.window.zooming) # In refraPlot.py
         self.window.zoom_Out.triggered.connect(self.window.zoomOut) # In refraPlot.py
         self.window.zoom_In.triggered.connect(self.window.zoomIn) # In refraPlot.py
@@ -190,10 +166,10 @@ class Main(QtWidgets.QWidget):
         self.window.AmpPicks.triggered.connect(self.window.ampPicks) # In refraPlot.py
         self.window.StaLta.triggered.connect(self.window.Sta_Lta) # In refraPlot.py
         self.window.CorrelationPicks.triggered.connect(self.window.corrPick) # In refraPlot.py
-        self.window.PlotPicks.triggered.connect(self.window.picksPlot) # In refraPlot.py
         self.window.MovePicks.triggered.connect(self.window.pickMove) # In refraPlot.py
         self.window.Uncertainty_change.triggered.connect(self.window.uncertainty) # In refraPlot.py
         self.window.erasePicks.triggered.connect(self.window.erase_Picks) # In refraPlot.py
+        self.window.plotAllPicks.triggered.connect(self.window.plotPickSection) # In refraPlot.py
         self.window.PlotCalculatedTimes.triggered.connect(self.window.plotCalcPicks) # In refraPlot.py
         if self.traces.calc_picks:
             self.window.PlotCalculatedTimes.setEnabled(True)
@@ -239,7 +215,6 @@ class Main(QtWidgets.QWidget):
         """
         if (event.type() == QtCore.QEvent.KeyRelease and obj is self.window):
 # In main function, only "+" and "-" keys have a meaning, changing amplitude
-#            print(f"event_key: {event.key()}, function: {self.function}")
             if self.function == "main":
                 if event.key() == 43:
                     self.window.changeAmp(1)
@@ -455,6 +430,14 @@ class Main(QtWidgets.QWidget):
                                 self.window.general_sign
                             fh.write(f"{i+1} {a:0.0f} 1\n")
             print("application finished")
+            if self.utilities.w_tau:
+                self.utilities.w_tau.close()
+            if self.utilities.w_env:
+                self.utilities.w_env.close()
+            if self.utilities.w_tomo:
+                self.utilities.w_tomo.close()
+            if self.utilities.w_fcol:
+                self.utilities.w_fcol.close()
             if np.amax(self.traces.npick) > 0:
                 self.traces.storePicks()
             try:
@@ -515,7 +498,7 @@ class Dialog(QtWidgets.QWidget):
         self.rbtn = []
         self.btngroup = []
         if parent.function == "False_Colour":
-            self.label = QtWidgets.QLabel("Check up to 3 items\nChose red item")
+            self.label = QtWidgets.QLabel("Check up to 3 items; chose red item")
         for i in range(nlab):
             self.ckState.append(False)
         self.YesBtn = QtWidgets.QPushButton('Ok',self)
@@ -524,10 +507,13 @@ class Dialog(QtWidgets.QWidget):
         self.CancelBtn.move(150,20*(nlab+3))
         self.mainLayout = QtWidgets.QGridLayout()
         self.setLayout(self.mainLayout)
+        il_add = 0
         if parent.function == "False_Colour":
             self.mainLayout.addWidget(self.label, 0, 0, 1, 2)
+            il_add = 1
         ilin = 0
         for i in range(len(labels)):
+            il = ilin + il_add
             if types[i].lower() == 'l':
                 if values[i]:
                     if values[i].lower() == 'b':
@@ -542,7 +528,7 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
-                self.mainLayout.addWidget(self.dlabels[ilin], ilin, 0, 1, 2)
+                self.mainLayout.addWidget(self.dlabels[ilin], il, 0, 1, 2)
                 ilin += 1
             elif types[i].lower() == 'e':
                 self.dlabels.append(QtWidgets.QLabel(labels[i]))
@@ -550,31 +536,28 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
-                self.mainLayout.addWidget(self.dlabels[ilin], ilin, 0, 1, 1)
-                self.mainLayout.addWidget(self.dlines[ilin], ilin, 1, 1, 1)
+                self.mainLayout.addWidget(self.dlabels[ilin], il, 0, 1, 1)
+                self.mainLayout.addWidget(self.dlines[ilin], il, 1, 1, 1)
                 try:
                     s = str(values[i])
-                    self.dlines[ilin].setText(s)
+                    self.dlines[-1].setText(s)
                 except:
                     pass
                 ilin += 1
             elif types[i].lower() == 'r':
                 self.ckb.append(None)
-                # self.dlabels.append(None)
-                # self.dlines.append(None)
                 self.rbtn.append([])
                 self.btngroup.append(QButtonGroup())
-#                ilin += 1
                 rck = int(values[i])-1
                 if rck<0 or rck>=len(labels[i]):
                     rck = 0
-                for il,l in enumerate(labels[i]):
+                for ir,l in enumerate(labels[i]):
                     self.dlabels.append(None)
                     self.dlines.append(None)
                     self.rbtn[i].append(QRadioButton(l))
                     self.btngroup[-1].addButton(self.rbtn[i][-1])
-                    self.mainLayout.addWidget(self.rbtn[i][-1], ilin, 0, 1, 2)
-                    if il == rck:
+                    self.mainLayout.addWidget(self.rbtn[i][-1], il, 0, 1, 2)
+                    if ir == rck:
                         self.rbtn[i][-1].setChecked(True)
                     else:
                         self.rbtn[i][-1].setChecked(False)
@@ -586,12 +569,13 @@ class Dialog(QtWidgets.QWidget):
                 self.btngroup.append(None)
                 self.ckb.append(QtWidgets.QCheckBox(self))
                 self.ckb[i].setText(self.labels[i])
-                self.mainLayout.addWidget(self.ckb[i], ilin, 0, 1, 2)
+                self.mainLayout.addWidget(self.ckb[i], il, 0, 1, 2)
                 self.ckb[i].stateChanged.connect(self.checked)
                 ilin += 1
         ilin += 2
-        self.mainLayout.addWidget(self.YesBtn, ilin, 0)
-        self.mainLayout.addWidget(self.CancelBtn, ilin, 1)
+        il = ilin + il_add
+        self.mainLayout.addWidget(self.YesBtn, il, 0)
+        self.mainLayout.addWidget(self.CancelBtn, il, 1)
         self.YesBtn.setDefault(True)
         self.YesBtn.clicked.connect(self.on_YesButton_clicked)
         self.CancelBtn.clicked.connect(self.on_CancelButton_clicked)
@@ -658,9 +642,9 @@ class Dialog(QtWidgets.QWidget):
 #    which will be used for the following check
                             if self.n_checked == 3:
                                 self.label.setText(\
-                                    "Before checking another item\n unckeck one item")
+                                    "Before checking another item unckeck one item")
                             else:
-                                self.label.setText("Check up to 3 items\n"+\
+                                self.label.setText("Check up to 3 items;"+\
                                     f"Chose {cols[self.n_checked]} item")
                         else:
                             self.ckb[i].setText(f"{self.labels[i]} ("+\
@@ -840,7 +824,7 @@ if __name__ == "__main__":
         sys._excepthook = sys.excepthook
         sys.excepthook = my_exception_hook
         main = Main(dir0)
-        main.window.show()
+        main.window.showMaximized()
         sys.exit(app.exec_())
     except:
 #        sys.exit()

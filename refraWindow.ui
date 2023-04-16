@@ -77,6 +77,7 @@
     <addaction name="Save_SEG2"/>
     <addaction name="Save_Bin"/>
     <addaction name="Save_ASCII"/>
+    <addaction name="Save_headers"/>
     <addaction name="separator"/>
     <addaction name="Save_plot"/>
     <addaction name="separator"/>
@@ -85,7 +86,7 @@
    </widget>
    <widget class="QMenu" name="plotMenu">
     <property name="title">
-     <string>Plot</string>
+     <string>Display</string>
     </property>
     <addaction name="originalDataScreen"/>
     <addaction name="originalDataAll"/>
@@ -94,6 +95,7 @@
     <addaction name="fileGather"/>
     <addaction name="receiverGather"/>
     <addaction name="distanceGather"/>
+    <addaction name="component"/>
     <addaction name="separator"/>
     <addaction name="zoom"/>
     <addaction name="zoom_Out"/>
@@ -129,10 +131,12 @@
     <addaction name="AmpPicks"/>
     <addaction name="StaLta"/>
     <addaction name="CorrelationPicks"/>
-    <addaction name="PlotPicks"/>
+    <addaction name="separator"/>
     <addaction name="MovePicks"/>
     <addaction name="Uncertainty_change"/>
     <addaction name="erasePicks"/>
+    <addaction name="separator"/>
+    <addaction name="plotAllPicks"/>
     <addaction name="PlotCalculatedTimes"/>
     <addaction name="StorePicks"/>
     <addaction name="StoreGimli"/>
@@ -164,7 +168,7 @@
   </widget>
   <action name="actionPlot">
    <property name="text">
-    <string>Plot</string>
+    <string>Display</string>
    </property>
   </action>
   <action name="shotGather">
@@ -207,7 +211,7 @@
   </action>
   <action name="distanceGather">
    <property name="text">
-    <string>Distance Gather</string>
+    <string>Distance gather</string>
    </property>
    <property name="shortcut">
     <string>D</string>
@@ -288,7 +292,7 @@
   </action>
   <action name="ManualPicks">
    <property name="text">
-    <string>Manual Picks</string>
+    <string>Manual picks</string>
    </property>
    <property name="shortcut">
     <string>M</string>
@@ -312,7 +316,7 @@
   </action>
   <action name="erasePicks">
    <property name="text">
-    <string>erase all picks</string>
+    <string>Erase all picks</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+E</string>
@@ -320,7 +324,7 @@
   </action>
   <action name="TraceSign">
    <property name="text">
-    <string>change trace sign</string>
+    <string>Change trace sign</string>
    </property>
    <property name="toolTip">
     <string>change sign of 1 trace</string>
@@ -331,7 +335,7 @@
   </action>
   <action name="ChangeSign">
    <property name="text">
-    <string>change sign</string>
+    <string>Change sign</string>
    </property>
    <property name="toolTip">
     <string>change sign of all traces</string>
@@ -356,7 +360,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Correlation Picks</string>
+    <string>Correlation picks</string>
    </property>
    <property name="toolTip">
     <string>picking by cross correlation</string>
@@ -400,7 +404,7 @@
   </action>
   <action name="StorePicks">
    <property name="text">
-    <string>Store Picks</string>
+    <string>Store picks</string>
    </property>
    <property name="toolTip">
     <string>Store Picks in file picks.dat</string>
@@ -441,7 +445,7 @@
   </action>
   <action name="Vel_filter">
    <property name="text">
-    <string>Velocity_filter</string>
+    <string>Velocity filter</string>
    </property>
    <property name="toolTip">
     <string>Velocity filter</string>
@@ -477,7 +481,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Time-Gain</string>
+    <string>Time gain</string>
    </property>
   </action>
   <action name="d_Gain">
@@ -485,7 +489,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Distance_Gain</string>
+    <string>Distance gain</string>
    </property>
   </action>
   <action name="Agc">
@@ -520,7 +524,7 @@
   </action>
   <action name="FiltTrace">
    <property name="text">
-    <string>Frequency filter for single trace</string>
+    <string>Frequency filter single trace</string>
    </property>
   </action>
   <action name="fileGather">
@@ -574,7 +578,10 @@
   </action>
   <action name="Save_plot">
    <property name="text">
-    <string>Save plot</string>
+    <string>Save Plot</string>
+   </property>
+   <property name="iconText">
+    <string>Save Plot</string>
    </property>
    <property name="shortcut">
     <string>P</string>
@@ -604,7 +611,7 @@
   </action>
   <action name="Uncertainty_change">
    <property name="text">
-    <string>Uncertainty_change</string>
+    <string>Uncertainty change</string>
    </property>
    <property name="shortcut">
     <string>Shift+U</string>
@@ -665,6 +672,39 @@
    </property>
    <property name="shortcut">
     <string>Q</string>
+   </property>
+  </action>
+  <action name="plotAllPicks">
+   <property name="text">
+    <string>Plot all picks</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+P</string>
+   </property>
+  </action>
+  <action name="Save_headers">
+   <property name="text">
+    <string>Save headers</string>
+   </property>
+   <property name="toolTip">
+    <string>Save headers of each data file to ASCII file</string>
+   </property>
+   <property name="shortcut">
+    <string>H</string>
+   </property>
+  </action>
+  <action name="component">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Choose component</string>
+   </property>
+   <property name="toolTip">
+    <string>Choose geophone component to be plotted</string>
+   </property>
+   <property name="shortcut">
+    <string>G</string>
    </property>
   </action>
  </widget>

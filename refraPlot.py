@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Mon Feb 20, 2023
+last modified on Sun Apr 16, 2023
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -13,6 +13,7 @@ Contains the following functions:
     addFig
     changeFig
     SavePlot
+    chooseComponent
     original
     originalScreen
     drawNew
@@ -21,8 +22,7 @@ Contains the following functions:
     tNorm
     tGain
     dGain
-    AGC
-    traceMute
+    AGC    traceMute
         on Press
     muteAir
     muteBefore
@@ -49,6 +49,7 @@ Contains the following functions:
     nextBlock
     picksPlot
     pickPlot
+    plotPickSection
     plotCalcPicks
     searchTrace
     searchPick
@@ -86,6 +87,8 @@ import numpy as np
 from matplotlib.figure import Figure
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.uic import loadUiType
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel,\
+     QVBoxLayout, QWidget
 import copy
 from matplotlib.backends.backend_qt5agg import(
         FigureCanvasQTAgg as FigureCanvas,
@@ -100,6 +103,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setWindowIcon(QtGui.QIcon(main.sys_path+"/PyRefra_Logo.png"))
         self.fig = Figure() #create a first figure in central widget
         self.addMPL(self.fig)
+        self.plotComponent = "All"
         self.verticalSlider.setVisible(False)
         self.figs=[]
         self.figs.append(self.fig)
@@ -285,10 +289,16 @@ class Window(QMainWindow, Ui_MainWindow):
         else:
             self.zooms[self.i_zooms][0] = self.traces.off_min
             self.zooms[self.i_zooms][1] = self.traces.off_max
-        self.picksPlot() # Plot picks if available
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted]) # Plot picks if available
         self.setHelp(self.main_text) # plot help line for self module
         self.v_set = True
         self.main.function = "main"
+        try:
+            self.main.utilities.mgr
+        except:
+            pass
+        else:
+            self.Change_colors.setEnabled(True)
 
     def savePlot(self):
         """
@@ -315,6 +325,10 @@ class Window(QMainWindow, Ui_MainWindow):
             tits = tit.split()
             fname = f"Tau-P_{tits[1]}-{tits[2]}_{d1}_{c_time}.png"
             self.figs[self.fig_plotted].savefig(fname)
+        if self.main.function == "attenuation":
+            tit = self.axes[self.fig_plotted].get_title()
+            tits = tit.split()
+            fname = f"Attenuation_{tits[1]}{tits[2][:-1]}_{d1}_{c_time}.png"
         else:
             if self.rg_flag:
                 fname = f"receiver_{self.actual_receivers[0]+1:0>5}_{d1}_{c_time}.png"
@@ -329,8 +343,37 @@ class Window(QMainWindow, Ui_MainWindow):
                 fname = f"file_{self.actual_shot:0>5}_{d1}_{c_time}.png"
             self.figs[self.fig_plotted].savefig(fname)
 
+    def chooseComponent(self):
+        """
+        If several components have been recorded, choose the one to be plotted
+        or to plot all components
+
+        Returns
+        -------
+        None.
+
+        """
+        labels = list(self.geom.types)+["All"]
+        n = len(labels)
+        results, okButton = self.main.dialog(\
+                          [labels], ["r"], [n],"Coose geophone component")
+        if okButton == False:
+            print("No component chosen")
+            return
+        self.plotComponent = labels[int(results[0])]
+        print(f"Plot {self.plotComponent}-component")
+        self.v_set = True
+        self.drawNew(True)
 
     def original(self):
+        """
+        Plot original data of all shots (i.e. eliminate filtering and/or muting)
+
+        Returns
+        -------
+        None.
+
+        """
         self.main.function = "plot_original"
         self.data.st = copy.deepcopy(self.data.st_ori)
         self.v_set = False
@@ -340,6 +383,15 @@ class Window(QMainWindow, Ui_MainWindow):
         self.filtered = False
 
     def originalScreen(self):
+        """
+        Plot original data of the shot shown on screen
+        (i.e. eliminate filtering and/or muting)
+
+        Returns
+        -------
+        None.
+
+        """
         for t in self.actual_traces:
             nf = self.traces.file[t]
             nt = self.traces.trace[t]
@@ -382,7 +434,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 if self.PlotCalculatedTimes.isChecked():
                     self.plotCalcPicks()
 
-            self.picksPlot() # Plot picks if available
+            self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted]) # Plot picks if available
         self.main.function = "main"
 
     def setHelp(self,text):
@@ -887,7 +939,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.plotShot(self.axes[self.fig_plotted],self.fig_plotted)
             if self.PlotCalculatedTimes.isChecked():
                 self.plotCalcPicks()
-        self.picksPlot() # Plot picks if available
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted]) # Plot picks if available
         self.setHelp(self.main_text) # Change help text to self module
         self.main.function = "main"
         zm = True
@@ -1017,7 +1069,6 @@ class Window(QMainWindow, Ui_MainWindow):
                 dd = d[i,:]/dmax[i]*amp
                 dd[dd>dx] = dx
                 dd[dd<-dx] = -dx
-#                x = np.array(x_pos[i]+d[i,:]/dmax[i]*amp)
                 x = np.array(x_pos[i]+dd)
                 x = np.clip(x,x-2*dx,x+2*dx)
                 x = np.clip(x,xmin,xmax)
@@ -1076,7 +1127,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.fig_plotted = 0
         self.fig_plotted_R = 0
 # Plot picks
-        self.picksPlot()
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         if self.PlotCalculatedTimes.isChecked():
             self.plotCalcPicks()
         self.main.function = "main"
@@ -1095,7 +1146,13 @@ class Window(QMainWindow, Ui_MainWindow):
         self.actual_traces = []
         self.actual_number_traces = -1
 # Loop over all traces of the receiver gather
+        j = -1
         for i,isht in enumerate(self.traces.rec_pt_dict[irec]["shot"]):
+            j += 1
+            if self.traces.component[irec] != self.plotComponent and \
+                self.plotComponent != "All":
+                j -= 1
+                continue
             ifile = self.traces.rec_pt_dict[irec]["file"][i]
             itrace = self.traces.rec_pt_dict[irec]["trace"][i]
             ntr = self.traces.sht_rec_dict[(isht,irec)]
@@ -1105,7 +1162,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.x.append(xx)
 # If a trace exists already at the actual position, shift the first one by -0.2m,
 #    the second one by +0.2m so they may be distinguished on the screen
-            if i > 0:
+            if j > 0:
                 if self.x[-1] == self.x[-2]:
                     self.x[-1] += 0.2
                     self.x[-2] -= 0.2
@@ -1113,19 +1170,19 @@ class Window(QMainWindow, Ui_MainWindow):
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
             if self.v_set != True:
-                self.v[self.actual_number_traces,:] = \
+                self.v[j,:] = \
                     self.data.st[ifile][itrace].data*\
                     self.traces.amplitudes[ntr]
                 if self.nt_0>0:
-                    self.v[self.actual_number_traces,:] -= \
+                    self.v[j,:] -= \
                         np.mean(self.v[self.actual_number_traces,:self.nt_0])
 # Normalize data by the standard deviation of each trace
-            s = np.std(self.v[self.actual_number_traces,:])
+            s = np.std(self.v[j,:])
             self.stdev.append(s)
             if s > 0:
-                self.v_norm[self.actual_number_traces,:] = self.v[self.actual_number_traces,:]/s
+                self.v_norm[j,:] = self.v[j,:]/s
             else:
-                self.v_norm[self.actual_number_traces,:] = 0.
+                self.v_norm[j,:] = 0.
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
             if (self.x[-1] >= self.zooms[self.i_zooms][0]-0.2 and\
@@ -1137,11 +1194,13 @@ class Window(QMainWindow, Ui_MainWindow):
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
+        text_t = f"Receiver {irec+1}"
+        if self.plotComponent != "All":
+            text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax,self.time,self.x,self.v,fill=True,\
                         amp=self.amp_plt,traces=self.tr,\
                         nt_min=self.nt_mn,nt_max=self.nt_mx,\
-                        text_x="Shot offset (m)",
-                        text_t=f"Receiver {irec+1}")
+                        text_x="Shot offset (m)", text_t=text_t)
 # Change_colors is only meant for plot of tomography result, so deactivate it
         self.Change_colors.setEnabled(False)
         self.main.function = "main"
@@ -1202,7 +1261,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.fig_plotted = 0
         self.fig_plotted_D = 0
 # Plot picks
-        self.picksPlot()
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         if self.PlotCalculatedTimes.isChecked():
             self.plotCalcPicks()
         self.main.function = "main"
@@ -1238,7 +1297,13 @@ class Window(QMainWindow, Ui_MainWindow):
         self.tr = []
         self.stdev=[]
 # Loop over all traces of the distance gather
+        j = -1
         for i in range(nrecplt):
+            j += 1
+            if self.traces.component[traces[i]] != self.plotComponent and \
+                self.plotComponent != "All":
+                j -= 1
+                continue
             self.x.append(xx[i])
             self.actual_traces.append(traces[i])
             self.traces.plotted[traces[i]] = True
@@ -1246,7 +1311,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # If a trace exists already at the actual position (reciprocal positions of
 #    shot and receiver), shift the first one by -0.2m, the second one by +0.2m
 #    so they may be distinguished on the screen
-            if i > 0:
+            if j > 0:
                 if self.x[-1] == self.x[-2]:
                     self.x[-1] += 0.2
                     self.x[-2] -= 0.2
@@ -1255,7 +1320,7 @@ class Window(QMainWindow, Ui_MainWindow):
             if (self.x[-1] >= self.zooms[self.i_zooms][0]-0.2 and\
                 self.x[-1] <= self.zooms[self.i_zooms][1]+0.2)\
                 or self.i_zooms == 0:
-                    self.tr.append(i)
+                    self.tr.append(j)
         self.x = np.array(self.x)
         ns = self.data.nsamp
 # Copy data into array self.v
@@ -1267,25 +1332,27 @@ class Window(QMainWindow, Ui_MainWindow):
             ifile = self.traces.file[traces[i]]
             itrace = self.traces.trace[traces[i]]
             if self.v_set != True:
-                self.v[i,:] = self.data.st[ifile][itrace].data*\
+                self.v[j,:] = self.data.st[ifile][itrace].data*\
                               self.traces.amplitudes[traces[i]]
                 if self.nt_0>0:
-                    self.v[i,:] -= np.mean(self.v[i,:self.nt_0])
+                    self.v[j,:] -= np.mean(self.v[j,:self.nt_0])
 # Normalize data by the standard deviation of each trace
-            s = np.std(self.v[i,:])
+            s = np.std(self.v[j,:])
             self.stdev.append(s)
             if s > 0:
-                self.v_norm[i,:] = self.v[i,:]/s
+                self.v_norm[j,:] = self.v[j,:]/s
             else:
-                self.v_norm[i,:] = 0.
+                self.v_norm[j,:] = 0.
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
+        text_t = f"Distance {dist} m"
+        if self.plotComponent != "All":
+            text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax,self.time,self.x,self.v,fill=True,\
                         amp=self.amp_plt,traces=self.tr,\
                         nt_min=self.nt_mn,nt_max=self.nt_mx,\
-                        text_x="Midpoint position (m)",\
-                        text_t=f"Distance {dist} m")
+                        text_x="Midpoint position (m)",text_t=text_t)
 # Change_colors is only meant for plot of tomography result, so deactivate it
         self.Change_colors.setEnabled(False)
         self.main.function = "main"
@@ -1315,7 +1382,6 @@ class Window(QMainWindow, Ui_MainWindow):
 # Loop over all shot points
         for i,sh in enumerate(self.traces.sht_pt_dict):
             self.sh_plot.append(sh)
-            # print ("shot:", i, sh)
             self.figs.append(Figure())
             self.axes.append(self.figs[-1].subplots())
             self.traces.sht_pt_dict[sh]["axes"].append(i)
@@ -1334,7 +1400,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.fig_plotted = 0
         self.fig_plotted_S = 0
 # Plot picks
-        self.picksPlot()
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         if self.PlotCalculatedTimes.isChecked():
             self.plotCalcPicks()
         self.main.function = "main"
@@ -1371,11 +1437,17 @@ class Window(QMainWindow, Ui_MainWindow):
             self.v = np.zeros((ntraces,ns))
         self.v_norm = np.zeros((ntraces,ns))
         self.actual_shot = sh
+        j = -1
 # Loop over all traces of the shot point gather
         for i,nt in enumerate(self.traces.sht_pt_dict[sh]["trace"]):
+            j += 1
             ifile = self.traces.sht_pt_dict[sh]["file"][i]
             irec = self.traces.sht_pt_dict[sh]["receiver"][i]
             ntr = self.traces.sht_rec_dict[(sh,irec)]
+            if self.traces.component[irec] != self.plotComponent and \
+                self.plotComponent != "All":
+                j -= 1
+                continue
             self.actual_traces.append(ntr)
             self.traces.plotted[ntr] = True
             self.actual_number_traces += 1
@@ -1383,38 +1455,41 @@ class Window(QMainWindow, Ui_MainWindow):
             self.x.append(xx)
 # If a trace exists already at the actual position, shift the first one by -0.2m,
 #    the second one by +0.2m so they may be distinguished on the screen
-            if i > 0:
+            if j > 0:
                 if self.x[-1] == self.x[-2]:
                     self.x[-1] += 0.2
                     self.x[-2] -= 0.2
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
             if self.v_set != True:
-                self.v[i,:] = self.data.st[ifile][nt].data*\
+                self.v[j,:] = self.data.st[ifile][nt].data*\
                               self.traces.amplitudes[ntr]
                 if self.nt_0>0:
-                    self.v[i,:] -= np.mean(self.v[i,:self.nt_0])
+                    self.v[j,:] -= np.mean(self.v[j,:self.nt_0])
 # Normalize data by the standard deviation of each trace
-            s = np.std(self.v[i,:])
+            s = np.std(self.v[j,:])
             self.stdev.append(s)
             if s > 0:
-                self.v_norm[i,:] = self.v[i,:]/s
+                self.v_norm[j,:] = self.v[j,:]/s
             else:
-                self.v_norm[i,:] = 0.
+                self.v_norm[j,:] = 0.
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
             if (self.x[-1] >= self.zooms[self.i_zooms][0]-0.2 and\
                 self.x[-1] <= self.zooms[self.i_zooms][1]+0.2)\
                 or self.i_zooms == 0:
-                self.tr.append(i)
+                self.tr.append(j)
         self.x = np.array(self.x)
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
+        text_t = f"Shot point {sh+1}"
+        if self.plotComponent != "All":
+            text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
                         amp=self.amp_plt, traces=self.tr,\
                         nt_min=self.nt_mn, nt_max=self.nt_mx,\
-                        text_x="Offset (m)", text_t=f"Shot point {sh+1}")
+                        text_x="Offset (m)", text_t=text_t)
 # The following lines are only for testing purpose, to show potential picks from
 # false colour plots
         # try:
@@ -1469,7 +1544,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.fig_plotted = 0
         self.fig_plotted_F = 0
 # Plot picks
-        self.picksPlot()
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         if self.PlotCalculatedTimes.isChecked():
             self.plotCalcPicks()
         self.main.function = "main"
@@ -1490,8 +1565,14 @@ class Window(QMainWindow, Ui_MainWindow):
             self.v = np.zeros((ntr,nsamp))
         self.v_norm = np.zeros((ntr,nsamp))
         self.actual_shot = self.files.numbers[isht]
+        j = -1
 # Loop over all traces of the file
         for i,t in enumerate(self.files.file_dict[isht]["traces"]):
+            j += 1
+            if self.traces.component[t] != self.plotComponent and \
+                self.plotComponent != "All":
+                j -= 1
+                continue
             self.actual_traces.append(t)
             self.traces.plotted[t] = True
             self.actual_number_traces += 1
@@ -1500,32 +1581,34 @@ class Window(QMainWindow, Ui_MainWindow):
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
             if self.v_set != True:
-                self.v[i,:] = self.data.st[isht][i].data*\
+                self.v[j,:] = self.data.st[isht][i].data*\
                               self.traces.amplitudes[t]
                 if self.nt_0>0:
-                    self.v[i,:] -= np.mean(self.v[i,:self.nt_0])
+                    self.v[j,:] -= np.mean(self.v[j,:self.nt_0])
 # Normalize data by the standard deviation of each trace
-            s = np.std(self.v[i,:])
+            s = np.std(self.v[j,:])
             self.stdev.append(s)
             if s > 0:
-                self.v_norm[i,:] = self.v[i,:]/s
+                self.v_norm[j,:] = self.v[j,:]/s
             else:
-                self.v_norm[i,:] = 0.
+                self.v_norm[j,:] = 0.
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
             if (xx>=self.zooms[self.i_zooms][0] and xx<=self.zooms[self.i_zooms][1])\
                 or self.i_zooms == 0:
-                self.tr.append(i)
+                self.tr.append(j)
         self.x = np.array(self.x)
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
+        text_t = f"File {self.files.numbers[isht]}, shot point {sht}"
+        if self.plotComponent != "All":
+            text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
                         amp=self.amp_plt, traces=self.tr,\
                         nt_min=self.nt_mn, nt_max=self.nt_mx,\
                         text_x="Offset (m)",\
-                        text_t=f"File {self.files.numbers[isht]}, "+\
-                               f"shot point {sht}")
+                        text_t=text_t)
 # Change_colors is only meant for plot of tomography result, so deactivate it
         self.Change_colors.setEnabled(False)
         self.main.function = "main"
@@ -1564,6 +1647,20 @@ class Window(QMainWindow, Ui_MainWindow):
         return ticks
 
     def nextBlock(self,direction):
+        """
+        if zoom on x-axis is active, show next traces to teh right of left
+
+        Parameters
+        ----------
+        direction : int
+            if > 0 show traces to the right, else to the left
+
+        Returns
+        -------
+        bool
+            DESCRIPTION.
+
+        """
         if self.i_zooms == 0:
             return
         d = int(direction)
@@ -1586,13 +1683,14 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setHelp(self.main_text) # Change help text to self module
         return True
 
-    def picksPlot(self, col="r"):
+    def picksPlot(self, fig, ax, col="r"):
         """
         Plot all measured picks into the actual gather
         Uses function pickPlot to plot each pick found
 
         Parameters:
         ----------
+        ax:  axes where to plot picks
         col: str
             color to be used for pcik plot. Default : red ("r")
 
@@ -1605,16 +1703,13 @@ class Window(QMainWindow, Ui_MainWindow):
 # Check which trace of the actual gather is the first one plotted on the screen.
 # Traces actually plotted on the screen ares stored in self.tr, the ones of the
 # actual gather are stored in self.actual_traces.
-            # i0 = np.where(np.array(self.actual_traces,dtype='int') == \
-            #         int(self.tr[0]))[0][0]
             for itr in self.tr:
-#                i=ii+i0
                 ntr = self.actual_traces[itr]
                 if self.traces.npick[ntr]>0:
                     for j in range(self.traces.npick[ntr]):
                         self.pickPlot(itr,ntr,j,col)
-            renderer = self.figs[self.fig_plotted].canvas.renderer
-            self.axes[self.fig_plotted].draw(renderer)
+            renderer = fig.canvas.renderer
+            ax.draw(renderer)
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
             self.Tomography.setEnabled(True)
@@ -1662,6 +1757,36 @@ class Window(QMainWindow, Ui_MainWindow):
             x_c = [self.x[i],self.x[i]]
             y_c = [max(tmn,self.time_plt_min),min(tmx,self.time_plt_max)]
             self.line, = self.axes[self.fig_plotted].plot(x_c, y_c,col)
+
+    def plotPickSection(self):
+        """
+        Opens new window and plots all picks vs receiver poition. Picks of
+        different shots get different colors (7 base colors, except white).
+
+        Returns
+        -------
+        None.
+
+        """
+        cols = ["b","g","r","c","m","y","k"]
+        self.drawNew(False)
+        self.figpk =  self.figs[self.fig_plotted]
+        self.figpk.clear()
+        self.ax = self.figpk.subplots(1,1)
+        npk = np.array(self.traces.npick)
+        sh = self.traces.shot[npk>0]
+        shu = np.unique(sh)
+        x = np.array(self.traces.receiver_pos)[npk>0]
+        t = np.array([tt[0] for tt in\
+                      np.array(self.traces.pick_times[:],dtype=object)[npk>0]])
+        for i,s in enumerate(shu):
+            col = cols[i%7]
+            xx = x[sh==s]
+            tt = t[sh==s]
+            self.ax.plot(xx,tt,color=col, marker='+')
+        self.ax.set_xlabel("Trace position [m]")
+        self.ax.set_ylabel("Time [s]")
+        self.ax.set_title("Picked arrival times")
 
     def plotCalcPicks(self):
         """
@@ -1805,26 +1930,26 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setHelp(self.pick_move_text)
         self.main.function = "pick_move"
         def onPress(event):
-# If left öouse button has been clicked, search nearest pick
+# If left mouse button has been clicked, search nearest pick
             if event.button == 1:
                 self.keys_held = set()
                 result = self.searchPick(event.xdata,event.ydata)
                 if not result:
                     self.keys_held = set()
                     self.drawNew(True)
-                    self.picksPlot()
+                    self.picksPlot(self.figs[self.fig_plotted],\
+                                   self.axes[self.fig_plotted])
                     self.end = True
                     return
                 self.update()
 # Save position of chosen pick in memory
                 time_back = self.traces.pick_times[self.itrace][self.ipk]
-                # print("Move pick nr %d at shot %d, receiver %d" %\
-                #       (self.ipk, sht+1, stn+1))
 # Re-plot pick in white color (i.e. background color)
                 self.pickPlot(self.n_tr, self.itrace, self.ipk, "w")
 # Erase pick temporally to redraw canvas without this pick
                 self.traces.pick_times[self.itrace][self.ipk] = -1
-                self.picksPlot()
+                self.picksPlot(self.figs[self.fig_plotted],\
+                               self.axes[self.fig_plotted])
                 self.back = figure.canvas.copy_from_bbox(figure.bbox)
                 self.axes[self.fig_plotted].figure.canvas.draw()
                 self.traces.pick_times[self.itrace][self.ipk] = time_back
@@ -1840,7 +1965,8 @@ class Window(QMainWindow, Ui_MainWindow):
 # one in red and leave routine
                 self.keys_held = set()
                 self.drawNew(True)
-                self.picksPlot()
+                self.picksPlot(self.figs[self.fig_plotted],\
+                               self.axes[self.fig_plotted])
                 self.end = True
         self.end = False
         self.coor_x = []
@@ -1940,7 +2066,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 time_back = self.traces.pick_times[self.itrace][self.ipk]
 # Erase pick temporally to redraw canvas without this pick
                 self.traces.pick_times[self.itrace][self.ipk] = -1
-                self.picksPlot()
+                self.picksPlot(self.figs[self.fig_plotted],\
+                               self.axes[self.fig_plotted])
                 self.back = figure.canvas.copy_from_bbox(figure.bbox)
                 self.axes[self.fig_plotted].figure.canvas.draw()
                 self.traces.pick_times[self.itrace][self.ipk] = time_back
@@ -1955,7 +2082,8 @@ class Window(QMainWindow, Ui_MainWindow):
 # one in red and leave routine
                 self.keys_held = set()
                 self.drawNew(True)
-                self.picksPlot()
+                self.picksPlot(self.figs[self.fig_plotted],\
+                               self.axes[self.fig_plotted])
                 self.end = True
         self.end = False
         self.coor_x = []
@@ -2055,7 +2183,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.pickPlot(self.n_tr, self.itrace, self.ipk, "w")
 # Erase pick temporally to redraw canvas without this pick
         self.traces.pick_times[trace][self.ipk] = -1
-        self.picksPlot()
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         self.back = figure.canvas.copy_from_bbox(figure.bbox)
         self.axes[self.fig_plotted].figure.canvas.draw()
         self.traces.pick_times[trace][self.ipk] = time_back
@@ -2134,7 +2262,6 @@ class Window(QMainWindow, Ui_MainWindow):
             sim_r = np.array(sim_r, dtype = int)
             sim_cdp = np.array(sim_cdp, dtype = float)
             if self.sg_flag or self.fg_flag:
-#                itr = np.argsort(abs(sim_x-self.geom.sht_dict[p_s]["x"]))
                 itr = np.argsort(abs(sim_cdp-self.traces.xcdp[trace]))
                 t_pk = None
                 for i in range(min(len(itr),6)):
@@ -2635,7 +2762,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.Tomography.setEnabled(True)
         self.MovePicks.setEnabled(True)
         self.drawNew(True)
-        self.picksPlot()
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         if len(x_pk):
             self.axes[self.fig_plotted].plot(x_pk, t_pk, c="g", ls="--")
             renderer = figure.canvas.renderer
@@ -2644,6 +2771,14 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setHelp(self.main_text)
 
     def Sta_Lta(self):
+        """
+        Calculate first arrival times using Sta-Lta method
+
+        Returns
+        -------
+        None.
+
+        """
         import obspy.signal.trigger as trigger
 
         self.main.function = "slpick"
@@ -2710,7 +2845,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.traces.pick_times_min[trace].append(t25)
                 trig.append(t50)
             self.background = figure.canvas.copy_from_bbox(figure.bbox)
-            self.picksPlot()
+            self.picksPlot(self.figs[self.fig_plotted],\
+                           self.axes[self.fig_plotted])
             self.Tomography.setEnabled(True)
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
@@ -3063,7 +3199,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.traces.pick_times_max[trace].append(t_pick[j]+unc)
                 self.traces.pick_times_min[trace].append(t_pick[j]-unc)
             self.background = figure.canvas.copy_from_bbox(figure.bbox)
-            self.picksPlot()
+            self.picksPlot(self.figs[self.fig_plotted],\
+                           self.axes[self.fig_plotted])
             self.Tomography.setEnabled(True)
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
@@ -3389,7 +3526,6 @@ class Window(QMainWindow, Ui_MainWindow):
     # Start loop over offsets to see for which point a line split gives the best fit
             for i in range(2,max(i_off_test-4,3)):
                 ne = npts[i_off_test]
-    #            print ("direct:", i, npts[i]+1,ne)
     # slope1 corresponds to the slope of the direct wave for the first i picks
                 if origin:
                     slope1 = np.dot(xpk[0:npts[i]+1],ypk[0:npts[i]+1])/\
@@ -3600,8 +3736,24 @@ class Window(QMainWindow, Ui_MainWindow):
             ax.set_title(f"Time {t[i]*1000:0.2f}ms")
             fig.canvas.draw()
             fig.canvas.flush_events()
-            # plt.pause(0.002)
         plt.ioff()
 
+class newWindow(QWidget):
+    """
+    This "window" is a QWidget. If it has no parent, it
+    will appear as a free-floating window as we want.
+    """
+    def __init__(self,title):
+        super().__init__()
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.resize(1800,1200)
+        self.setWindowTitle(title)
+        self.fig = Figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.layout.addWidget(self.canvas)
+        self.canvas.draw()
+        self.toolbar = NavigationToolbar(self.canvas,self)
+        self.layout.addWidget(self.toolbar)
 
 

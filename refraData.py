@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Tue Mar 21, 2023
+last modified on Sun Apr 16, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -26,7 +26,7 @@ Contains the following Classes:
             seg2_write
             saveBinary
             saveASCII
-
+            saveHeader
     Geometry
         with the following functions:
             __init__
@@ -87,6 +87,7 @@ from copy import deepcopy
 from datetime import datetime,date
 #import matplotlib.tri as tri
 from scipy.interpolate import griddata
+import refraPlot as rP
 
 class Files():
     def __init__(self, dir0):
@@ -141,7 +142,6 @@ class Files():
                 ff = f[n+1:]
             else:
                 ff = f
-#            print(ff)
             l = ff.rfind(".")
 # get file number
             try:
@@ -158,7 +158,6 @@ class Files():
                 for ipos in range(l-1):
                     try:
                         num = abs(int(ff[ipos:l]))
-#                        pref = ff[0:ipos]
                         break
                     except:
                         continue
@@ -198,7 +197,6 @@ class Data():
             try:
                 if files.file_type == "seg2":
                     self.st.append(seg2._read_seg2(ff))
-#                    self.st[-1].pop()
                 else:
                     self.st.append(_read_segy(ff, unpack_trace_headers=True))
 # If SEGY files have been read, create seg2 header dictionary and integrate
@@ -481,12 +479,10 @@ class Data():
            Contains cutting time [s] (see above in general comment for defintion)
 
         """
-#        if self.main.traces.npick[t] == 0:
         if t < 0.:
             t_cut = 0.
         else:
             idel = int(delay/self.main.data.dt)
-#            i_start = int(self.main.traces.pick_times[t][0]/self.main.data.dt)+idel
             i_start = int(t/self.main.data.dt)+idel
             imax = i_start+idel
             imin = np.argmin(tr[imax:imax+idel])+imax
@@ -546,15 +542,17 @@ class Data():
             int(tr.stats.delta*1000000.)
 # SUMMIT2 and SUMMIT_X1 have different signs for delay of first sample
 # The SEG2 header word UNIT_UNIQUE_ID characterizes SUMMIT_X1 recording
+# However, since we use only pretrigger data option, lagA in SU must always be
+# positive, therefore there is finally no difference.
+        tr.stats.segy.trace_header.lag_time_A = \
+            abs(int(float(tr.stats.seg2.DELAY)*1000.))
+# Anti alias filter parameters are only indicated in seg2 header when SUMMIT2
+# system is used
         try:
-            _ = tr.stats.seg2.UNIT_UNIQUE_ID
-            tr.stats.segy.trace_header.delay_recording_time = \
-                -int(float(tr.stats.seg2.DELAY)*1000.)
-        except:
-            tr.stats.segy.trace_header.delay_recording_time = \
-                int(float(tr.stats.seg2.DELAY)*1000.)
             tr.stats.segy.trace_header.alias_filter_frequency = \
                 int(tr.stats.seg2.ALIAS_FILTER[0])
+        except:
+            pass
         tr.stats.segy.trace_header.year_data_recorded = tr.stats.starttime.year
         tr.stats.segy.trace_header.day_of_year = tr.stats.starttime.julday
         tr.stats.segy.trace_header.hour_of_day = tr.stats.starttime.hour
@@ -572,7 +570,6 @@ class Data():
             = trace_nr+1
         tr.stats.segy.trace_header.trace_sequence_number_within_line =\
             trace+1
-#            trace_nr+1
         tr.stats.segy.trace_header.trace_sequence_number_within_segy_file =\
             tr_in_file+1
         tr.stats.segy.trace_header.group_coordinate_x = \
@@ -600,7 +597,6 @@ class Data():
         tr.stats.segy.trace_header.instrument_gain_constant = \
             int(tr.stats.seg2.FIXED_GAIN)
         tr.stats.segy.trace_header.gain_type_of_field_instruments = 1
-#        tr.stats.segy.trace_header.data_use = 1
         tr.stats.segy.trace_header.coordinate_units = 1
         return tr
 
@@ -769,7 +765,6 @@ class Data():
                         else:
                             tt = self.main.traces.pick_times[t][0]
                         tr.data,mute_t = self.mute_before_pick(tr.data, tt, delay)
-#                        print(f"    t_mute = {mute_t:0.3f}")
                 elif S_time == 2:
                     tr = stw[ifile].slice(\
                         starttime=start+self.main.window.time_plt_min-self.t0,\
@@ -858,12 +853,10 @@ class Data():
 
         results, okButton = self.main.dialog(\
                           ["Output folder",\
-                           # "All data in one file (y/n)",\
                            "Only this shot (y/n)",\
                            "Store by:",\
                            [" file"," shot"]],\
                           ["e","e","l","r"],[folder,"n","None","1"],\
-                          # ["e","e","e","l","r"],[folder,"y","n","None","1"],\
                           "Save SEG2 format")
 
         if okButton == False:
@@ -881,9 +874,6 @@ class Data():
                      QtWidgets.QMessageBox.Close)
                 return False
 
-        # one_file_flag = results[1].lower()=="y"
-        # single_shot_flag = results[2].lower()=="y"
-        # file_flag = int(results[4])==0
         single_shot_flag = results[1].lower()=="y"
         file_flag = int(results[3])==0
 # If only the data gather actually on the sceen should be saved and a shot
@@ -1035,7 +1025,6 @@ class Data():
                             key_flag = True
                             break
                     if key_flag:
-        #                print(f"Key {key} exists in file header")
                         continue
                     if key == "CHANNEL_NUMBER":
                         ASCII_trace_headers[-1].append(f"{key} {i}")
@@ -1044,7 +1033,6 @@ class Data():
                     elif key == "RECEIVER_STATION_NUMBER":
                         ASCII_trace_headers[-1].append(f"{key} {int(th[key])}")
                     elif key == "SAMPLE_INTERVAL":
-#                        ASCII_trace_headers[-1].append(f"{key} {float(th[key]):0.6f}")
                         txt = print_float(th[key],6)
                         ASCII_trace_headers[-1].append(f"{key} {txt}")
                     elif key == "SHOT_SEQUENCE_NUMBER":
@@ -1115,12 +1103,6 @@ class Data():
             else:
                 return False
             block_len.append(np.sum(np.array(nchars[-1])+3)+32+2)
-            # add_byte = 4-block_len[-1]%4
-            # if add_byte == 4:
-            #     add_byte = 0
-            # if i < 2:
-            #     print(f"Trace {i}: add_byte: {add_byte}, block_len:{block_len[-1]}")
-            # block_len[-1] += add_byte
             if i == 0:
                 trace_pointer.append(int(head_len))
             else:
@@ -1150,10 +1132,6 @@ class Data():
     # I don't know why in the next line the three last values are added, in DMT
     #   files, they are there
                 f.write(struct.pack("bb",0,0))
-                # for k in range(add_byte):
-                #     if i<2:
-                #         print(f"trace {i}: print extra byte {k+1}")
-                #     f.write(struct.pack("b",32))
                 np.asarray(st[i].data, dtype=np.float32).tofile(f)
         return True
 
@@ -1227,7 +1205,27 @@ class Data():
             fo.write(f"{self.dt} {self.t0} dt [seconds], t0 [seconds]\n")
             np.savetxt(fo, np.transpose(self.main.window.v))
 
+    def saveHeader(self):
+        """
+        Writes headers of all traces to ASCII files. Every data file has its
+        corresponding header file "header_nnnnn.dat". These header files are
+        written to folder Headers. If this folder does not exist, it is created.
 
+        Returns
+        -------
+        None.
+
+        """
+        if not os.path.isdir("Headers"):
+            os.makedirs("Headers")
+        for n,s in enumerate(self.st):
+            nf = self.main.files.numbers[n]
+            h_file = os.path.join("Headers",f"header_{nf:0>5d}.dat")
+            with open(h_file,"w") as fo:
+                for itr,tr in enumerate(s):
+                    fo.write(f"\ntrace {itr+1}\n")
+                    fo.write(f"{tr.stats}\n")
+        print("Headers written to folder Headers")
 
 
 class Geometry():
@@ -1300,9 +1298,15 @@ class Geometry():
         x_sht, y_sht, z_sht: arrays with shot coordinates ordered by number of shot point
         d_x: distance between receiver positions
         x_dir: True if line mainly in X-direction, False if in Y-direction
+        types = unique geophone types found (5th column of file receivers.geo if
+                it exists, if not one value: "Z")
         """
 # Read receiver geometry file receivers.geo
         self.rec_dict = self.read_geo_file("receivers.geo")
+        self.types = []
+        for key in self.rec_dict:
+            self.types.append(self.rec_dict[key]["type"])
+        self.types = np.unique(self.types)
 
 # Find profile direction (profiles goes mainly in X or in Y direction
         x = np.array([self.rec_dict[d]["x"] for d in self.rec_dict])
@@ -1337,8 +1341,8 @@ class Geometry():
         self.sht_dict = self.read_geo_file("shots.geo")
 
 # Calculate minimum and maximum values of receiver and shot positions
-        x = np.array([self.rec_dict[d]["x"] for d in self.sht_dict])
-        y = np.array([self.rec_dict[d]["y"] for d in self.sht_dict])
+        x = np.array([self.sht_dict[d]["x"] for d in self.sht_dict])
+        y = np.array([self.sht_dict[d]["y"] for d in self.sht_dict])
         if self.x_dir:
             xmin_s = x.min()
             xmax_s = x.max()
@@ -1366,6 +1370,7 @@ class Traces():
         self.shot_pos = []
         self.receiver = []
         self.receiver_pos = []
+        self.component = []
         self.plotted = []
         self.nsample_trace = []
         self.dt_trace = []
@@ -1417,6 +1422,7 @@ class Traces():
                 self.sht_rec_dict[(nsht,nrec)] = ntr
                 self.shot.append(nsht)
                 self.receiver.append(nrec)
+                self.component.append(geom.rec_dict[nrec]["type"])
                 self.nsample_trace.append(self.data.st[nf][nt].stats.npts)
                 self.dt_trace.append(self.data.st[nf][nt].stats.delta)
                 self.t0_trace.append(self.data.time_0[nf])
@@ -1513,6 +1519,7 @@ class Traces():
         self.number_of_traces = len(self.shot)
         self.receiver = np.array(self.receiver, dtype=int)
         self.receiver_pos = np.array(self.receiver_pos, dtype=float)
+        self.component = np.array(self.component, dtype=str)
         self.shot_pos = np.array(self.shot_pos, dtype=float)
         self.nsample_trace = np.array(self.nsample_trace, dtype=int)
         self.dt_trace = np.array(self.dt_trace, dtype=float)
@@ -1531,7 +1538,6 @@ class Traces():
         self.ncdp = np.zeros(nc, dtype = int)
         for i in range(nc):
             self.ncdp[i] = np.where(cdps == self.xcdp[i])[0][0]
-#        self.npick = np.array(self.npick)
         self.readMeasPicks()
         if os.path.isfile("calc_picks.dat"):
             self.readCalcPicks()
@@ -1673,19 +1679,17 @@ class Traces():
         if os.path.isfile("calc_picks.dat"):
             self.calc_picks = True
             with open('calc_picks.dat', 'r') as f:
-                with open('test_calc.dat',"w") as ft:
-                    dummy = np.asmatrix(f.read())
-                    nlines = int(np.size(dummy)/3)
-                    dummy = np.reshape(dummy,(nlines,3))
-                    self.calc_t = np.zeros(self.number_of_traces)
-                    self.calc_t[:] = np.nan
-                    for i in range(nlines):
-                        sht = int(dummy[i,0]-1)
-                        rec = int(dummy[i,1]-1)
-                        if (sht,rec) in self.sht_rec_dict:
-                            trace = self.sht_rec_dict[(sht,rec)]
-                            self.calc_t[trace] = float(dummy[i,2])*0.001
-                            ft.write(f"{trace} {sht} {rec} {self.calc_t[trace]}\n")
+                dummy = np.asmatrix(f.read())
+                nlines = int(np.size(dummy)/3)
+                dummy = np.reshape(dummy,(nlines,3))
+                self.calc_t = np.zeros(self.number_of_traces)
+                self.calc_t[:] = np.nan
+                for i in range(nlines):
+                    sht = int(dummy[i,0]-1)
+                    rec = int(dummy[i,1]-1)
+                    if (sht,rec) in self.sht_rec_dict:
+                        trace = self.sht_rec_dict[(sht,rec)]
+                        self.calc_t[trace] = float(dummy[i,2])*0.001
                 del(dummy)
         else:
 # If no calculated picks are found give warning message
@@ -1811,6 +1815,10 @@ class Utilities:
         self.mod_v1 = 800.
         self.mod_v2 = 4000.
         self.mod_h = 3.
+        self.w_tau = None
+        self.w_env = None
+        self.w_tomo = None
+        self.w_fcol = None
 
     def min_max(self,data,half_width=3):
         """
@@ -2014,21 +2022,23 @@ class Utilities:
         progressBar.setValue(0)
         self.window.mplvl.removeWidget(progressBar)
         progressBar.close()
-        self.window.drawNew(False)
-        self.window.axes[self.window.fig_plotted].pcolormesh(velocities, tau, v_tau.T,\
-                                    cmap=plt.cm.jet,shading='gouraud')
-        self.window.axes[self.window.fig_plotted].set_xlabel("Velocity[m/s]")
-        self.window.axes[self.window.fig_plotted].set_ylabel("Intercept time [s]")
+        if self.w_tau:
+            self.w_tau.close()
+            self.w_tau = None
+        self.w_tau = rP.newWindow("TauP")
+        ax = self.w_tau.fig.subplots()
+        ax.pcolormesh(velocities, tau, v_tau.T,cmap=plt.cm.jet,shading='gouraud')
+        ax.set_xlabel("Velocity[m/s]")
+        ax.set_ylabel("Intercept time [s]")
         if self.window.fg_flag:
-            self.window.axes[self.window.fig_plotted].set_title(\
-                      f"Tau_P, file {self.file.file_numbers[self.fig_plotted]}")
+            ax.set_title(f"Tau_P, file {self.file.file_numbers[self.fig_plotted]}")
         elif self.window.sg_flag:
-            self.window.axes[self.window.fig_plotted].set_title(\
-                      f"Tau_P, shot {self.traces.shot[self.window.actual_traces[0]]+1}")
+            ax.set_title("Tau_P, shot "+\
+                      f"{self.traces.shot[self.window.actual_traces[0]]+1}")
         elif self.window.rg_flag:
-            self.window.axes[self.window.fig_plotted].set_title(\
-                      f"Tau_P, receiver {self.traces.receiver[self.window.actual_traces[0]]+1}")
-        self.window.setHelp(self.window.tau_text)
+            ax.set_title("Tau_P, receiver "+\
+                      f"{self.traces.receiver[self.window.actual_traces[0]]+1}")
+        self.w_tau.show()
 
     def pModel(self):
         """
@@ -2061,6 +2071,9 @@ class Utilities:
         while not finish:
             background = figure.canvas.copy_from_bbox(figure.bbox) # copy background picture
             self.window.followLine(True,n_lay_l,n_lay_r)
+            if len(self.window.coor_x) <= 0:
+                print("P-wave model cancelled")
+                return
             x[0] = self.window.coor_x[0]
             x[1] = self.window.coor_x[1]
             t[0] = self.window.coor_y[0]
@@ -2213,42 +2226,61 @@ class Utilities:
         """
 # Save data into temporary array
         v_data = deepcopy(self.window.v)
-        v_env = np.zeros((self.window.v.shape[1],self.window.v.shape[0]*2))
+        v_env = np.zeros((v_data.shape[0]*2,v_data.shape[1]))
         ienv = -2
-        x = np.zeros(self.window.v.shape[0]*2)
+        x = np.zeros(v_data.shape[0]*2)
         traces = []
         time = self.data.t0 + self.data.dt*np.arange(self.data.nsamp)
         progressBar = QtWidgets.QProgressBar(self.window)
         self.window.mplvl.addWidget(progressBar)
         progressBar.show()
         progressBar.setValue(0)
-        for i in range(self.window.v.shape[0]):
+        for i in range(v_data.shape[0]):
             ienv += 2
-            v_env[:,ienv] = np.abs(scipy.signal.hilbert(self.window.v[i,:]))
+            v_env[ienv,:] = np.abs(scipy.signal.hilbert(self.window.v[i,:]))
 # Calculate smoothened 2nd derivative of envelope:
 # Calculate average slope over the l1 points before and the l2 points after
 # the calculation point and make the difference (no need to divide by dt**2
 # since traces are anyhow normalized before plotting)
             l1 = 30
             l2 = 10
-            v_env[:,ienv+1] = self.secondDerivative(v_env[:,ienv],l1,l2)
+            v_env[ienv+1,:] = self.secondDerivative(v_env[ienv,:],l1,l2)
             x[ienv] = self.window.x[i]-0.2
             x[ienv+1] = self.window.x[i]+0.2
             traces.append(ienv)
             traces.append(ienv+1)
             completed = int((i+1)/self.window.v.shape[0]*100)
             progressBar.setValue(completed)
-        self.window.drawNew(False)
-        self.window.Seismogram(self.window.axes[self.window.fig_plotted],
-                    time,x,v_env,fill=False,amp=self.window.amp_plt,
-                    traces=traces,nt_min=self.window.nt_mn,
-                    nt_max=self.window.nt_mx,text_x="Shot offset (m)")
-        self.window.picksPlot()
+        if self.w_env:
+            self.w_env.close()
+            self.w_env = None
         progressBar.setValue(0)
         self.window.mplvl.removeWidget(progressBar)
         progressBar.close()
+        self.w_env = rP.newWindow("Envelopes")
+        ax = self.w_env.fig.subplots()
+        if self.window.fg_flag:
+            text_t = f"File {self.file.file_numbers[self.fig_plotted]}: "+\
+                    "envelopes and their 2nd derivative"
+        elif self.window.sg_flag:
+            text_t = f"Shot {self.traces.shot[self.window.actual_traces[0]]+1}: "+\
+                              "envelopes and their 2nd derivative"
+        elif self.window.rg_flag:
+            text_t = "Receiver "+\
+                    f"{self.traces.receiver[self.window.actual_traces[0]]+1}: "+\
+                              "envelopes and their 2nd derivative"
+        else:
+            text_t = "Envelopes and their 2nd derivative"
+            text_t = f"distance_{self.window.actual_dist:0.0f}: "+\
+                      "envelopes and their 2nd derivative"
+        self.window.seismogram(ax,time,x,v_env,fill=False,amp=self.window.amp_plt,
+                    traces=traces,nt_min=self.window.nt_mn,
+                    nt_max=self.window.nt_mx,text_x="Shot offset (m)",\
+                    text_t=text_t)
+        self.window.picksPlot(self.w_env.fig,ax)
+        self.w_env.show()
         v_data = deepcopy(self.window.v)
-        self.window.v = v_env.transpose()
+        self.window.v = v_env
         file_out = f"env{self.window.fig_plotted+1:0>5d}.asc"
         self.data.saveASCII(file_out)
 # Restore data array
@@ -2309,9 +2341,6 @@ class Utilities:
         types = ["c","c","c","c","c","c","c","c","l","e","e","e","e","e","e"]
         values = [None,None,None,None,None,None,None,None,None,self.mod_v1,\
                   self.mod_v2,self.mod_h,self.fmin,self.fmax,tcor_max]
-        # CK_results, ck_order, e_results, btn = self.main.dialog(\
-        #                         labels, types,values, "Indicators to chose")
-        # ck_order -= 1
         e_results, btn = self.main.dialog(labels, types, values, \
                                 "Indicators to chose")
         ck_order = []
@@ -2405,15 +2434,12 @@ class Utilities:
 # If envelope is used, calculate it
             if ck_results[1] or ck_results[2]:
                 env = filter.envelope(dat)
-#                env = np.log10(env+1.E-10)
 # If first checkbox has been checked, fill the corresponding part in array c
 #   with instantaneous frequency depending on the order of checing stored in
 #   ch_order
             if ck_results[0]:
                 instFreq[:nmin] = 0.
                 c[:,i,ck_order[0]] = np.flip(instFreq)/max(instFreq)
-                # s_l[:nmin] = 0.
-                # c[:,i,ck_order[0]] = np.flip(s_l)/max(s_l)
 # If second checkbox has been checked, fill the corresponding part in array c
 #   with envelope depending on the order of checing stored in ch_order
             if ck_results[1]:
@@ -2555,38 +2581,38 @@ class Utilities:
                 for k in split2:
                     if abs(d_t[k]) > 2*d_std:
                         self.pk[n_pos[k]] = None
-        self.window.drawNew(False)
+        self.w_fcol = rP.newWindow("False colours")
+        ax = self.w_fcol.fig.subplots()
         dx = (self.window.x[1]-self.window.x[0])/2.
         dy = self.data.dt/2.
         extent = [self.window.x.min()-dx,self.window.x.max()+dx,\
                   time.min()-dy,time.max()+dy]
-        _ = self.window.axes[self.window.fig_plotted].imshow(c, extent=extent, aspect="auto")
+        _ = ax.imshow(c, extent=extent, aspect="auto")
         if ck_results[7]:
             fac = (self.window.x.max()-self.window.x.min())/6
             xx0 =self.window.x.mean()*2./3.
             x = xx0+fac*acor_av/len(self.window.x)
-            self.window.axes[self.window.fig_plotted].plot(x,time,"w")
+            ax.plot(x,time,"w")
             avTrace = np.real(np.fft.ifft(Fourier_av))
             xx0 *= 2.
             x = xx0+fac*avTrace/max(np.abs(avTrace))
-            self.window.axes[self.window.fig_plotted].plot(x,time,"y")
+            ax.plot(x,time,"y")
         else:
-            self.window.axes[self.window.fig_plotted].plot(self.window.x,self.pk,\
-                                                           "m")
+            ax.plot(self.window.x,self.pk,"m")
             try:
-                self.window.axes[self.window.fig_plotted].plot(-x_rn,t_rn,"w")
+                ax.plot(-x_rn,t_rn,"w")
             except:
                 pass
             try:
-                self.window.axes[self.window.fig_plotted].plot(x_rp,t_rp,"w")
+                ax.plot(x_rp,t_rp,"w")
             except:
                 pass
         if len(labs) == 1:
-            self.window.picksPlot("y")
+            self.window.picksPlot(self.w_fcol.fig,ax,"y")
         elif len(labs) == 2:
-            self.window.picksPlot("b")
+            self.window.picksPlot(self.w_fcol.fig,ax,"b")
         else:
-            self.window.picksPlot()
+            self.window.picksPlot(self.w_fcol.fig,ax)
 # Set title with indication of meaning of colors
         txt = f"red={labs[nlabs[0]]}"
         if len(labs) > 1:
@@ -2595,21 +2621,20 @@ class Utilities:
                 txt += f", blue={labs[nlabs[2]]}"
         if ck_results[7]:
             txt += ";  white: av. acor, yellow: av. trace"
-        self.window.axes[self.window.fig_plotted].set_xlabel("Distance[m]")
-        self.window.axes[self.window.fig_plotted].set_ylabel("Time [s]]")
+        ax.set_xlabel("Distance[m]")
+        ax.set_ylabel("Time [s]]")
         if self.window.sg_flag:
             sht = self.traces.shot[self.window.actual_traces[0]]
-            self.window.axes[self.window.fig_plotted].set_title(f"shot {sht+1}: {txt}")
+            ax.set_title(f"shot {sht+1}: {txt}")
         elif self.window.fg_flag:
             strings = self.window.plot_names[self.window.fig_plotted].split()
             nfile = int(strings[1])
-            self.window.axes[self.window.fig_plotted].set_title(f"file {nfile}: {txt}")
+            ax.set_title(f"file {nfile}: {txt}")
         elif self.window.rg_flag:
             rec = self.traces.receiver[self.window.actual_traces[0]]
-            self.window.axes[self.window.fig_plotted].set_title(f"receiver {rec+1}: {txt}")
+            ax.set_title(f"receiver {rec+1}: {txt}")
 # Show false colour plot and wait for key stroke
-            self.window.figs[self.window.fig_plotted].canvas.draw()
-            self.window.figs[self.window.fig_plotted].canvas.flush_events()
+        self.w_fcol.show()
 
     def secondDerivative(self,data,l_before,l_after):
         """
@@ -3015,7 +3040,6 @@ class Utilities:
         -------
         None.
         """
-#        import obspy.signal.filter as filter
         if trace_filt < 0 or not plot_flag:
             tr1 = 0
             tr2 = self.main.window.actual_number_traces
@@ -3050,13 +3074,11 @@ class Utilities:
                 t = tr_filt[ii]
                 fnr = self.traces.file[t]
                 tnr = self.traces.trace[t]
-                # print(f"trace {t}, file {fnr}, trace in file: {tnr}, ",\
-                #       f"trace on screen {ii}, shot {self.traces.shot[t]}")
                 dat = self.ffilter(self.data.st[fnr][tnr].data, self.fmin,\
                                    self.fmax, self.main.data.dt)
                 self.data.st[fnr][tnr].data = np.float32(dat)
                 if t in self.main.window.actual_traces:
-                    iit = np.where(self.main.window.actual_traces==t)[0][0]
+                    iit = np.where(self.main.window.actual_traces==np.int64(t))[0][0]
                     if self.traces.amplitudes[t] > 0:
                         self.main.window.v[iit,:] = dat
                     elif self.traces.amplitudes[t] < 0:
@@ -3248,8 +3270,6 @@ class Utilities:
         F_filt = np.copy(F)
         ik = np.arange(len(k))[k<-nk_el*k0]
         ifr = np.arange(len(freq))[freq>nf_damp*f0]
-        # ik = np.arange(len(k))[k<0]
-        # ifr = np.arange(len(freq))[freq>0]
         for i in ik:
             for j in ifr:
                 F_filt[j,i] = F_filt[j,i]*0.
@@ -3364,7 +3384,6 @@ class Utilities:
 
         """
 # For description of v_red and nk_el, see function fk_filt
-#        try:
         v_red = 450.
         nk_el = 3
         xx = np.array(self.main.window.x)
@@ -3494,8 +3513,6 @@ class Utilities:
                     if idir == order[0]:
                         d,self.v_red,act = self.FK_filt(x_treat,self.data.dt,\
                                     data_treat,self.v_red,nk_el,idir,True)
-                        # d,self.v_red,act = self.FK_filt(x_treat,self.data.dt,\
-                        #             d,1.E6,nk_el,idir,False)
                     else:
                         if act:
                             d,dum,dum1 = self.FK_filt(x_treat,self.data.dt,\
@@ -3535,22 +3552,17 @@ class Utilities:
             progressBar.setValue(0)
 # Loop over all shot points
             for jsht,isht in enumerate(self.traces.sht_pt_dict):
-#            for isht in range(self.files.file_count):
-#                itraces = self.files.file_dict[isht]["traces"]
                 ifiles = self.traces.sht_pt_dict[isht]["file"]
                 itrac = self.traces.sht_pt_dict[isht]["trace"]
                 irec = self.traces.sht_pt_dict[isht]["receiver"]
                 itraces = []
-#                ntr = len(self.data.st[isht])
                 ntr = len(ifiles)
                 vv = np.zeros((ntr,self.data.nsamp))
-#                for it,tr in enumerate(self.data.st[isht]):
                 for it in range(ntr):
                     itr = self.traces.sht_rec_dict[(isht,irec[it])]
                     itraces.append(itr)
                     vv[it,:] = self.data.st[ifiles[it]][itrac[it]].data*\
                                self.traces.amplitudes[itr]
-#                    vv[it,:] = tr.data*self.traces.amplitudes[itraces[it]]
                 itraces = np.array(itraces,dtype=int)
                 xx = np.array(self.traces.offset[itraces])
                 vt = np.zeros_like(np.transpose(vv))
@@ -3587,17 +3599,13 @@ class Utilities:
                             vt[:,xx>=0] = d
 #copy filtered data to stream st
                 vv = np.transpose(vt)
-#                for it in range(len(self.data.st[isht])):
                 for it in range(ntr):
                     if self.traces.amplitudes[itraces[it]] > 0:
                         self.data.st[ifiles[it]][itrac[it]].data = np.float32(vv[it,:])
-#                        self.data.st[isht][it].data = np.float32(vv[it,:])
                     elif self.traces.amplitudes[itraces[it]] < 0:
                         self.data.st[ifiles[it]][itrac[it]].data = -np.float32(vv[it,:])
-#                        self.data.st[isht][it].data = -np.float32(vv[it,:])
                 completed = int((jsht+1)/nsht*100)
                 print(f"Shot {jsht+1}/{nsht} filtered; completed: {completed}%")
-#                completed = int((isht+1)/self.files.file_count*100)
                 progressBar.setValue(completed)
             progressBar.setValue(0)
             self.window.mplvl.removeWidget(progressBar)
@@ -3637,7 +3645,6 @@ class Utilities:
         x = grd_x[::10]
         y = np.flip(-grd_y)
         v = np.flip(vg[:,::10],axis=0)
-#        del interp,xg,yg
 # Replace nan's in v with nearest value within column
         for i in range(len(x)):
             for j in range(len(y)):
@@ -3680,20 +3687,6 @@ class Utilities:
                     fo.write(f",{vnmo[k,i]:0.1f}")
                 fo.write(" \\")
                 fo.write("\n")
-        with open("vnmo_test.dat","w") as fo:
-            for i in range(len(x)):
-                xx = i*10+1
-                for j in range(len(y)):
-                    fo.write(f"{xx} {t0[j,i]:0.6f} {vnmo[j,i]:0.1f} {v[j,i]:0.1f}\n")
-        # tmx = np.max(t0)
-        # tt = np.arange(0,0.03,0.002)
-        # xx1 = np.arange(1,len(x)*10+1-10,10)
-        # xx = np.arange(1,len(x)*10+1,10)
-        # xdat = np.outer(np.ones(len(y)),xx)
-        # X,Y = np.meshgrid(xx1,tt)
-        # interp = LinearNDInterpolator(list(zip(xdat.flatten(),t0.flatten())), vnmo.flatten())
-        # Z = interp(X,Y)
-        # plt.pcolormesh(X, Y, Z, shading='auto')
 
     def inversion(self, code=0):
         """
@@ -3717,7 +3710,6 @@ class Utilities:
         import matplotlib as mpl
         from matplotlib.gridspec import GridSpec
         from matplotlib.path import Path
-#        import matplotlib.tri as tri
         import copy
         try:
             import pygimli as pg
@@ -3857,8 +3849,27 @@ class Utilities:
             self.endModel = self.mgr.model.array()
 # Get coverage
             self.mesh_coor = self.mgr.paraDomain.cellCenters().array()
+# Get path where PyGimly stores its results: date-time/TravelTime/Manager
+            self.path = self.mgr.saveResult()
+            p = os.path.split(self.path)[:-1]
+            self.p_aim = ""
+            for pp in p:
+                self.p_aim = os.path.join(self.p_aim,pp)
             try:
-                self.cover = self.mgr.fop.cov_sum
+                self.cover = self.mgr.inv.cov_sum
+                self.cell_rays = np.array(self.mgr.inv.cell_rays)
+                self.ncover = np.sum(self.cell_rays,axis=0)
+                nchi = self.cell_rays.shape[0]
+                with open(os.path.join(self.p_aim,"vel&cover.txt"),"w") as fo:
+                    fo.write("   X     Z     V     L_cum     nRay_cum   "+\
+                             f"{nchi} x nRay\n")
+                    for i in range(len(self.cover)):
+                        fo.write(f"{self.mesh_coor[i,0]:0.3f} "+\
+                                 f"{self.mesh_coor[i,1]:0.3f} "+\
+                                 f"{self.endModel[i]:0.0f} "+\
+                                 f"   {self.cover[i]:0.2f} "+\
+                                 f"      {self.ncover[i]}    "+\
+                                 f"{' '.join(map(str,self.cell_rays[:,i]))}\n")
                 mesh_x = self.mesh_coor[:,0]
                 mesh_y = self.mesh_coor[:,1]
                 mesh_v = self.mesh_coor[:,2]
@@ -3875,6 +3886,12 @@ class Utilities:
                 self.cover[self.cover>0.] = np.log10(self.cover[self.cover>0.])
             except:
                 self.cover = self.mgr.coverage()
+                with open(os.path.join(self.p_aim,"vel&cover.txt"),"w") as fo:
+                    fo.write("   X     Z     V     cover\n")
+                    for i in range(len(self.cover)):
+                        fo.write(f"{self.mesh_coor[i,0]:0.3f} "+\
+                                 f"{self.mesh_coor[i,1]:0.3f} "+\
+                                 f"{self.endModel[i]:0.0f}    {self.cover[i]:0.2f}\n")
                 self.cov_txt = "log10(Coverage) and rays"
 #            triang = tri.Triangulation(self.mesh_coor[:,0], self.mesh_coor[:,1])
 # pass pick times and calculated  from seconds to miliseconds
@@ -3900,12 +3917,6 @@ class Utilities:
                 self.max_v = 6000
 # Set maximum depth for model plotting to zmax (from dialog box)
             self.zmax_plt = self.zmax
-# Get path where PyGimly stores its results: date-time/TravelTime/Manager
-            self.path = self.mgr.saveResult()
-            p = os.path.split(self.path)[:-1]
-            self.p_aim = ""
-            for pp in p:
-                self.p_aim = os.path.join(self.p_aim,pp)
 # Store Control parameters from dialog box into file "inversion_parameters.txt"
             with open(os.path.join(self.p_aim,"inversion_parameters.txt"),"w") as fo:
                 fo.write(f"maximum_depth: {self.zmax:0.1f}\n")
@@ -3965,9 +3976,9 @@ class Utilities:
         vel_scale(self)
 
 # Define grid for different partial figures
-        self.figinv = plt.figure(tight_layout=True)
-        self.window.figs.append(self.figinv)
-        ip = -1
+        self.w_tomo = rP.newWindow("Tomography results")
+        self.figinv = self.w_tomo.fig
+        plt.tight_layout()
         self.gs = GridSpec(12, 13, figure=self.figinv)
 # Axis for final model
         self.ax_mod = self.figinv.add_subplot(self.gs[:6, :])
@@ -3981,11 +3992,8 @@ class Utilities:
         self.ax_diff = self.figinv.add_subplot(self.gs[9:12,5:8])
 # Axis for average differences of shot gathers and receiver gathers
         self.ax_av_diff = self.figinv.add_subplot(self.gs[9:12,9:12])
-# Remove figure in actual window and create a new one
-        self.window.rmMPL()
-        self.window.addMPL(self.window.figs[ip]) #Add Figure to central widget
-        self.window.setHelp(self.window.inver_text)
-        # if code >= 0:
+# Axis for chi2-evolution
+        self.ax_chi = self.figinv.add_subplot(self.gs[6:9,9:12])
 # Define ticks for horizontal and vertical axes of model plots
 # For horizontal axis, use sensor positions from pick file (picks.sgt")
 # For vertical axis suppose that the topmost values is zero, which implies that
@@ -4121,12 +4129,10 @@ class Utilities:
                 cs = np.round(self.scheme.sensors().array()[ispt],2)[0]
                 cr = np.round(self.scheme.sensors().array()[irpt],2)[0]
                 try:
-#                    ispt = shts[np.where(spu == cs)[0][0]]
                     ispt = shts[np.where(spu == cs)[0][0]]
                 except:
                     continue
                 try:
-#                    irpt = recs[np.where(rpu == cr)[0][0]]
                     irpt = recs[np.where(rpu == cr)[0][0]]
                 except:
                     continue
@@ -4170,6 +4176,17 @@ class Utilities:
                              f"{diff_abs[i]:0.4f} ms\n")
                     for vert in p.vertices:
                         fo.write(f"{vert[0]:0.3f} {vert[1]:0.3f}\n")
+# Plot evolution of chi2
+            chi_ev = np.array(self.mgr.inv.chi2History)
+            nit = len(chi_ev)
+            self.ax_chi.plot(np.arange(nit)+1,chi_ev)
+            self.ax_chi.set_ylabel("chi2")
+            self.ax_chi.set_xlabel("iteration #")
+            self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
+                                  f"fac: {self.s_fact:0.2f}, "+\
+                                  f"z: {self.zSmooth:0.2f}")
+            ticks_x_chi = self.window.set_ticks(1.,nit,ntick=10, dtick=1)
+            self.ax_chi.set_xticks(ticks_x_chi)
 
 # Plot average traveltime differences for shots and receivers
             self.ax_av_diff.plot(sxu,diff_mean_shots,label="shots")
@@ -4231,10 +4248,16 @@ class Utilities:
 # If plot is done with automatic scaling, the name is inversion_results-auto.png
 #    if not, it is inversion_results.png. So, the automatic scaling is always
 #    stored, if scales are changed, only the last version is stored.
-            self.window.figs[ip].suptitle(self.plot_title, fontsize="xx-large",\
+#            self.window.figs[ip].suptitle(self.plot_title, fontsize="xx-large",\
+#                                          fontweight="heavy")
+            self.figinv.suptitle(self.plot_title, fontsize="xx-large",\
                                           fontweight="heavy")
+#        self.w_tomo.showMaximized()
+        self.w_tomo.show()
         if code == 0:
-            self.window.figs[ip].savefig(os.path.join(self.p_aim,\
+            self.figinv.savefig(os.path.join(self.p_aim,\
+                                 "inversion_results_auto.png"))
+            self.figinv.savefig(os.path.join(self.p_aim,\
                                  "inversion_results_auto.png"))
             with open(os.path.join(self.p_aim,"velocities.dat"),"w") as fo:
                 for i in range(len(self.endModel)):
@@ -4258,7 +4281,7 @@ class Utilities:
                       'Tomography results stay in original folder')
 
         elif code == 67:
-            self.window.figs[ip].savefig(os.path.join(self.p_aim,\
+            self.figinv.savefig(os.path.join(self.p_aim,\
                                 "inversion_results.png"))
         self.traces.calc_picks = False
         self.traces.readCalcPicks()
@@ -4345,7 +4368,6 @@ class Utilities:
         dt = 0.55*dx/vmax
         dt = int(dt*1E6)/1E6
         ndt = max(int(0.001/dt),1)
-#        tmax = np.ceil(np.nanmax(self.calc)*0.3)/100
         print(f"tmax: {tmax}")
         xmin = np.floor(np.min(x))-bound
         xmax = np.ceil(np.max(x))+bound
@@ -4361,19 +4383,15 @@ class Utilities:
         if nz%iz != 0:
             nz += iz-nz%iz
 
-        # Defile X and Z coordinates of interpolated mesh
+# Define X and Z coordinates of interpolated mesh
         xi = np.linspace(xmin,xmax,nx)
         zi = np.linspace(zmin,zmax,nz)
 
-        # Perform linear interpolation of the data given on original positions (x,z)
-        # on a grid defined by (xi,zi)
-        # triang = tri.Triangulation(x, z)
-        # interpolator = tri.LinearTriInterpolator(triang, self.mgr.model.array())
+# Perform linear interpolation of the data given on original positions (x,z)
+# on a grid defined by (xi,zi)
         Xi, Zi = np.meshgrid(xi, zi)
         data_p = griddata(self.mgr.paraDomain.cellCenters().array()[:,:2],\
                           v, (Xi, Zi), method='linear')
-        # data_p = griddata(self.mgr.paraDomain.cellCenters().array()[:,:2],\
-        #                   self.mgr.model.array(), (Xi, Zi), method='cubic')
         dpf = data_p.flatten()
         Xif = Xi.flatten()
         Zif = Zi.flatten()
@@ -4385,7 +4403,6 @@ class Utilities:
         data_p_nan = dpf[~np.isnan(dpf)]
         data_p = griddata(centers,data_p_nan, (Xi,Zi), method='nearest')
         data_p = np.flip(np.transpose(data_p))
-#            data_p[np.isnan(data_p)] = 2000
 # For S-wave velocity suppose that for very small P-velocities, vs = vp/2 and
 # for 6 km/s, vs = vp/sqrt(3), in between: linear function
         data_s = data_p/((np.sqrt(3)-2)/6000.*data_p+2.)
@@ -4507,8 +4524,6 @@ class Utilities:
             else:
                 xshot[i] = self.geom.sht_dict[nrec[i]]["y"]
             zshot[i] = self.geom.sht_dict[nrec[i]]["z"]
-#        xrec = np.unique(self.traces.receiver_pos)
-#        xshot = np.unique(self.traces.shot_pos)
         xmnr = xrec.min()
         xmns = xshot.min()
         dx_stn = dx*nbound - min(xmnr,xmns)
@@ -4547,6 +4562,8 @@ class Utilities:
         """
         from sklearn.linear_model import LinearRegression
         from obspy.signal import filter
+        from os.path import exists
+        self.main.function = "attenuation"
         v_all = self.window.v.copy()
         x_all = self.window.x.copy()
         t_all = self.window.time.copy()
@@ -4657,17 +4674,21 @@ class Utilities:
         self.ax_amp.set_xlabel("Offset [m]")
         self.ax_amp.set_ylabel("Max amplitude [n.u.]")
         if self.window.fg_flag:
-            self.ax_att.set_title(\
-                      f"Amplitudes, file {self.file.file_numbers[self.fig_plotted]}:"+\
-                      plt_txt)
+            text =  f"file {self.file.file_numbers[self.fig_plotted]}: {plt_txt}"
+            self.ax_att.set_title(f"Attenuation, {text}")
         elif self.window.sg_flag:
-            self.ax_att.set_title(\
-                      f"Attenuation, shot {self.traces.shot[self.window.actual_traces[0]]+1}:"+\
-                      plt_txt)
+            text =  f"shot {self.traces.shot[self.window.actual_traces[0]]+1}: {plt_txt}"
+            self.ax_att.set_title(f"Attenuation, {text}")
         elif self.window.rg_flag:
-            self.ax_att.set_title(\
-                      f"Attenuation, receiver {self.traces.receiver[self.window.actual_traces[0]]+1}:"+\
-                      plt.txt)
+            text =  f"receiver {self.traces.receiver[self.window.actual_traces[0]]+1}: {plt_txt}"
+            self.ax_att.set_title(f"Attenuation, {text}")
+# Write results to file Q.dat. If this file exists, append a line
+        if exists("Q.dat"):
+            mode = "a"
+        else:
+            mode = "w"
+        with open("Q.dat",mode) as fo:
+            fo.write(f"{text}\n")
 
 
 #    atten_FFT_backup(self):
@@ -4710,11 +4731,3 @@ class Utilities:
 #         self.ax_r2.set_xlabel("Frequency [Hz]")
 #         self.ax_r2.set_ylabel("R2 coefficient")
 #         self.window.setHelp(self.window.attenuation_text)
-
-
-
-
-
-
-
-

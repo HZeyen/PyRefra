@@ -30,7 +30,7 @@ This opens a command window. Then type the following commands:
     I had sometimes problems with Conda blocking or installing only parts. In this case, after `conda update --all`, continue with
 
          ii. `conda install mamba`    
-        iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels`
+        iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels scikit-learn`
     In this case, do **not** go to pg and update --all, this may destroy the environment.
         
 5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
@@ -58,17 +58,27 @@ and change the rounding to 0 ciphers instead of the default 2 ciphers:
 
 `ax.set_xticklabels(['{:g}'.format(round(xx[int(ti)], 0)) for ti in xt])`
 
-In addition, it is interesting, though not absolutely necessary to add the following code to **pgimly** which allows summing up the number of rays having crossed each cell during all iterations and in this way plotting the final model avoiding the areas where no ray at all passed during any of the iteration steps:
+In addition, it is interesting, though not absolutely necessary to add the following code to **pgimly** which allows summing up the number of raysand ray lengths having crossed each cell during all iterations and in this way plotting the final model avoiding the areas where no ray at all passed during any of the iteration steps:
 
 File **ENV/site-packages/pygimli/frameworks/inversion.py**
 
-After line 522 (containing `startModel = self.startModel`) add:
+After line 546 (containing `startModel = self.startModel`) add:
 
-`self.fop.cov_sum = np.zeros(len(self.fop.startModel()))`
+self.cov_sum = np.zeros(len(self.fop.startModel()))
 
-After line 591 (starting with `self.modelHistory.append`) add:
+self.cell_rays = []
 
-`self.fop.cov_sum += self.fop.jacobian().transMult(np.ones(self.fop.jacobian().rows()))`
+After line 628 (starting with `self.modelHistory.append`) add:
+
+self.cov_sum += self.fop.jacobian().transMult(np.ones(self.fop.jacobian().rows()))
+
+self.cell_rays.append([])
+
+for i in range(len(self.cov_sum)):
+
+    n = len(np.where(np.array(self.fop.jacobian().col(i))!=0)[0])
+    
+    self.cell_rays[-1].append(n)
 
 In **obspy**, you may find file **seg2.py** (usually in ENV/site-packages/obspy/io/seg2/seg2.py)
 
@@ -79,5 +89,9 @@ Also at the very end, find line containing `WARNING_HEADER` and comment it out.
 This is not important for working of the program, but it avoids an annoyingly long warning message each time you start the program.
 
 In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg2.py** the line `if key == 'NOTE':` (line 337) in the line just above, change `value = ''` by `value = b''`
+
+If the program stops after having written to the screen “folder: …” followed by “files read” without a list of files, the most probable reason is that obspy had been reinstalled and you must do the above corrections again!
+
+This issue has been fixed within obspy (28/12/2022, bug fix #3178) but only installed for Python >3.9. Since Pygimli only works in 3.8, the fix must still be done manually.
 
 If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`

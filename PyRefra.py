@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Sun Apr 16, 2023
+last modified on Thu May 04, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -65,16 +65,21 @@ import os
 #  dir0 is the folder where the data are located
 
 # Paths on HZ computerall_freq_filter
-sys_path = r"C:/Sources_2010/Python_programs"
-dir0 = r"H:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Bloc2-5"
-#dir0 = r"H:/Seg2Dat/Alina/L3"
-#dir0 = r"H:/Seg2Dat/Pierre-Perthuis/Sismique_2019"
-#dir0 = r"H:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
+sys_path = r"E:/Sources_2010/Python_programs"
+#dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"G:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Blocs_shifted"
+dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
+#dir0 = r"G:/Seg2Dat/Pierre-Perthuis/Sismique_2019"
+#dir0 = r"G:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
 
 # Example of paths for programs and data on department desktop
 # sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"
 # dir0 = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique/data"
+
+# Example of paths for LIONEL
+#sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
+#dir0 = r"C:/Users/marsj/Desktop/Leo/Line2"
+
 
 #Example of paths for Linux
 # sys_path = r"/home/zeyen/src/Python"
@@ -310,6 +315,47 @@ class Main(QtWidgets.QWidget):
         None.
 
         """
+        self.direction_start = np.array(["S","SSW","SW","WSW","W","WNW","NW","NNW",\
+                          "N","NNE","NE","ENE","E","ESE","SE","SSE"], dtype=str)
+        self.direction_end = np.array(["N","NNE","NE","ENE","E","ESE","SE","SSE",\
+                        "S","SSW","SW","WSW","W","WNW","NW","NNW"], dtype=str)
+        if os.path.exists("PyRefra.config"):
+            with open("PyRefra.config","r") as fo:
+                self.title = fo.readline().split("\n")[0]
+                print(f"Title: {self.title}")
+                self.dir_start = fo.readline().split("\n")[0]
+                self.config = True
+            if len(np.where(self.direction_start==self.dir_start)[0]) > 0:
+                self.dir_end = self.direction_end[\
+                        np.where(self.direction_start==self.dir_start)[0][0]]
+                print(f"Profile direction: {self.dir_start}-{self.dir_end}")
+            else:
+                self.dir_start = ""
+                self.dir_end = ""
+                print(f"Profile direction in file PyRefra incorrect: *{self.dir_start}*")
+        else:
+            print("File PyRefra.config not found")
+            results, okButton = self.dialog(\
+                    ["General title (name of profile...)",\
+                     "Geographic direction of profile start",\
+                     self.direction_start],
+                    ["e","l","b"],\
+                    [self.dir0,None,None],"PyRefra configuration")
+            if okButton:
+                self.title = results[0]
+                self.dir_start = self.direction_start[int(results[2])]
+                self.dir_end = self.direction_end[int(results[2])]
+                self.config = True
+                with open("PyRefra.config","w") as fo:
+                    fo.write(f"{self.title}\n")
+                    fo.write(self.dir_start)
+                print(f"{self.title}\n"+\
+                      "Profile direction: {self.dir_start}-{self.dir_end}")
+            else:
+                self.title = self.dir0
+                self.dir_start = ""
+                self.dir_end = ""
+                self.config = False
         self.files = rD.Files(self.dir0)
         self.function = "file_open"
         self.files.get_files()
@@ -346,8 +392,8 @@ class Main(QtWidgets.QWidget):
         labels : list of strings
             Explanatory text put beside the fields foe data entrance.
             If values==None, label is interpreted as information/Warning text
-            For a series of radiobuttons, all corresponding labels are given as
-            a list within the list.
+            For a series of radiobuttons or Comboboxes, all corresponding labels
+            are given as a list within the list.
         types : list of strings (length as labels).
             Possible values:
                 "c": to define a check box
@@ -356,6 +402,7 @@ class Main(QtWidgets.QWidget):
                 'r': to define a series of radiobuttons (the corresponding list of
                      labels is considered as one single label for the numbering of
                      labels, types and values)
+                "b": to define a combobox (dropdown menu)
         values : list of texts, numbers or Nones (length as labels)
             Initial values given to editable fields. Should be None for check boxes
                 should be the number (natural numbering, starting at 1, not at 0)
@@ -402,6 +449,9 @@ class Main(QtWidgets.QWidget):
                 elif t.lower() == 'c':
                     results.append(D.ck_order[it]-1)
                     iline += 1
+                elif t.lower() == "b":
+                    results.append(D.combo[it].currentIndex())
+                    iline += 1
                 else:
                     results.append(None)
                     iline += 1
@@ -438,6 +488,12 @@ class Main(QtWidgets.QWidget):
                 self.utilities.w_tomo.close()
             if self.utilities.w_fcol:
                 self.utilities.w_fcol.close()
+            if self.utilities.w_amp:
+                self.utilities.w_amp.close()
+            if self.window.w_anim:
+                self.window.w_anim.close()
+            if self.window.w_picks:
+                self.window.w_picks.close()
             if np.amax(self.traces.npick) > 0:
                 self.traces.storePicks()
             try:
@@ -497,6 +553,7 @@ class Dialog(QtWidgets.QWidget):
         self.ckb = []
         self.rbtn = []
         self.btngroup = []
+        self.combo = []
         if parent.function == "False_Colour":
             self.label = QtWidgets.QLabel("Check up to 3 items; chose red item")
         for i in range(nlab):
@@ -528,6 +585,7 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
+                self.combo.append(None)
                 self.mainLayout.addWidget(self.dlabels[ilin], il, 0, 1, 2)
                 ilin += 1
             elif types[i].lower() == 'e':
@@ -536,6 +594,7 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
+                self.combo.append(None)
                 self.mainLayout.addWidget(self.dlabels[ilin], il, 0, 1, 1)
                 self.mainLayout.addWidget(self.dlines[ilin], il, 1, 1, 1)
                 try:
@@ -546,6 +605,7 @@ class Dialog(QtWidgets.QWidget):
                 ilin += 1
             elif types[i].lower() == 'r':
                 self.ckb.append(None)
+                self.combo.append(None)
                 self.rbtn.append([])
                 self.btngroup.append(QButtonGroup())
                 rck = int(values[i])-1
@@ -561,17 +621,28 @@ class Dialog(QtWidgets.QWidget):
                         self.rbtn[i][-1].setChecked(True)
                     else:
                         self.rbtn[i][-1].setChecked(False)
+                    il += 1
                     ilin += 1
             elif types[i].lower() == 'c':
                 self.dlabels.append(None)
                 self.dlines.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
+                self.combo.append(None)
                 self.ckb.append(QtWidgets.QCheckBox(self))
                 self.ckb[i].setText(self.labels[i])
                 self.mainLayout.addWidget(self.ckb[i], il, 0, 1, 2)
                 self.ckb[i].stateChanged.connect(self.checked)
                 ilin += 1
+            elif types[i].lower() == 'b':
+                self.ckb.append(None)
+                self.rbtn.append(None)
+                self.btngroup.append(None)
+                self.combo.append(QtWidgets.QComboBox())
+                for il,l in enumerate(labels[i]):
+                    self.combo[i].addItem(l)
+                ilin += 1
+                self.mainLayout.addWidget(self.combo[i], ilin, 0, 1, 1)
         ilin += 2
         il = ilin + il_add
         self.mainLayout.addWidget(self.YesBtn, il, 0)

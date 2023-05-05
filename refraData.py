@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Sun Apr 16, 2023
+last modified on Fri May 05, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -187,7 +187,6 @@ class Data():
         self.general_sign = 1.
         self.main = main
         self.save_su = False
-        self.filtered = False
 
     def readData(self, files):
 # check for file and receiver corrections
@@ -494,7 +493,7 @@ class Data():
             t_cut = (i1+n_slope/2)*self.main.data.dt
         return tr,t_cut
 
-    def tr_head_seg2_y(self,tr_in_file,trace,tr,x_fact=100):
+    def tr_head_seg2_y(self,tr_in_file,trace,tr,x_fact=1,t_fact=100,lag=0):
         """
         Fill SEGY trace header with information from SEG2 header
 
@@ -504,7 +503,12 @@ class Data():
         trace: number of trace from list of all recorded traces starting with 0
         tr (Stream from obspy): Data of one trace
         x_fact : int
-                    factor with which to multiply distances (potences of 10, default 100)
+                    factor with which to multiply distances (potences of 10, default 1)
+        t_fact : int
+                    factor with which to multiply topography (potences of 10, default 100)
+        lag : int
+                   Time of the first sample before the time break in ms.
+                   It is stored in trace header field LagA
 
         Output:
         tr (Stream from obspy): trace with SEGY header added
@@ -544,8 +548,7 @@ class Data():
 # The SEG2 header word UNIT_UNIQUE_ID characterizes SUMMIT_X1 recording
 # However, since we use only pretrigger data option, lagA in SU must always be
 # positive, therefore there is finally no difference.
-        tr.stats.segy.trace_header.lag_time_A = \
-            abs(int(float(tr.stats.seg2.DELAY)*1000.))
+        tr.stats.segy.trace_header.lag_time_A = lag
 # Anti alias filter parameters are only indicated in seg2 header when SUMMIT2
 # system is used
         try:
@@ -577,23 +580,25 @@ class Data():
         tr.stats.segy.trace_header.group_coordinate_y = \
             round(self.main.geo.rec_dict[receiver_nr]["y"]*x_fact)
         tr.stats.segy.trace_header.receiver_group_elevation = \
-            -round(self.main.geo.rec_dict[receiver_nr]["z"]*x_fact)
+            -round(self.main.geo.rec_dict[receiver_nr]["z"]*t_fact)
         tr.stats.segy.trace_header.source_coordinate_x = \
             round(self.main.geo.sht_dict[shot_nr]["x"]*x_fact)
         tr.stats.segy.trace_header.source_coordinate_y = \
             round(self.main.geo.sht_dict[shot_nr]["y"]*x_fact)
         tr.stats.segy.trace_header.surface_elevation_at_source = \
-            -round(self.main.geo.sht_dict[shot_nr]["z"]*x_fact)
+            -round(self.main.geo.sht_dict[shot_nr]["z"]*t_fact)
         if x_fact > 1:
             tr.stats.segy.trace_header.scalar_to_be_applied_to_all_coordinates = \
-                -x_fact
-            tr.stats.segy.trace_header.scalar_to_be_applied_to_all_elevations_and_depths = \
                 -x_fact
         else:
             tr.stats.segy.trace_header.scalar_to_be_applied_to_all_coordinates = \
                 round(1/x_fact)
+        if t_fact > 1:
             tr.stats.segy.trace_header.scalar_to_be_applied_to_all_elevations_and_depths = \
-                round(1/x_fact)
+                -t_fact
+        else:
+            tr.stats.segy.trace_header.scalar_to_be_applied_to_all_elevations_and_depths = \
+                round(1/t_fact)
         tr.stats.segy.trace_header.instrument_gain_constant = \
             int(tr.stats.seg2.FIXED_GAIN)
         tr.stats.segy.trace_header.gain_type_of_field_instruments = 1
@@ -628,31 +633,17 @@ class Data():
 #   You may choose applying the last used frequency filter or not
 #   If there are several traces from the same shot and receiver points, you may
 #      store all multiple traces or only the first one found.
-        if self.main.utilities.high_cut_flag or self.main.utilities.low_cut_flag:
-            results, okButton = self.main.dialog(\
-#                              ["Start_time (a(ll)/0/w(indow))",\
-                              ["Start_time",\
-                               ["All data","Start at time break","save window",\
-                                "Zero and mute before pick"],\
-                               "All data in one file (y/n)",\
-                               "Only this shot (y/n)",\
-                               "Multiplicator for distances",\
-                               "Store multiple shot-receivers",\
-                               "Apply frequency filter (y/n)"],\
-                              ["l","r","e","e","e","e","e"],\
-                              ["b",2,"y","n","100","n","y"],"Save SEGY/SU format")
-        else:
-            results, okButton = self.main.dialog(\
-#                              ["Start_time (a(ll)/0/w(indow))",\
-                              ["Start_time",\
-                               ["All data","Start at time break","save window",\
-                                "Zero and mute before pick"],\
-                               "All data in one file (y/n)",\
-                               "Only this shot (y/n)",\
-                               "Multiplicator for distances",\
-                               "Store multiple shot-receievers"],\
-                              ["l","r","e","e","e","e"],\
-                              ["b",2,"y","n","100","n"],"Save SEGY/SU format")
+        results, okButton = self.main.dialog(\
+                          ["Start_time",\
+                           ["All data","Start at time break","save window",\
+                            "Zero and mute before pick"],\
+                           "All data in one file (y/n)",\
+                           "Only this shot (y/n)",\
+                           "Multiplicator for distances",\
+                           "Multiplicator for topography",\
+                           "Store multiple shot-receievers"],\
+                          ["l","r","e","e","e","e","e"],\
+                          ["b",2,"y","n","1","100","n"],"Save SEGY/SU format")
 
         if okButton == False:
             print("SEGY saving cancelled")
@@ -662,16 +653,14 @@ class Data():
         one_file_flag = data_flag=="y"
         file_flag = results[3].lower()
         all_shots_flag = file_flag=="n"
-        multiplicator = int(results[4])
-        skip_multiple = results[5].lower()=="n"
+        mult_x = int(results[4])
+        mult_topo = int(results[5])
+        skip_multiple = results[6].lower()=="n"
         if skip_multiple:
             ismax = max(self.main.traces.shot)+1
             irmax = max(self.main.traces.receiver)+1
             stored = np.zeros((ismax,irmax))
-        try:
-            filter_flag = results[5].lower()=="y"
-        except:
-            filter_flag = False
+#        filter_flag = False
         if S_time == 3:
             results, okButton = self.main.dialog(\
                               ["Approx. signal period [ms]"],\
@@ -679,6 +668,12 @@ class Data():
             delay = float(results[0])/1000.
         else:
             delay = 0.
+        if S_time==1 or S_time==3:
+            lag = 0
+        elif S_time == 0:
+            lag = -int(self.t0*1000)
+        else:
+            lag = -int(self.main.window.time_plt_min)
         i_store = -1
         if all_shots_flag:
             if one_file_flag:
@@ -707,18 +702,10 @@ class Data():
 
 # If data should be filtered, make first a back-up of the actual data, since the
 #    filter is always applied on array self.main.window.v
+#    May 2023: The filtering is now obsolete, since filtering may now be done for
+#              all traces in the filter module. However, for the moment, I left
+#              the copy of the data for simplicity (too many changes to be done)
         stw = self.st.copy()
-        if filter_flag:
-            v_bak = np.copy(self.v)
-            for t in t_save:
-                ifile = self.main.traces.file[t]
-                itrace = self.main.traces.trace[t]
-                self.main.window.v = stw[ifile][itrace].data
-                self.main.utilities.frequencyFilter(-1, False)
-                stw[ifile][itrace].data = self.main.window.v
-            self.v = np.copy(v_bak)
-            del v_bak
-
 # Start loop over all shot points
         it_save = 0
         for i in range(nfiles):
@@ -774,12 +761,12 @@ class Data():
                         int((self.main.window.time_plt_min-self.t0)*1000)
                 else:
                     tr = stw[ifile][itrace].copy()
-# Set specific SegY headder words
+# Set specific SegY header words
                 it_save += 1
                 if np.isclose(np.std(tr.data), 0.):
                     continue
                 i_store += 1
-                tr = self.tr_head_seg2_y(i_store,t,tr,multiplicator)
+                tr = self.tr_head_seg2_y(i_store,t,tr,mult_x,mult_topo,lag)
                 if S_time == 3:
                     if  np.isclose(mute_t, 0.):
                         tr.stats.segy.trace_header.data_use = 0
@@ -1709,7 +1696,7 @@ class Traces():
         None.
 
         """
-        if self.data.filtered:
+        if self.main.utilities.filtered:
             unc = 4*self.data.dt
         else:
             unc = 2*self.data.dt
@@ -1812,6 +1799,7 @@ class Utilities:
         self.high_cut_flag = False
         self.low_cut_flag = False
         self.filtered = False
+        self.filtered_all = False
         self.mod_v1 = 800.
         self.mod_v2 = 4000.
         self.mod_h = 3.
@@ -1819,6 +1807,7 @@ class Utilities:
         self.w_env = None
         self.w_tomo = None
         self.w_fcol = None
+        self.w_amp = None
 
     def min_max(self,data,half_width=3):
         """
@@ -2028,16 +2017,20 @@ class Utilities:
         self.w_tau = rP.newWindow("TauP")
         ax = self.w_tau.fig.subplots()
         ax.pcolormesh(velocities, tau, v_tau.T,cmap=plt.cm.jet,shading='gouraud')
-        ax.set_xlabel("Velocity[m/s]")
-        ax.set_ylabel("Intercept time [s]")
+        ax.set_xlabel("Velocity[m/s]", fontsize = 18)
+        ax.set_ylabel("Intercept time [s]", fontsize = 18)
         if self.window.fg_flag:
-            ax.set_title(f"Tau_P, file {self.file.file_numbers[self.fig_plotted]}")
+            ax.set_title(f"Tau_P, file {self.file.file_numbers[self.fig_plotted]}",\
+            fontsize = 20)
         elif self.window.sg_flag:
             ax.set_title("Tau_P, shot "+\
-                      f"{self.traces.shot[self.window.actual_traces[0]]+1}")
+                      f"{self.traces.shot[self.window.actual_traces[0]]+1}",\
+                      fontsize = 20)
         elif self.window.rg_flag:
             ax.set_title("Tau_P, receiver "+\
-                      f"{self.traces.receiver[self.window.actual_traces[0]]+1}")
+                      f"{self.traces.receiver[self.window.actual_traces[0]]+1}",\
+                      fontsize = 20)
+        ax.tick_params(axis='both', labelsize=18)
         self.w_tau.show()
 
     def pModel(self):
@@ -2621,19 +2614,20 @@ class Utilities:
                 txt += f", blue={labs[nlabs[2]]}"
         if ck_results[7]:
             txt += ";  white: av. acor, yellow: av. trace"
-        ax.set_xlabel("Distance[m]")
-        ax.set_ylabel("Time [s]]")
+        ax.set_xlabel("Distance[m]", fontsize=18)
+        ax.set_ylabel("Time [s]]", fontsize=18)
         if self.window.sg_flag:
             sht = self.traces.shot[self.window.actual_traces[0]]
-            ax.set_title(f"shot {sht+1}: {txt}")
+            ax.set_title(f"shot {sht+1}: {txt}", fontsize=20)
         elif self.window.fg_flag:
             strings = self.window.plot_names[self.window.fig_plotted].split()
             nfile = int(strings[1])
-            ax.set_title(f"file {nfile}: {txt}")
+            ax.set_title(f"file {nfile}: {txt}", fontsize=20)
         elif self.window.rg_flag:
             rec = self.traces.receiver[self.window.actual_traces[0]]
-            ax.set_title(f"receiver {rec+1}: {txt}")
+            ax.set_title(f"receiver {rec+1}: {txt}", fontsize=20)
 # Show false colour plot and wait for key stroke
+        ax.tick_params(axis='both', labelsize=18)
         self.w_fcol.show()
 
     def secondDerivative(self,data,l_before,l_after):
@@ -2893,24 +2887,29 @@ class Utilities:
         fmax = np.max(freq)
         self.window.drawNew(False)
         self.window.axes[self.window.fig_plotted].plot(freq, Fabs)
-        self.window.axes[self.window.fig_plotted].set_xlabel("Frequency[Hz]")
-        self.window.axes[self.window.fig_plotted].set_ylabel("Amplitude [a.u.]")
+        self.window.axes[self.window.fig_plotted].set_xlabel("Frequency[Hz]",\
+                        fontsize=18)
+        self.window.axes[self.window.fig_plotted].set_ylabel("Amplitude [a.u.]",\
+                        fontsize=1)
         if self.window.sg_flag:
             sht = self.traces.shot[tr_spec[0]]
             self.window.axes[self.window.fig_plotted].set_title\
-                (f"Spectrum, shot {sht+1}")
+                (f"Spectrum, shot {sht+1}", fontsize=20)
         elif self.window.fg_flag:
             self.window.axes[self.window.fig_plotted].set_title\
-                (f"Spectrum, file {self.window.actual_shot}")
+                (f"Spectrum, file {self.window.actual_shot}", fontsize=20)
 
         elif self.window.rg_flag:
             rec = self.traces.receiver[tr_spec[0]]
             self.window.axes[self.window.fig_plotted].set_title\
-                (f"Spectrum, receiver {rec+1}")
+                (f"Spectrum, receiver {rec+1}", fontsize=20)
         else:
             dist = abs(self.traces.offset[tr_spec[0]])
             self.window.axes[self.window.fig_plotted].set_title\
-                (f"Spectrum, distance {dist:0.1f}")
+                (f"Spectrum, distance {dist:0.1f}", fontsize=20)
+        self.window.axes[self.window.fig_plotted].tick_params(axis='both',\
+                         labelsize=18)
+
         self.window.setHelp(self.window.spectrum_text)
 # Pick low_cut and high-cut frequencies, first low_cut
         self.coor_x = []
@@ -2969,6 +2968,7 @@ class Utilities:
     def filterAll(self):
         self.frequencyFilter(-1)
         self.filtered = True
+        self.filtered_all = True
 
     def filterTrace(self):
         """
@@ -3083,6 +3083,7 @@ class Utilities:
                         self.main.window.v[iit,:] = dat
                     elif self.traces.amplitudes[t] < 0:
                         self.main.window.v[iit,:] = -dat
+        self.filtered = True
         print("     All traces filtered")
         if plot_flag:
             self.window.v_set = False
@@ -3206,9 +3207,9 @@ class Utilities:
                   pcolormesh(k_shift,f_shift[nf:nf_p_max],Fabs[nf:nf_p_max,:],\
                   cmap=cmp,vmin=Fmin,vmax=Fmax,shading='auto')
             self.window.axes[self.window.fig_plotted].set_xlabel\
-                            ("Spacial frequency[1/m]")
+                            ("Spacial frequency[1/m]", fontsize=18)
             self.window.axes[self.window.fig_plotted].set_ylabel\
-                            ("Frequency [Hz]")
+                            ("Frequency [Hz]", fontsize=18)
             if dir > 0:
                 txt = ", positive direction"
             else:
@@ -3216,20 +3217,22 @@ class Utilities:
             if self.window.sg_flag:
                 sht = self.traces.shot[self.window.actual_traces[0]]
                 self.window.axes[self.window.fig_plotted].set_title\
-                    (f"Spectrum, shot {sht+1}{txt}")
+                    (f"Spectrum, shot {sht+1}{txt}", fontsize=20)
             elif self.window.fg_flag:
                 strings = self.window.plot_names[self.window.fig_plotted].split()
                 nfile = int(strings[1])
                 self.window.axes[self.window.fig_plotted].set_title\
-                    (f"Spectrum, file {nfile}{txt}")
+                    (f"Spectrum, file {nfile}{txt}", fontsize=20)
             elif self.window.rg_flag:
                 rec = self.traces.receiver[self.window.actual_traces[0]]
                 self.window.axes[self.window.fig_plotted].set_title\
-                    (f"Spectrum, receiver {rec+1}{txt}")
+                    (f"Spectrum, receiver {rec+1}{txt}", fontsize=20)
             _ = self.window.figs[self.window.fig_plotted].\
                      colorbar(c, ax=self.window.axes[self.window.fig_plotted],\
                      format='%.1f', label="log(amplitude), a.u.",\
                      orientation='vertical',aspect=50)
+            self.window.axes[self.window.fig_plotted].tick_params(axis='both',\
+                         labelsize=18)
             self.window.setHelp(self.window.fk_text)
 # Show f-k spectrum and wait for key stroke
             self.window.figs[self.window.fig_plotted].canvas.draw()
@@ -3386,6 +3389,7 @@ class Utilities:
 # For description of v_red and nk_el, see function fk_filt
         v_red = 450.
         nk_el = 3
+        self.neg_flag = False
         xx = np.array(self.main.window.x)
         vt = np.zeros_like(np.transpose(self.main.window.v))
         for i in range(np.size(self.main.window.v,0)):
@@ -3430,7 +3434,7 @@ class Utilities:
                     -np.float32(self.main.window.v[it,:])
         self.main.window.drawNew(True)
         self.main.window.setHelp(self.main.window.main_text)
-        self.data.filtered = True
+        self.filtered = True
 
     def velocityFilter(self):
         """
@@ -3761,6 +3765,7 @@ class Utilities:
             sx_max = self.sx.max()
             self.xax_min = min(gx_min,sx_min)
             self.xax_max = max(gx_max,sx_max)
+            self.plot_title = self.main.title
 # Call dialog window for input of a number of inversion control parameters
             results, okButton = self.main.dialog(\
                     ["Maximum depth (m, positive down)",\
@@ -3776,11 +3781,10 @@ class Utilities:
                      "any letter in one of the two: special velocity scale",\
                      "Velocity color scale min [m/s]",\
                      "Velocity color scale max [m/s]",\
-                     "Plot rays on final model",\
-                     "Plot title"],\
-                    ["e","e","e","e","e","e","e","e","e","l","e","e","c","e"],\
-                    [self.zmax,200,0.97,0.2,0,200,4000,150,6000,None,'v',None,-1,\
-                     self.main.dir0],"Inversion parameters")
+                     "Plot rays on final model"],\
+                    ["e","e","e","e","e","e","e","e","e","l","e","e","c"],\
+                    [self.zmax,200,0.8,0.2,0,200,4000,150,6000,None,'v',None,-1],\
+                     "Inversion parameters")
 
             if not okButton:
                 print("\n Inversion cancelled")
@@ -3817,7 +3821,9 @@ class Utilities:
                 self.rays_flag = True
             else:
                 self.rays_flag = False
-            self.plot_title = results[13]
+            self.plot_title = self.main.title
+            self.direction = self.main.dir_start
+            self.direction1 = self.main.dir_end
 
 # Initialize PyGimli TravelTime Manager and set control parameters
             self.mgr = TravelTimeManager()
@@ -3979,21 +3985,21 @@ class Utilities:
         self.w_tomo = rP.newWindow("Tomography results")
         self.figinv = self.w_tomo.fig
         plt.tight_layout()
-        self.gs = GridSpec(12, 13, figure=self.figinv)
+        self.gs = GridSpec(15, 13, figure=self.figinv)
 # Axis for final model
         self.ax_mod = self.figinv.add_subplot(self.gs[:6, :])
 # Acis for initial model
-        self.ax_start = self.figinv.add_subplot(self.gs[6:9,0:4])
+        self.ax_start = self.figinv.add_subplot(self.gs[7:10,0:4])
 # Axis for ray and coverage plot
-        self.ax_rays = self.figinv.add_subplot(self.gs[9:12,0:4])
+        self.ax_rays = self.figinv.add_subplot(self.gs[11:15,0:4])
 # Axis for measured travel time plot
-        self.ax_tt = self.figinv.add_subplot(self.gs[6:9,5:8])
+        self.ax_tt = self.figinv.add_subplot(self.gs[7:10,5:8])
 # Axis for difference between measured and calculated travel times
-        self.ax_diff = self.figinv.add_subplot(self.gs[9:12,5:8])
+        self.ax_diff = self.figinv.add_subplot(self.gs[11:15,5:8])
 # Axis for average differences of shot gathers and receiver gathers
-        self.ax_av_diff = self.figinv.add_subplot(self.gs[9:12,9:12])
+        self.ax_av_diff = self.figinv.add_subplot(self.gs[11:15,9:12])
 # Axis for chi2-evolution
-        self.ax_chi = self.figinv.add_subplot(self.gs[6:9,9:12])
+        self.ax_chi = self.figinv.add_subplot(self.gs[7:10,9:12])
 # Define ticks for horizontal and vertical axes of model plots
 # For horizontal axis, use sensor positions from pick file (picks.sgt")
 # For vertical axis suppose that the topmost values is zero, which implies that
@@ -4017,14 +4023,25 @@ class Utilities:
         self.ax_start.set_xticks(self.ticks_x)
         self.ax_start.set_yticks(self.ticks_y)
         self.ax_start.set_xlim(left=self.xax_min, right=self.xax_max)
+        # self.ax_start.set_xlabel("Distance [m]",fontsize=18)
+        # self.ax_start.set_ylabel("Depth [m]", fontsize=18)
+        # self.ax_start.set_title("Starting model", fontsize=20)
         self.ax_start.set_xlabel("Distance [m]")
         self.ax_start.set_ylabel("Depth [m]")
         self.ax_start.set_title("Starting model")
+        ax_xmin, ax_xmax = self.ax_start.get_xlim()
+        ax_ymin, ax_ymax = self.ax_start.get_ylim()
+        xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+        ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+        txt = self.ax_start.text(xtxt,ytxt,"B",horizontalalignment="left",\
+                               verticalalignment="bottom", fontsize=18)
+        txt.set_bbox(dict(facecolor="white"))
 # Share x and y axis parameters with ray plot and plot of final model
         self.ax_start.get_shared_x_axes().join(self.ax_start, self.ax_rays)
         self.ax_start.get_shared_x_axes().join(self.ax_start, self.ax_mod)
         self.ax_start.get_shared_y_axes().join(self.ax_start, self.ax_rays)
         self.ax_start.get_shared_y_axes().join(self.ax_start, self.ax_mod)
+#        self.ax_start.tick_params(axis='both', labelsize=18)
         print("Starting model plotted")
 
 # Plot coverage and rays of final model
@@ -4038,9 +4055,20 @@ class Utilities:
         self.ax_rays.set_xticks(self.ticks_x)
         self.ax_rays.set_yticks(self.ticks_y)
         self.ax_rays.set_xlim(left=self.xax_min, right=self.xax_max)
+        # self.ax_rays.set_xlabel("Distance [m]", fontsize=18)
+        # self.ax_rays.set_ylabel("Depth [m]", fontsize=18)
+        # self.ax_rays.set_title(self.cov_txt, fontsize=20)
+        # self.ax_rays.tick_params(axis='both', labelsize=18)
         self.ax_rays.set_xlabel("Distance [m]")
         self.ax_rays.set_ylabel("Depth [m]")
         self.ax_rays.set_title(self.cov_txt)
+        ax_xmin, ax_xmax = self.ax_rays.get_xlim()
+        ax_ymin, ax_ymax = self.ax_rays.get_ylim()
+        xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+        ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+        txt = self.ax_rays.text(xtxt,ytxt,"C",horizontalalignment="left",\
+                               verticalalignment="bottom", fontsize=18)
+        txt.set_bbox(dict(facecolor="white"))
         print("Rays plotted")
 
 # Plot final model
@@ -4093,10 +4121,11 @@ class Utilities:
                          4500, 5000, 5500, 6000]
 
         self.ax_mod.set_aspect('equal', adjustable='box', anchor='W', share=True)
-        _ = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=self.cmp), ax=self.ax_mod,\
+        cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=self.cmp), ax=self.ax_mod,\
                          format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
                          orientation='vertical',aspect=25, shrink=0.9,\
                          extend='both')
+        cb.ax.tick_params(labelsize=14)
         if self.rays_flag:
             _ = self.mgr.drawRayPaths(ax=self.ax_mod, color="black", lw=0.3,\
                                       alpha=0.5)
@@ -4107,11 +4136,27 @@ class Utilities:
         self.ax_mod.set_xlim(left=self.xax_min, right=self.xax_max)
         self.ax_mod.grid(which='minor', axis='both', color="gray")
         self.ax_mod.grid(which='major', axis='both', color="k")
-        self.ax_mod.set_xlabel("Distance [m]")
-        self.ax_mod.set_ylabel("Depth [m]")
+        self.ax_mod.set_xlabel("Distance [m]", fontsize=18)
+        self.ax_mod.set_ylabel("Depth [m]", fontsize=18)
         self.ax_mod.set_ylim(-self.zmax_plt,0)
         self.ax_mod.set_title(\
-                f"Model velocities (min:{self.min_end:0.0f}, max:{self.max_end:0.0f})")
+             f"Model velocities (min:{self.min_end:0.0f}, max:{self.max_end:0.0f})",\
+             fontsize=20)
+        self.ax_mod.tick_params(axis='both', labelsize=18)
+        ax_xmin, ax_xmax = self.ax_mod.get_xlim()
+        ax_ymin, ax_ymax = self.ax_mod.get_ylim()
+        self.ax_mod.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.direction,\
+                         horizontalalignment="left",\
+                         verticalalignment="bottom", fontsize=18)
+        self.ax_mod.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.direction1,\
+                         horizontalalignment="right",\
+                         verticalalignment="bottom", fontsize=18)
+        xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+        ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+        txt = self.ax_mod.text(xtxt,ytxt,"A",horizontalalignment="left",\
+                               verticalalignment="bottom", fontsize=18)
+        txt.set_bbox(dict(facecolor="white"))
+
 
         print("Final model plotted")
 
@@ -4180,6 +4225,11 @@ class Utilities:
             chi_ev = np.array(self.mgr.inv.chi2History)
             nit = len(chi_ev)
             self.ax_chi.plot(np.arange(nit)+1,chi_ev)
+            # self.ax_chi.set_ylabel("chi2",fontsize=18)
+            # self.ax_chi.set_xlabel("iteration #", fontsize=18)
+            # self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
+            #                       f"fac: {self.s_fact:0.2f}, "+\
+            #                       f"z: {self.zSmooth:0.2f}", fontsize=20)
             self.ax_chi.set_ylabel("chi2")
             self.ax_chi.set_xlabel("iteration #")
             self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
@@ -4187,17 +4237,38 @@ class Utilities:
                                   f"z: {self.zSmooth:0.2f}")
             ticks_x_chi = self.window.set_ticks(1.,nit,ntick=10, dtick=1)
             self.ax_chi.set_xticks(ticks_x_chi)
+            ax_xmin, ax_xmax = self.ax_chi.get_xlim()
+            ax_ymin, ax_ymax = self.ax_chi.get_ylim()
+            xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+            ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+            txt = self.ax_chi.text(xtxt,ytxt,"F",horizontalalignment="left",\
+                                   verticalalignment="bottom", fontsize=18)
+            txt.set_bbox(dict(facecolor="white"))
+#            self.ax_chi.tick_params(axis='both', labelsize=18)
 
 # Plot average traveltime differences for shots and receivers
             self.ax_av_diff.plot(sxu,diff_mean_shots,label="shots")
             self.ax_av_diff.plot(gxu,diff_mean_recs,label="receivers")
+            # self.ax_av_diff.set_ylabel("Time misfit [ms]", fontsize=18)
+            # self.ax_av_diff.set_xlabel("Position [m]", fontsize=18)
+            # self.ax_av_diff.set_title("Average differences calc.-meas. "+\
+            #                           "arrival times", fontsize=20)
             self.ax_av_diff.set_ylabel("Time misfit [ms]")
             self.ax_av_diff.set_xlabel("Position [m]")
-            self.ax_av_diff.set_title("Average differences calc.-meas. arrival times")
+            self.ax_av_diff.set_title("Average differences calc.-meas. "+\
+                                      "arrival times")
             self.ax_av_diff.grid(which='major', axis='x', color='k')
             self.ax_av_diff.grid(which='major', axis='y', color='k')
             self.ax_av_diff.grid(which='minor', axis='y', color='gray')
             self.ax_av_diff.legend(bbox_to_anchor=(1,1), loc="upper right")
+            ax_xmin, ax_xmax = self.ax_av_diff.get_xlim()
+            ax_ymin, ax_ymax = self.ax_av_diff.get_ylim()
+            xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+            ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+            txt = self.ax_av_diff.text(xtxt,ytxt,"G",horizontalalignment="left",\
+                                   verticalalignment="bottom", fontsize=18)
+            txt.set_bbox(dict(facecolor="white"))
+#            self.ax_av_diff.tick_params(axis='both', labelsize=18)
             print("Average differences plotted")
 
 # Plot measured travel times using the PyGimli utility
@@ -4217,13 +4288,23 @@ class Utilities:
                         self.sx, self.dat,squeeze=True, logScale=False,\
                         cMin=0, cMax=maxval, aspect='equal')
             self.ax_tt.set_aspect('equal', adjustable='box')
+            # self.ax_tt.set_ylabel("Source positions [m]", fontsize=18)
+            # self.ax_tt.set_title("Measured travel times", fontsize=20)
             self.ax_tt.set_ylabel("Source positions [m]")
             self.ax_tt.set_title("Measured travel times")
             self.ax_tt.set_aspect('equal', adjustable='box', anchor='C',\
                                   share=True)
+            ax_xmin, ax_xmax = self.ax_tt.get_xlim()
+            ax_ymin, ax_ymax = self.ax_tt.get_ylim()
+            xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+            ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+            txt = self.ax_tt.text(xtxt,ytxt,"D",horizontalalignment="left",\
+                                   verticalalignment="bottom", fontsize=18)
+            txt.set_bbox(dict(facecolor="white"))
             _ = plt.colorbar(gci1, ax=self.ax_tt, format='%.0f',\
                                 label="Times (ms)", ticks=ticks, \
                                 orientation='vertical',aspect=20)
+#            self.ax_tt.tick_params(axis='both', labelsize=18)
             print("Travel times plotted")
 
 # Plot differences between calculated and measured travel times using the Pygimli
@@ -4232,6 +4313,12 @@ class Utilities:
                         self.sx, diff_abs,squeeze=True, cMap="seismic",\
                         logScale=False, cMin=dmin,cMax=dmax,aspect='equal')
             self.ax_diff.set_aspect('equal', adjustable='box')
+            # self.ax_diff.set_xlabel("Receiver positions [m]", fontsize=18)
+            # self.ax_diff.set_ylabel("Source positions [m]", fontsize=18)
+            # self.ax_diff.set_title(f"Misfit after {self.mgr.inv.inv.iter()} "+\
+            #                   f"iterations:\nchi2={self.mgr.inv.chi2():0.2f}; "+\
+            #                   f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms",\
+            #                   fontsize=20)
             self.ax_diff.set_xlabel("Receiver positions [m]")
             self.ax_diff.set_ylabel("Source positions [m]")
             self.ax_diff.set_title(f"Misfit after {self.mgr.inv.inv.iter()} "+\
@@ -4239,9 +4326,17 @@ class Utilities:
                               f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms")
             self.ax_diff.set_aspect('equal', adjustable='box', anchor='C',\
                                     share=True)
+            ax_xmin, ax_xmax = self.ax_diff.get_xlim()
+            ax_ymin, ax_ymax = self.ax_diff.get_ylim()
+            xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+            ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+            txt = self.ax_diff.text(xtxt,ytxt,"E",horizontalalignment="left",\
+                                   verticalalignment="bottom", fontsize=18)
+            txt.set_bbox(dict(facecolor="white"))
             _ = plt.colorbar(gci3, ax=self.ax_diff, format='%.1f',\
                                 label="Calc - meas (ms)", ticks=ticks_d, \
                                 orientation='vertical',aspect=20)
+#            self.ax_diff.tick_params(axis='both', labelsize=18)
             print("Misfits plotted")
 
 # Plot title above the final model and store plot
@@ -4661,27 +4756,32 @@ class Utilities:
                 plt_txt += f" pos: Q=[{q_factor_pos[0]:0.2f}, {q_factor_pos[1]:0.2f}]"+\
                           f", R2 = {r2_pos:0.3f}"
 # Plot results to screen
-        self.window.drawNew(False)
-        self.figatt =  self.window.figs[self.window.fig_plotted]
-        self.figatt.clear()
-        self.ax_att, self.ax_amp = self.figatt.subplots(2,1)
+#        self.window.drawNew(False)
+#        self.figatt =  self.window.figs[self.window.fig_plotted]
+#        self.figatt.clear()
+#        self.ax_att, self.ax_amp = self.figatt.subplots(2,1)
+        self.w_amp = rP.newWindow("Amplitudes and attenuation")
+        self.ax_att, self.ax_amp = self.w_amp.fig.subplots(2,1)
         self.ax_att.plot(x,lamp)
         self.ax_att.plot(x,lamp_calc,"r--")
-        self.ax_att.set_xlabel("Offset [m]")
-        self.ax_att.set_ylabel("log(Max amplitude) [n.u.]")
+        self.ax_att.set_xlabel("Offset [m]", fontsize=18)
+        self.ax_att.set_ylabel("log(Max amplitude) [n.u.]", fontsize=18)
         self.ax_amp.plot(x,amp_max)
         self.ax_amp.plot(x,amp_calc,"r--")
-        self.ax_amp.set_xlabel("Offset [m]")
-        self.ax_amp.set_ylabel("Max amplitude [n.u.]")
+        self.ax_amp.set_xlabel("Offset [m]", fontsize=18)
+        self.ax_amp.set_ylabel("Max amplitude [n.u.]", fontsize=18)
         if self.window.fg_flag:
             text =  f"file {self.file.file_numbers[self.fig_plotted]}: {plt_txt}"
-            self.ax_att.set_title(f"Attenuation, {text}")
+            self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.sg_flag:
             text =  f"shot {self.traces.shot[self.window.actual_traces[0]]+1}: {plt_txt}"
-            self.ax_att.set_title(f"Attenuation, {text}")
+            self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.rg_flag:
             text =  f"receiver {self.traces.receiver[self.window.actual_traces[0]]+1}: {plt_txt}"
-            self.ax_att.set_title(f"Attenuation, {text}")
+            self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
+        self.ax_att.tick_params(axis='both', labelsize=18)
+        self.ax_amp.tick_params(axis='both', labelsize=18)
+        self.w_amp.show()
 # Write results to file Q.dat. If this file exists, append a line
         if exists("Q.dat"):
             mode = "a"

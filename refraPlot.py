@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Sun Apr 16, 2023
+last modified on Fri May 05, 2023
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -22,7 +22,8 @@ Contains the following functions:
     tNorm
     tGain
     dGain
-    AGC    traceMute
+    AGC
+    traceMute
         on Press
     muteAir
     muteBefore
@@ -64,6 +65,7 @@ Contains the following functions:
     erase_Picks
     pickManual
         onPress
+    findNearest2ndDerivative
     corrPick
         onPress
     Sta_Lta
@@ -99,6 +101,11 @@ class Window(QMainWindow, Ui_MainWindow):
     def __init__(self, main, files, data, traces, geom):
         super(Window, self).__init__()
         self.setupUi(self) #Set up main window based on file window.ui created with QT Designer
+        self.main = main
+        self.files = files
+        self.data = data
+        self.traces = traces
+        self.geom = geom
         self.setWindowTitle("Data window")
         self.setWindowIcon(QtGui.QIcon(main.sys_path+"/PyRefra_Logo.png"))
         self.fig = Figure() #create a first figure in central widget
@@ -110,18 +117,15 @@ class Window(QMainWindow, Ui_MainWindow):
         self.fig_plotted = 0
         self.amp_plt = 1
         self.gain = "tnorm"
-        self.general_sign = 1
+        self.general_sign = self.data.general_sign
         self.n_zooms = 0
         self.i_zooms = -1
         self.zooms = []
         self.v_set = False
         self.v_min_trigger = 100 # not yet used! all potential triggers for Sta-Lta later then t = offset/v_min_trigger are ignored
         self.v_max_trigger = 2000 # all potential triggers for Sta-Lta earlier then t = offset/v_max_trigger are ignored
-        self.main = main
-        self.files = files
-        self.data = data
-        self.traces = traces
-        self.geom = geom
+        self.w_anim = None
+        self.w_picks = None
 # Set initial zoom limits such that all data may be plotted on the screen
         self.nt_mn = 0
         self.nt_mx = self.data.nsamp
@@ -293,6 +297,10 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setHelp(self.main_text) # plot help line for self module
         self.v_set = True
         self.main.function = "main"
+        if self.main.utilities.filtered_all:
+            self.main.utilities.filtered = True
+        else:
+            self.main.utilities.filtered = False
         try:
             self.main.utilities.mgr
         except:
@@ -380,7 +388,8 @@ class Window(QMainWindow, Ui_MainWindow):
         self.drawNew(True)
         self.v_set = True
         self.setHelp(self.main_text) # Change help text to self module
-        self.filtered = False
+        self.main.utilities.filtered = False
+        self.main.utilities.filtered_all = False
 
     def originalScreen(self):
         """
@@ -399,6 +408,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.v_set = False
         self.drawNew(True)
         self.v_set = True
+        self.main.utilities.filtered = False
         self.setHelp(self.main_text) # Change help text to self module
 
     def drawNew(self, plot_flag):
@@ -653,17 +663,18 @@ class Window(QMainWindow, Ui_MainWindow):
         self.main.function = "Mute_air"
         results, okButton = self.main.dialog(\
                                     ["Air velocity [m/s]",\
-                                     "Mute-time [ms]",\
+                                     "Mute-time on each side [ms]",\
                                      "Width sin**2 taper [ms]"],\
-                                    ["e","e","e"],[340,30,5],"Mute air wave")
+                                    ["e","e","e"],[340,10,3],"Mute air wave")
         if okButton == False:
             print("Air mute cancelled")
             return
         air_speed = np.float(results[0])
-        mute = np.float(results[1])
-        sin_width = np.float(results[2])
-        nmute = np.int(mute/self.data.dt/1000)
-        nsin = np.int(sin_width/self.data.dt/1000)
+        mute_half = np.float(results[1])/1000.
+        mute = 2*mute_half
+        sin_width = np.float(results[2])/1000.
+        nmute = np.int(mute/self.data.dt)
+        nsin = np.int(sin_width/self.data.dt)
         nfac = np.int(nmute+2*nsin)
         factor = np.zeros(nfac)
         factor[0:nsin] = (np.cos(0.5*np.pi/nsin*np.arange(nsin)))**2
@@ -671,7 +682,8 @@ class Window(QMainWindow, Ui_MainWindow):
         for i in range(self.traces.number_of_traces):
             nf = self.traces.file[i]
             nt = self.traces.trace[i]
-            tini = np.abs(self.traces.offset[i])/air_speed
+            tair = np.abs(self.traces.offset[i])/air_speed
+            tini = tair - mute_half
             nini = np.int((tini-self.data.t0)/self.data.dt-nsin)
             nend = nini+nfac
             nini_fac = 0
@@ -1077,9 +1089,18 @@ class Window(QMainWindow, Ui_MainWindow):
                     nulls = np.ones_like(t)*x_pos[i]
                     ax.fill_betweenx(t,nulls,x,where=nulls<=x)
             ax.grid(b="on",which="major",axis="y")
-            ax.set_xlabel(text_x)
-            ax.set_ylabel(text_y)
-            ax.set_title(text_t)
+            ax.tick_params(axis='both', labelsize=18)
+            ax.set_xlabel(text_x, fontsize = 18)
+            ax.set_ylabel(text_y, fontsize = 18)
+            ax.set_title(text_t, fontsize = 20)
+            ax_xmin, ax_xmax = ax.get_xlim()
+            ax_ymin, ax_ymax = ax.get_ylim()
+            ax.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_start,\
+                             horizontalalignment="left",\
+                             verticalalignment="bottom", fontsize=18)
+            ax.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_end,\
+                             horizontalalignment="right",\
+                             verticalalignment="bottom", fontsize=18)
             return None
         except:
             print("Error in seismogram")
@@ -1194,7 +1215,11 @@ class Window(QMainWindow, Ui_MainWindow):
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
-        text_t = f"Receiver {irec+1}"
+        if self.main.config:
+            text_t = self.main.title+": "
+        else:
+            text_t = ""
+        text_t += f"Receiver {irec+1}"
         if self.plotComponent != "All":
             text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax,self.time,self.x,self.v,fill=True,\
@@ -1332,21 +1357,25 @@ class Window(QMainWindow, Ui_MainWindow):
             ifile = self.traces.file[traces[i]]
             itrace = self.traces.trace[traces[i]]
             if self.v_set != True:
-                self.v[j,:] = self.data.st[ifile][itrace].data*\
+                self.v[i,:] = self.data.st[ifile][itrace].data*\
                               self.traces.amplitudes[traces[i]]
                 if self.nt_0>0:
-                    self.v[j,:] -= np.mean(self.v[j,:self.nt_0])
+                    self.v[i,:] -= np.mean(self.v[i,:self.nt_0])
 # Normalize data by the standard deviation of each trace
-            s = np.std(self.v[j,:])
+            s = np.std(self.v[i,:])
             self.stdev.append(s)
             if s > 0:
-                self.v_norm[j,:] = self.v[j,:]/s
+                self.v_norm[i,:] = self.v[j,:]/s
             else:
-                self.v_norm[j,:] = 0.
+                self.v_norm[i,:] = 0.
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
-        text_t = f"Distance {dist} m"
+        if self.main.config:
+            text_t = self.main.title+": "
+        else:
+            text_t = ""
+        text_t += f"Distance {dist} m"
         if self.plotComponent != "All":
             text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax,self.time,self.x,self.v,fill=True,\
@@ -1483,7 +1512,11 @@ class Window(QMainWindow, Ui_MainWindow):
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
-        text_t = f"Shot point {sh+1}"
+        if self.main.config:
+            text_t = self.main.title+": "
+        else:
+            text_t = ""
+        text_t += f"Shot point {sh+1}"
         if self.plotComponent != "All":
             text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
@@ -1601,7 +1634,11 @@ class Window(QMainWindow, Ui_MainWindow):
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
-        text_t = f"File {self.files.numbers[isht]}, shot point {sht}"
+        if self.main.config:
+            text_t = self.main.title+": "
+        else:
+            text_t = ""
+        text_t += f"File {self.files.numbers[isht]}, shot point {sht}"
         if self.plotComponent != "All":
             text_t += f"; {self.plotComponent}-component"
         self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
@@ -1769,10 +1806,12 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         cols = ["b","g","r","c","m","y","k"]
-        self.drawNew(False)
-        self.figpk =  self.figs[self.fig_plotted]
-        self.figpk.clear()
-        self.ax = self.figpk.subplots(1,1)
+        # self.drawNew(False)
+        # self.figpk =  self.figs[self.fig_plotted]
+        # self.figpk.clear()
+        # self.ax = self.figpk.subplots(1,1)
+        self.w_picks = newWindow("All picks")
+        self.ax = self.w_picks.fig.subplots()
         npk = np.array(self.traces.npick)
         sh = self.traces.shot[npk>0]
         shu = np.unique(sh)
@@ -1784,9 +1823,20 @@ class Window(QMainWindow, Ui_MainWindow):
             xx = x[sh==s]
             tt = t[sh==s]
             self.ax.plot(xx,tt,color=col, marker='+')
-        self.ax.set_xlabel("Trace position [m]")
-        self.ax.set_ylabel("Time [s]")
-        self.ax.set_title("Picked arrival times")
+        self.ax.set_xlabel("Trace position [m]", fontsize=18)
+        self.ax.set_ylabel("Time [s]", fontsize=18)
+        npks = np.sum(npk)
+        self.ax.set_title(f"Picked arrival times ({npks} picks)", fontsize=20)
+        self.ax.tick_params(axis='both', labelsize=18)
+        ax_xmin, ax_xmax = self.ax.get_xlim()
+        ax_ymin, ax_ymax = self.ax.get_ylim()
+        self.ax.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_start,\
+                         horizontalalignment="left",\
+                         verticalalignment="bottom", fontsize=18)
+        self.ax.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_end,\
+                         horizontalalignment="right",\
+                         verticalalignment="bottom", fontsize=18)
+        self.w_picks.show()
 
     def plotCalcPicks(self):
         """
@@ -2324,7 +2374,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.main.function = "mpick"
         self.press = 0
         self.finish = False
-        if self.data.filtered:
+        if self.main.utilities.filtered:
             umin = 4.*self.data.dt
         else:
             umin = 2.*self.data.dt
@@ -2381,8 +2431,10 @@ class Window(QMainWindow, Ui_MainWindow):
                 sht = self.p_s
                 stn = self.p_r
                 npi = self.traces.npick[trace]
+                if npi < 1:
+                    return
                 print(f"Erase pick nr {self.ipk+1} at shot {sht+1},"+\
-                      f"receiver {stn*1}")
+                      f"receiver {stn+1}")
                 xx = self.x[self.n_tr]
                 x_c = [xx-0.3,xx+0.3,xx,xx,xx]
                 yy = self.traces.pick_times[trace][self.ipk]
@@ -2479,6 +2531,60 @@ class Window(QMainWindow, Ui_MainWindow):
         self.MovePicks.setEnabled(True)
         self.setHelp(self.main_text)
 
+    def findNearest2ndDerivative(self,v,n0,nwin,nav):
+        """
+        Find position of maximum second derivqtive nearest to a reference sample
+
+        Parameters
+        ----------
+        v : 1D Numpy array float
+            Data vector in which to search
+        n0 : int
+            number of sample around which point has to be searched
+        nwin : int
+            Length of window to each side of n0 where to search in number of
+            samples
+        nav : int
+            number of samples to be summed on each side of sample point to
+            calculate an approximation of derivative
+
+        For all samples n0-nwin <= i <= n0+nwin, the difference of the sum of
+        values v[i:i+nav] and v[i-nav:i] is calculated, giving a sort of first
+        derivative. Then the position is searched where the difference of
+        successive differences is maximum.
+
+        Returns
+        -------
+        di : int
+            number of samples before (negative) or after (positive)sample n0
+            where second derivative is maximum
+
+        """
+        dif = []
+        im = []
+        x = np.arange(nav+1)
+        n = nav+1
+        sx = np.sum(x)
+        sx2 = sx*sx
+        sxx = n*np.dot(x,x)
+        for i in range(-nwin,nwin+1):
+            ii = n0+i
+            im.append(i)
+            y1 = v[ii-nav:ii+1]
+            y2 = v[ii:ii+nav+1]
+#            dif.append(np.sum(v[ii:ii+nav])-np.sum(v[ii-nav:ii]))
+            a1 = max((n*np.dot(x,y1)-sx*np.sum(y1))/(sxx-sx2),0.)
+            a2 = (n*np.dot(x,y2)-sx*np.sum(y2))/(sxx-sx2)
+            if v[ii] < 0.:
+                a2 = a1
+            dif.append(a2-a1)
+        im = np.array(im, dtype=int)
+        dif = np.array(dif)
+        dif = dif[1:]-dif[:-1]
+        di = im[np.argmax(dif)+1]
+        return di
+
+
     def corrPick(self):
         """
         Function does semi-automatic picking using cross-correlation
@@ -2536,10 +2642,10 @@ class Window(QMainWindow, Ui_MainWindow):
             global figure, r_flag
             self.d_time = 0
 # Set some default values explained further up in the explanation of the function
-            off_lim = 5
-            dt_pick = 0.005
+            off_lim = 4
+            dt_pick = 0.01
             t_half = 0.01
-            if self.data.filtered:
+            if self.main.utilities.filtered:
                 umin = 4*self.data.dt
             else:
                 umin = 2*self.data.dt
@@ -2550,9 +2656,11 @@ class Window(QMainWindow, Ui_MainWindow):
                 trace = self.itrace
                 sht = self.traces.shot[trace]
                 stn = self.traces.receiver[trace]
-                print(f"shot {sht}, receiver {stn}")
 # Set the reference time the the pick position
                 time_ref = event.ydata
+                print(f"\nshot {sht+1}, receiver {stn+1}, "+\
+                      f"picked time {time_ref*1000:0.2f}ms")
+                nt_ref = int((time_ref-self.time[0])/self.data.dt)
                 self.traces.npick[trace] = 1
                 try:
                     self.traces.pick_times[trace][0] = time_ref
@@ -2571,7 +2679,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # Calculate the width of the zone to find maxima in the correlation function
 # For this, search the first maximum behind the manual pick. The distance
 # between the pick and this first maximum is taken as halfwidth of the
-# maximum to be searched (the full width correspond thus approximately to
+# maximum to be searched (the full width corresponds thus approximately to
 # half a wavelenght of the signal)
                 mapo,mava,mip,miva = \
                     self.main.utilities.min_max(self.v[trace_ref,n_pick_ref:],\
@@ -2598,6 +2706,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         trace = self.actual_traces[i]
                         off = self.traces.offset[trace]
                         off_a = abs(off)
+# If offset < 1cm, set pick tiöe to zero
                         if off_a < 0.01:
                             self.traces.npick[trace] = 1
                             try:
@@ -2623,10 +2732,11 @@ class Window(QMainWindow, Ui_MainWindow):
                         elif off_a < off0_a and off_a<off_lim:
                             n_act -= int(dt_pick/self.data.dt)
                         off0 = off
-                        n_sam1 = max(0,n_act-nd)
-                        n_sam2 = min(n_act+nd,n_max)
+                        n_sam1 =int(max(0,n_act-nd))
+                        n_sam2 = int(min(n_act+nd,n_max))
                         tr2 = self.v[i,n_sam1:n_sam2]
                         s = np.std(tr2)
+# If trqce hqs no data (std = 0) skip picking
                         if np.isclose(s, 0.):
                             continue
                         tr2 = (tr2-np.mean(tr2))/s
@@ -2649,6 +2759,8 @@ class Window(QMainWindow, Ui_MainWindow):
 # If not, use absolute maximum
                             i_max_pos = np.argmax(cor)
                             dm = i_max_pos-n_ref+1+n_sam1-n_ref1
+                        dm += self.findNearest2ndDerivative(self.v[i,:],\
+                                    nt_ref+dm, int(0.003/self.data.dt), 8)
                         n_act = n_pick_ref+dm
                         self.traces.pick_times[trace].\
                             append(time_ref+dm*self.data.dt)
@@ -2666,6 +2778,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         trace = self.actual_traces[i]
                         off = self.traces.offset[trace]
                         off_a = abs(off)
+# If offset < 1cm, set pick tiöe to zero
                         if off_a < 0.01:
                             self.traces.npick[trace] = 1
                             try:
@@ -2717,6 +2830,8 @@ class Window(QMainWindow, Ui_MainWindow):
 # If not, use absolute maximum
                             i_max_pos = np.argmax(cor)
                             dm = i_max_pos-n_ref+1+n_sam1-n_ref1
+                        dm += self.findNearest2ndDerivative(self.v[i,:],\
+                                    nt_ref+dm, int(0.003/self.data.dt), 8)
                         n_act = n_pick_ref+dm
                         self.traces.pick_times[trace].\
                             append(time_ref+dm*self.data.dt)
@@ -3183,7 +3298,7 @@ class Window(QMainWindow, Ui_MainWindow):
                                 break
                         t_pick[i] = nt_pik*self.data.dt+self.data.t0
                         a_pick[i] = data[nt_pik]
-            if self.data.filtered:
+            if self.main.utilities.filtered:
                 unc = 4*self.data.dt
             else:
                 unc = 2*self.data.dt
@@ -3720,11 +3835,18 @@ class Window(QMainWindow, Ui_MainWindow):
         vmax = np.quantile(vt,clip_level)
         vt[np.abs(vt)>vmax] = vmax*np.sign(vt[np.abs(vt)>vmax])
 # Define new figure
-        self.drawNew(False)
-        fig = self.figs[self.fig_plotted]
-        ax = self.axes[self.fig_plotted]
+#        self.drawNew(False)
+#        fig = self.figs[self.fig_plotted]
+#        ax = self.axes[self.fig_plotted]
+        self.w_anim = newWindow("TauP")
+        fig = self.w_anim.fig
+        ax = fig.subplots()
         ax.set_xlim(self.x.min(),self.x.max())
         ax.set_ylim(vt.min(),vt.max())
+        ax.set_xlabel("Offset [m]", fontsize=18)
+        ax.set_ylabel("Amplitude [n.u.]", fontsize=18)
+        ax.tick_params(axis='both', labelsize=18)
+        self.w_anim.show()
         self.setHelp(self.animate_text)
 # Set matplotlib animated mode
         plt.ion()
@@ -3733,7 +3855,7 @@ class Window(QMainWindow, Ui_MainWindow):
         fig.canvas.flush_events()
         for i in range(len(t)):
             line.set_ydata(vt[i,:])
-            ax.set_title(f"Time {t[i]*1000:0.2f}ms")
+            ax.set_title(f"Time {t[i]*1000:0.2f}ms", fontsize=20)
             fig.canvas.draw()
             fig.canvas.flush_events()
         plt.ioff()

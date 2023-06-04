@@ -11,7 +11,7 @@ The PyRefra has been installed and tested on a Ubuntu 22.04 plateform with the c
   + `conda install -c anaconda spyder`
     
     
-2. In **obspy**, you may find file **seg2.py** (usually in /envs/sys/lib/pythonXX/site-packages/obspy/io/seg2/seg2.py)
+2. In **obspy**, you may find file **seg2.py** (for instance  in ~/anaconda3/envs/pg/lib/python3.8/site-packages/obspy/io/seg2/seg2.py)
 
 There find line `if 'DELAY' in header['seg2']:` and comment out the whole "if" block. (a comment in python is the “#” character at the beginning of a line)
 

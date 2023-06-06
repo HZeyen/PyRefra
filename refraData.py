@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Fri May 05, 2023
+last modified on Sat May 06, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -3714,6 +3714,7 @@ class Utilities:
         import matplotlib as mpl
         from matplotlib.gridspec import GridSpec
         from matplotlib.path import Path
+        import matplotlib.tri as tri
         import copy
         try:
             import pygimli as pg
@@ -3726,21 +3727,18 @@ class Utilities:
             return
 
         self.main.function = "inver"
-        def vel_scale(self):
-            if self.scale_flag:
-                self.cmp = copy.copy(mpl.cm.get_cmap("gist_rainbow_r"))
-                self.cmp.set_under('violet')
-                self.cmp.set_over('darkred')
-            else:
-                ncol = 128
-                self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
-                          ['violet','darkgreen','darkgreen','cyan','blue',\
-                           'mediumseagreen','lightseagreen','lime','yellow',\
-                           'yellow','gold','orange','orangered','red'],N=ncol)
-                self.cmp.set_under('pink')
-                self.cmp.set_over('darkred')
+        def vel_scale(self, ncol=128):
+            self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
+                      ['violet','darkgreen','darkgreen','cyan','blue',\
+                       'mediumseagreen','lightseagreen','lime','yellow',\
+                       'yellow','gold','orange','orangered','red'],N=ncol)
+            self.cmp.set_under('pink')
+            self.cmp.set_over('darkred')
+            self.colors = self.cmp(np.linspace(0, 1, ncol))
 # If code == 0, color scale and maximum depth for model plot are calculated
 #    automatically
+        self.tick_size_mod = 18
+        self.tick_size_sec = 14
         if code == 0:
 # Store picks in Gimli format (picks.sgt)
             self.traces.saveGimli()
@@ -3783,7 +3781,7 @@ class Utilities:
                      "Velocity color scale max [m/s]",\
                      "Plot rays on final model"],\
                     ["e","e","e","e","e","e","e","e","e","l","e","e","c"],\
-                    [self.zmax,200,0.8,0.2,0,200,4000,150,6000,None,'v',None,-1],\
+                    [self.zmax,200,0.8,0.2,0,200,4000,150,6000,None,'200','6000',-1],\
                      "Inversion parameters")
 
             if not okButton:
@@ -3814,9 +3812,9 @@ class Utilities:
             try:
                 self.v_scale_min = float(results[10])
                 self.v_scale_max = float(results[11])
-                self.scale_flag = True
             except:
-                self.scale_flag=False
+                self.v_scale_min = 150
+                self.v_scale_max = 6000
             if int(results[12]) > -1:
                 self.rays_flag = True
             else:
@@ -3852,9 +3850,9 @@ class Utilities:
 # pass starting model from slowness to velocity
             self.startModel = 1./self.mgr.fop.startModel()
 # get final model
-            self.endModel = self.mgr.model.array()
+            self.endModel_all = self.mgr.model.array()
 # Get coverage
-            self.mesh_coor = self.mgr.paraDomain.cellCenters().array()
+            self.mesh_coor_all = self.mgr.paraDomain.cellCenters().array()
 # Get path where PyGimly stores its results: date-time/TravelTime/Manager
             self.path = self.mgr.saveResult()
             p = os.path.split(self.path)[:-1]
@@ -3870,15 +3868,15 @@ class Utilities:
                     fo.write("   X     Z     V     L_cum     nRay_cum   "+\
                              f"{nchi} x nRay\n")
                     for i in range(len(self.cover)):
-                        fo.write(f"{self.mesh_coor[i,0]:0.3f} "+\
-                                 f"{self.mesh_coor[i,1]:0.3f} "+\
-                                 f"{self.endModel[i]:0.0f} "+\
+                        fo.write(f"{self.mesh_coor_all[i,0]:0.3f} "+\
+                                 f"{self.mesh_coor_all[i,1]:0.3f} "+\
+                                 f"{self.endModel_all[i]:0.0f} "+\
                                  f"   {self.cover[i]:0.2f} "+\
                                  f"      {self.ncover[i]}    "+\
                                  f"{' '.join(map(str,self.cell_rays[:,i]))}\n")
-                mesh_x = self.mesh_coor[:,0]
-                mesh_y = self.mesh_coor[:,1]
-                mesh_v = self.mesh_coor[:,2]
+                mesh_x = self.mesh_coor_all[:,0]
+                mesh_y = self.mesh_coor_all[:,1]
+                mesh_v = self.mesh_coor_all[:,2]
                 mesh_x = mesh_x[self.cover > 0.]
                 mesh_y = mesh_y[self.cover > 0.]
                 mesh_v = mesh_v[self.cover > 0.]
@@ -3886,12 +3884,11 @@ class Utilities:
                 self.mesh_coor[:,0] = mesh_x
                 self.mesh_coor[:,1] = mesh_y
                 self.mesh_coor[:,2] = mesh_v
-                self.cov_txt = "log10(Coverage) (cumulated ray lengths) and rays"
+                self.cov_txt = "Coverage (cumulated ray lengths/cell_size) and rays"
                 del mesh_x,mesh_y,mesh_v
-                self.endModel = self.endModel[self.cover > 0.]
-                self.cover[self.cover>0.] = np.log10(self.cover[self.cover>0.])
+                self.endModel = self.endModel_all[self.cover > 0.]
             except:
-                self.cover = self.mgr.coverage()
+                self.cover = self.mgr.coverage()/self.mgr.paraDomain.cellSize()
                 with open(os.path.join(self.p_aim,"vel&cover.txt"),"w") as fo:
                     fo.write("   X     Z     V     cover\n")
                     for i in range(len(self.cover)):
@@ -3904,7 +3901,7 @@ class Utilities:
             self.v_nmo()
             self.dat = self.mgr.fop.data("t")*1000
             self.calc = self.mgr.inv.response.array()*1000
-# Calculate minimum and maximum velocities for automaticcolor scale
+# Calculate minimum and maximum velocities for automatic color scale
 #   First find minimum and maximum velocity of both starting and final model
 #         (min_vel, max_vel)
             self.min_end = np.min(self.endModel)
@@ -3915,12 +3912,6 @@ class Utilities:
             self.q2_start = np.quantile(self.startModel,0.99)
             self.q1_end = np.quantile(self.endModel,0.01)
             self.q2_end = np.quantile(self.endModel,0.99)
-            if self.scale_flag:
-                self.min_v = max(self.q1_start,self.q1_end)
-                self.max_v = max(self.q2_start,self.q2_end)
-            else:
-                self.min_v = 150
-                self.max_v = 6000
 # Set maximum depth for model plotting to zmax (from dialog box)
             self.zmax_plt = self.zmax
 # Store Control parameters from dialog box into file "inversion_parameters.txt"
@@ -3948,38 +3939,34 @@ class Utilities:
                                  "Maximum depth [m]",\
                                  "Plot rays on final model"],\
                                 ["l","e","e","e","c"],\
-                                [None,self.min_v,self.max_v,self.zmax_plt,\
+                                [None,self.v_scale_min,self.v_scale_max,self.zmax_plt,\
                                 None],"Change color scale")
             self.zmax_plt = float(res[3])
             try:
                 self.v_scale_min = float(res[1])
                 self.v_scale_max = float(res[2])
-                self.scale_flag = True
             except:
-                self.scale_flag = False
+                self.v_scale_min = 150
+                self.v_scale_max = 6000
             if int(res[4]) > -1:
                 self.rays_flag = True
             else:
                 self.rays_flag = False
-        if self.scale_flag:
 # If color scales are negative (default in first dialog box), they are set
 #    to the quantiles rounded to the next 100 m/s
-            if self.v_scale_min < 0:
-                self.min_v = max(self.q1_start,self.q1_end)
-                self.min_v = np.round(self.min_v/100,0)*100
-            else:
-                self.min_v = self.v_scale_min
-            if self.v_scale_max < 0:
-                self.max_v = max(self.q2_start,self.q2_end)
-                self.max_v = np.round(self.max_v/100,0)*100
-            else:
-                self.max_v = self.v_scale_max
-        else:
-            norm = mpl.colors.Normalize(vmin = 150, vmax = 6000)
-            self.min_v = 150
-            self.max_v = 6000
+        if self.v_scale_min < 0:
+            self.v_scale_min = max(self.q1_start,self.q1_end)
+            self.v_scale_min = np.round(self.v_scale_min/100,0)*100
+        if self.v_scale_max < 0:
+            self.v_scale_max = max(self.q2_start,self.q2_end)
+            self.v_scale_max = np.round(self.v_scale_max/100,0)*100
 # Define color scale and colors for values above and below extreme scale values
+        ncol = 128
         vel_scale(self)
+        ncyan = int(ncol/16*4)
+        self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
+        self.levels += list(np.linspace(1501,self.v_scale_max,ncol-ncyan))
+        self.levels = np.array(self.levels)
 
 # Define grid for different partial figures
         self.w_tomo = rP.newWindow("Tomography results")
@@ -3987,19 +3974,19 @@ class Utilities:
         plt.tight_layout()
         self.gs = GridSpec(15, 13, figure=self.figinv)
 # Axis for final model
-        self.ax_mod = self.figinv.add_subplot(self.gs[:6, :])
+        self.ax_mod = self.figinv.add_subplot(self.gs[:7, :])
 # Acis for initial model
-        self.ax_start = self.figinv.add_subplot(self.gs[7:10,0:4])
+        self.ax_start = self.figinv.add_subplot(self.gs[8:11,0:4])
 # Axis for ray and coverage plot
-        self.ax_rays = self.figinv.add_subplot(self.gs[11:15,0:4])
+        self.ax_rays = self.figinv.add_subplot(self.gs[12:15,0:4])
 # Axis for measured travel time plot
-        self.ax_tt = self.figinv.add_subplot(self.gs[7:10,5:8])
+        self.ax_tt = self.figinv.add_subplot(self.gs[8:11,5:8])
 # Axis for difference between measured and calculated travel times
-        self.ax_diff = self.figinv.add_subplot(self.gs[11:15,5:8])
+        self.ax_diff = self.figinv.add_subplot(self.gs[12:15,5:8])
 # Axis for average differences of shot gathers and receiver gathers
-        self.ax_av_diff = self.figinv.add_subplot(self.gs[11:15,9:12])
+        self.ax_av_diff = self.figinv.add_subplot(self.gs[12:15,9:12])
 # Axis for chi2-evolution
-        self.ax_chi = self.figinv.add_subplot(self.gs[7:10,9:12])
+        self.ax_chi = self.figinv.add_subplot(self.gs[8:11,9:12])
 # Define ticks for horizontal and vertical axes of model plots
 # For horizontal axis, use sensor positions from pick file (picks.sgt")
 # For vertical axis suppose that the topmost values is zero, which implies that
@@ -4013,22 +4000,22 @@ class Utilities:
                                              np.max(self.sens[:,0]))
         self.ticks_y = self.window.set_ticks(-self.zmax,0.)
 # Define annotated levels of velocity color scales
-        self.levs = np.linspace(self.min_v, self.max_v, 20)
+#        self.levs = np.linspace(self.min_v, self.max_v, 20)
+        self.levs = np.linspace(self.v_scale_min, self.v_scale_max, 20)
 
 # Plot starting model
         pg.viewer.showMesh(pg.Mesh(self.mgr.paraDomain), data=self.startModel,\
-                       ax=self.ax_start,cMap=self.cmp, cMin=self.min_v,\
-                       cMax=self.max_v,logScale=False, orientation="vertical",\
-                       label="Velocity [m/s]",)
+                       ax=self.ax_start,cMap=self.cmp, cMin=self.v_scale_min,\
+                       cMax=self.v_scale_max,logScale=False, orientation="vertical",\
+                       label="Velocity [m/s]",fitView=False)
+#        self.ax_start.set_aspect("auto")
         self.ax_start.set_xticks(self.ticks_x)
         self.ax_start.set_yticks(self.ticks_y)
         self.ax_start.set_xlim(left=self.xax_min, right=self.xax_max)
-        # self.ax_start.set_xlabel("Distance [m]",fontsize=18)
-        # self.ax_start.set_ylabel("Depth [m]", fontsize=18)
-        # self.ax_start.set_title("Starting model", fontsize=20)
-        self.ax_start.set_xlabel("Distance [m]")
-        self.ax_start.set_ylabel("Depth [m]")
-        self.ax_start.set_title("Starting model")
+        self.ax_start.set_xlabel("Distance [m]", fontsize=self.tick_size_sec)
+        self.ax_start.set_ylabel("Depth [m]", fontsize=self.tick_size_sec)
+        self.ax_start.tick_params(axis='both', labelsize=self.tick_size_sec)
+        self.ax_start.set_title("Starting model", fontsize=self.tick_size_sec+2)
         ax_xmin, ax_xmax = self.ax_start.get_xlim()
         ax_ymin, ax_ymax = self.ax_start.get_ylim()
         xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
@@ -4041,27 +4028,25 @@ class Utilities:
         self.ax_start.get_shared_x_axes().join(self.ax_start, self.ax_mod)
         self.ax_start.get_shared_y_axes().join(self.ax_start, self.ax_rays)
         self.ax_start.get_shared_y_axes().join(self.ax_start, self.ax_mod)
-#        self.ax_start.tick_params(axis='both', labelsize=18)
         print("Starting model plotted")
 
 # Plot coverage and rays of final model
         cov_min = np.min(self.cover[self.cover > -np.inf])
         cov_max = np.max(self.cover[self.cover < np.inf])
         cmp = copy.copy(mpl.cm.get_cmap("gist_rainbow_r"))
-        pg.viewer.showMesh(pg.Mesh(self.mgr.paraDomain), data=self.cover, ax=self.ax_rays,
+        data = copy.deepcopy(self.cover)
+        data[np.isclose(data,0.)] = np.nan
+        pg.viewer.showMesh(pg.Mesh(self.mgr.paraDomain), data=data, ax=self.ax_rays,
                            cMap=cmp, cMin=cov_min, cMax=cov_max,\
-                           orientation="vertical",label="log(coverage [m])")
+                           orientation="vertical",label="coverage [m]",fitView=False)
         rays = self.mgr.drawRayPaths(ax=self.ax_rays, color="black", lw=0.3, alpha=0.5)
         self.ax_rays.set_xticks(self.ticks_x)
         self.ax_rays.set_yticks(self.ticks_y)
         self.ax_rays.set_xlim(left=self.xax_min, right=self.xax_max)
-        # self.ax_rays.set_xlabel("Distance [m]", fontsize=18)
-        # self.ax_rays.set_ylabel("Depth [m]", fontsize=18)
-        # self.ax_rays.set_title(self.cov_txt, fontsize=20)
-        # self.ax_rays.tick_params(axis='both', labelsize=18)
-        self.ax_rays.set_xlabel("Distance [m]")
-        self.ax_rays.set_ylabel("Depth [m]")
-        self.ax_rays.set_title(self.cov_txt)
+        self.ax_rays.set_xlabel("Distance [m]", fontsize=self.tick_size_sec)
+        self.ax_rays.set_ylabel("Depth [m]", fontsize=self.tick_size_sec)
+        self.ax_rays.tick_params(axis='both', labelsize=self.tick_size_sec)
+        self.ax_rays.set_title(self.cov_txt, fontsize=self.tick_size_sec+2)
         ax_xmin, ax_xmax = self.ax_rays.get_xlim()
         ax_ymin, ax_ymax = self.ax_rays.get_ylim()
         xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
@@ -4070,16 +4055,23 @@ class Utilities:
                                verticalalignment="bottom", fontsize=18)
         txt.set_bbox(dict(facecolor="white"))
         print("Rays plotted")
-
+# Interpolate coverage like final model
+        self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
+        isbad = np.isclose(self.cover, 0.)
+        self.mask=np.all(np.where(isbad[self.triang.triangles], True, False), axis=1)
+        self.triang.set_mask(self.mask)
+        self.alpha = self.mask*1.
 # Plot final model
-        if self.scale_flag:
-            gci0 = self.ax_mod.tricontourf(self.mesh_coor[:,0], self.mesh_coor[:,1],\
-                                       self.endModel,levels=self.levs,\
-                                       cmap=self.cmp,extend='both')
-        else:
-            gci0 = self.ax_mod.tricontourf(self.mesh_coor[:,0], self.mesh_coor[:,1],\
-                                       self.endModel,cmap=self.cmp,extend='both',\
-                                       levels=np.linspace(150, 6000, 128))
+        gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
+                                   levels=self.levels, colors=self.colors)
+        # gci0.cmap.set_under('pink')
+        # gci0.cmap.set_over('darkred')
+        # self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
+        # isbad = self.cover<self.v_scale_max
+        # self.mask=np.all(np.where(isbad[self.triang.triangles], True, False), axis=1)
+        # self.triang.set_mask(self.mask)
+        # _ = self.ax_mod.tricontourf(self.triang, self.endModel_all, colors="darkred")
+#                                       levels=np.linspace(150, 4000, 84))
 # self.scheme contains all shot and receiver coordinates as well as measured
 #    travel times, obtained at the beginning of the function from file picks.sgt
         y = pg.z(self.scheme)
@@ -4112,19 +4104,16 @@ class Utilities:
         dtk = round(self.zmax_plt/6.,0)
         ticks_y_mod = self.window.set_ticks(-self.zmax_plt,0.,dtick=dtk)
 # Plot color bar
-        if self.scale_flag:
-            norm = mpl.colors.BoundaryNorm(self.levs, self.cmp.N, extend='both')
-            ticks_vel = np.linspace(self.min_v, self.max_v, 6)
-        else:
-            norm = mpl.colors.Normalize(vmin = 150, vmax = 6000)
-            ticks_vel = [200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000,\
-                         4500, 5000, 5500, 6000]
-
-        self.ax_mod.set_aspect('equal', adjustable='box', anchor='W', share=True)
-        cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=self.cmp), ax=self.ax_mod,\
+        ticks_vel = np.array([200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000,\
+                      4500, 5000, 5500, 6000])
+        ticks_vel = ticks_vel[ticks_vel <= self.v_scale_max]
+#        self.ax_mod.set_aspect('equal', adjustable='box', anchor='W', share=True)
+        self.ax_mod.set_aspect('equal', adjustable='box', anchor='W')
+        cb = plt.colorbar(gci0, cmap=self.cmp, ax=self.ax_mod,\
                          format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
                          orientation='vertical',aspect=25, shrink=0.9,\
                          extend='both')
+        
         cb.ax.tick_params(labelsize=14)
         if self.rays_flag:
             _ = self.mgr.drawRayPaths(ax=self.ax_mod, color="black", lw=0.3,\
@@ -4136,13 +4125,13 @@ class Utilities:
         self.ax_mod.set_xlim(left=self.xax_min, right=self.xax_max)
         self.ax_mod.grid(which='minor', axis='both', color="gray")
         self.ax_mod.grid(which='major', axis='both', color="k")
-        self.ax_mod.set_xlabel("Distance [m]", fontsize=18)
-        self.ax_mod.set_ylabel("Depth [m]", fontsize=18)
+        self.ax_mod.set_xlabel("Distance [m]", fontsize=self.tick_size_mod)
+        self.ax_mod.set_ylabel("Depth [m]", fontsize=self.tick_size_mod)
+        self.ax_mod.tick_params(axis='both', labelsize=self.tick_size_mod)
         self.ax_mod.set_ylim(-self.zmax_plt,0)
         self.ax_mod.set_title(\
              f"Model velocities (min:{self.min_end:0.0f}, max:{self.max_end:0.0f})",\
-             fontsize=20)
-        self.ax_mod.tick_params(axis='both', labelsize=18)
+             fontsize=self.tick_size_mod+2)
         ax_xmin, ax_xmax = self.ax_mod.get_xlim()
         ax_ymin, ax_ymax = self.ax_mod.get_ylim()
         self.ax_mod.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.direction,\
@@ -4230,11 +4219,12 @@ class Utilities:
             # self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
             #                       f"fac: {self.s_fact:0.2f}, "+\
             #                       f"z: {self.zSmooth:0.2f}", fontsize=20)
-            self.ax_chi.set_ylabel("chi2")
-            self.ax_chi.set_xlabel("iteration #")
+            self.ax_chi.set_ylabel("chi2", fontsize=self.tick_size_sec)
+            self.ax_chi.set_xlabel("iteration #", fontsize=self.tick_size_sec)
             self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
                                   f"fac: {self.s_fact:0.2f}, "+\
-                                  f"z: {self.zSmooth:0.2f}")
+                                  f"z: {self.zSmooth:0.2f}", fontsize=self.tick_size_sec+2)
+            self.ax_chi.tick_params(axis='both', labelsize=self.tick_size_sec)
             ticks_x_chi = self.window.set_ticks(1.,nit,ntick=10, dtick=1)
             self.ax_chi.set_xticks(ticks_x_chi)
             ax_xmin, ax_xmax = self.ax_chi.get_xlim()
@@ -4249,14 +4239,11 @@ class Utilities:
 # Plot average traveltime differences for shots and receivers
             self.ax_av_diff.plot(sxu,diff_mean_shots,label="shots")
             self.ax_av_diff.plot(gxu,diff_mean_recs,label="receivers")
-            # self.ax_av_diff.set_ylabel("Time misfit [ms]", fontsize=18)
-            # self.ax_av_diff.set_xlabel("Position [m]", fontsize=18)
-            # self.ax_av_diff.set_title("Average differences calc.-meas. "+\
-            #                           "arrival times", fontsize=20)
-            self.ax_av_diff.set_ylabel("Time misfit [ms]")
-            self.ax_av_diff.set_xlabel("Position [m]")
+            self.ax_av_diff.set_ylabel("Time misfit [ms]", fontsize=self.tick_size_sec)
+            self.ax_av_diff.set_xlabel("Position [m]", fontsize=self.tick_size_sec)
             self.ax_av_diff.set_title("Average differences calc.-meas. "+\
-                                      "arrival times")
+                                      "arrival times", fontsize=self.tick_size_sec+2)
+            self.ax_chi.tick_params(axis='both', labelsize=self.tick_size_sec)
             self.ax_av_diff.grid(which='major', axis='x', color='k')
             self.ax_av_diff.grid(which='major', axis='y', color='k')
             self.ax_av_diff.grid(which='minor', axis='y', color='gray')
@@ -4286,14 +4273,19 @@ class Utilities:
 
             gci1 = pg.viewer.mpl.dataview.drawVecMatrix(self.ax_tt, self.gx,\
                         self.sx, self.dat,squeeze=True, logScale=False,\
-                        cMin=0, cMax=maxval, aspect='equal')
-            self.ax_tt.set_aspect('equal', adjustable='box')
-            # self.ax_tt.set_ylabel("Source positions [m]", fontsize=18)
-            # self.ax_tt.set_title("Measured travel times", fontsize=20)
-            self.ax_tt.set_ylabel("Source positions [m]")
-            self.ax_tt.set_title("Measured travel times")
-            self.ax_tt.set_aspect('equal', adjustable='box', anchor='C',\
-                                  share=True)
+                        cMin=0, cMax=maxval, aspect='equal', fitView=True)
+            self.ax_tt.set_aspect('equal', adjustable='box', anchor='C')
+            self.ax_tt.set_ylabel("Source positions [m]",fontsize=self.tick_size_sec)
+            self.ax_tt.set_title("Measured travel times",fontsize=self.tick_size_sec+2)
+            self.ax_tt.tick_params(axis='both', labelsize=self.tick_size_sec)
+            # xax_min, xax_max = self.ax_tt.get_xlim()
+            # yax_min, yax_max = self.ax_tt.get_ylim()
+            # ticks_x = self.window.set_ticks(xax_min, xax_max, ntick=5)
+            # ticks_y = self.window.set_ticks(yax_min, yax_max, ntick=5)
+            # self.ax_tt.set_xticks(self.ticks_x)
+            # self.ax_tt.set_yticks(self.ticks_x)
+            # print("ticks_x: ",ticks_x,yax_min, yax_max,self.ticks_x)
+            # print("ticks_y: ",ticks_y,yax_min, yax_max)
             ax_xmin, ax_xmax = self.ax_tt.get_xlim()
             ax_ymin, ax_ymax = self.ax_tt.get_ylim()
             xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
@@ -4304,28 +4296,23 @@ class Utilities:
             _ = plt.colorbar(gci1, ax=self.ax_tt, format='%.0f',\
                                 label="Times (ms)", ticks=ticks, \
                                 orientation='vertical',aspect=20)
-#            self.ax_tt.tick_params(axis='both', labelsize=18)
             print("Travel times plotted")
 
 # Plot differences between calculated and measured travel times using the Pygimli
 #   utility
             gci3 = pg.viewer.mpl.dataview.drawVecMatrix(self.ax_diff, self.gx,\
                         self.sx, diff_abs,squeeze=True, cMap="seismic",\
-                        logScale=False, cMin=dmin,cMax=dmax,aspect='equal')
-            self.ax_diff.set_aspect('equal', adjustable='box')
-            # self.ax_diff.set_xlabel("Receiver positions [m]", fontsize=18)
-            # self.ax_diff.set_ylabel("Source positions [m]", fontsize=18)
-            # self.ax_diff.set_title(f"Misfit after {self.mgr.inv.inv.iter()} "+\
-            #                   f"iterations:\nchi2={self.mgr.inv.chi2():0.2f}; "+\
-            #                   f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms",\
-            #                   fontsize=20)
-            self.ax_diff.set_xlabel("Receiver positions [m]")
-            self.ax_diff.set_ylabel("Source positions [m]")
+                        logScale=False, cMin=dmin,cMax=dmax,aspect='equal', fitView=True)
+            self.ax_diff.set_aspect('equal', adjustable='box', anchor='C')
+            self.ax_diff.set_xlabel("Receiver positions [m]",fontsize=self.tick_size_sec)
+            self.ax_diff.set_ylabel("Source positions [m]",fontsize=self.tick_size_sec)
             self.ax_diff.set_title(f"Misfit after {self.mgr.inv.inv.iter()} "+\
                               f"iterations:\nchi2={self.mgr.inv.chi2():0.2f}; "+\
-                              f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms")
-            self.ax_diff.set_aspect('equal', adjustable='box', anchor='C',\
-                                    share=True)
+                              f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms",\
+                              fontsize=self.tick_size_sec+2)
+            self.ax_diff.tick_params(axis='both', labelsize=self.tick_size_sec)
+            # self.ax_diff.set_xticks(self.ticks_x)
+            # self.ax_diff.set_yticks(self.ticks_x)
             ax_xmin, ax_xmax = self.ax_diff.get_xlim()
             ax_ymin, ax_ymax = self.ax_diff.get_ylim()
             xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
@@ -4336,7 +4323,6 @@ class Utilities:
             _ = plt.colorbar(gci3, ax=self.ax_diff, format='%.1f',\
                                 label="Calc - meas (ms)", ticks=ticks_d, \
                                 orientation='vertical',aspect=20)
-#            self.ax_diff.tick_params(axis='both', labelsize=18)
             print("Misfits plotted")
 
 # Plot title above the final model and store plot

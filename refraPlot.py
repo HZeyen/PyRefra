@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Fri May 05, 2023
+last modified on Tue June 06, 2023
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -1225,7 +1225,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.seismogram(ax,self.time,self.x,self.v,fill=True,\
                         amp=self.amp_plt,traces=self.tr,\
                         nt_min=self.nt_mn,nt_max=self.nt_mx,\
-                        text_x="Shot offset (m)", text_t=text_t)
+                        text_x="Shot offset [m]", text_t=text_t)
 # Change_colors is only meant for plot of tomography result, so deactivate it
         self.Change_colors.setEnabled(False)
         self.main.function = "main"
@@ -1381,7 +1381,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.seismogram(ax,self.time,self.x,self.v,fill=True,\
                         amp=self.amp_plt,traces=self.tr,\
                         nt_min=self.nt_mn,nt_max=self.nt_mx,\
-                        text_x="Midpoint position (m)",text_t=text_t)
+                        text_x="Midpoint position [m]",text_t=text_t)
 # Change_colors is only meant for plot of tomography result, so deactivate it
         self.Change_colors.setEnabled(False)
         self.main.function = "main"
@@ -1522,7 +1522,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
                         amp=self.amp_plt, traces=self.tr,\
                         nt_min=self.nt_mn, nt_max=self.nt_mx,\
-                        text_x="Offset (m)", text_t=text_t)
+                        text_x="Offset [m]", text_t=text_t)
 # The following lines are only for testing purpose, to show potential picks from
 # false colour plots
         # try:
@@ -1644,7 +1644,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
                         amp=self.amp_plt, traces=self.tr,\
                         nt_min=self.nt_mn, nt_max=self.nt_mx,\
-                        text_x="Offset (m)",\
+                        text_x="Offset [m]",\
                         text_t=text_t)
 # Change_colors is only meant for plot of tomography result, so deactivate it
         self.Change_colors.setEnabled(False)
@@ -1674,12 +1674,14 @@ class Window(QMainWindow, Ui_MainWindow):
             contains the positions of the ticks
 
         """
-        d_ticks = (maxval-minval)/ntick
+        mxv = max(minval,maxval)
+        mnv = min(minval,maxval)
+        d_ticks = (mxv-mnv)/ntick
         mult = round(d_ticks/dtick)
         mult = max(mult, 1)
         d_ticks = dtick*mult
-        min_tick = np.ceil(minval/d_ticks)*d_ticks
-        max_tick = int(maxval/d_ticks)*d_ticks
+        min_tick = np.ceil(mnv/d_ticks)*d_ticks
+        max_tick = int(mxv/d_ticks)*d_ticks
         ticks = np.arange(min_tick,max_tick+d_ticks/2,d_ticks)
         return ticks
 
@@ -2542,8 +2544,8 @@ class Window(QMainWindow, Ui_MainWindow):
         n0 : int
             number of sample around which point has to be searched
         nwin : int
-            Length of window to each side of n0 where to search in number of
-            samples
+            Length of window to each side of n0 where to search given in number
+            of samples
         nav : int
             number of samples to be summed on each side of sample point to
             calculate an approximation of derivative
@@ -2562,8 +2564,8 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         dif = []
         im = []
-        x = np.arange(nav+1)
         n = nav+1
+        x = np.arange(n)
         sx = np.sum(x)
         sx2 = sx*sx
         sxx = n*np.dot(x,x)

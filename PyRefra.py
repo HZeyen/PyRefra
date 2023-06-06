@@ -68,7 +68,7 @@ import os
 sys_path = r"E:/Sources_2010/Python_programs"
 #dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
 #dir0 = r"G:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Blocs_shifted"
-dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
+dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line1"
 #dir0 = r"G:/Seg2Dat/Pierre-Perthuis/Sismique_2019"
 #dir0 = r"G:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
 

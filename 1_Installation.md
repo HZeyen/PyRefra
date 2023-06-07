@@ -41,7 +41,7 @@ This opens a command window. Then type the following commands:
         + Open file PyRefra.py (File -> open…)
         + In the Spyder tool bar click Run -> Configuration per file -> Execute in dedicated console
 
-Then you may modify a few default settings in some packages for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder reflecting the structure of site-packages in Anaconda (obspy and pygimli). There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/envs/pg/Lib (Linux: ~/anaconda3/envs/pg/lib/python3.8”). I will call this folder “ENV”.
+Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder reflecting the structure of site-packages in Anaconda (**obspy** and **pygimli**). There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/envs/pg/Lib (Linux: ~/anaconda3/envs/pg/lib/python3.8”). I will call this folder “ENV”.
 
 The following modifications are sugested:
 

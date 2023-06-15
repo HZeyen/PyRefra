@@ -64,21 +64,21 @@ File **ENV/site-packages/pygimli/frameworks/inversion.py**
 
 After line 546 (containing `startModel = self.startModel`) add:
 
-self.cov_sum = np.zeros(len(self.fop.startModel()))
+`self.cov_sum = np.zeros(len(self.fop.startModel()))`
 
-self.cell_rays = []
+`self.cell_rays = []`
 
 After line 628 (starting with `self.modelHistory.append`) add:
 
-self.cov_sum += self.fop.jacobian().transMult(np.ones(self.fop.jacobian().rows()))
+`self.cov_sum += self.fop.jacobian().transMult(np.ones(self.fop.jacobian().rows()))`
 
-self.cell_rays.append([])
+`self.cell_rays.append([])`
 
-for i in range(len(self.cov_sum)):
+`for i in range(len(self.cov_sum)):`
 
-    n = len(np.where(np.array(self.fop.jacobian().col(i))!=0)[0])
+`    n = len(np.where(np.array(self.fop.jacobian().col(i))!=0)[0])`
     
-    self.cell_rays[-1].append(n)
+`    self.cell_rays[-1].append(n)`
 
 In **obspy**, you may find file **seg2.py** (usually in ENV/site-packages/obspy/io/seg2/seg2.py)
 

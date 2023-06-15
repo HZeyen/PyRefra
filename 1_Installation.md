@@ -58,7 +58,7 @@ and change the rounding to 0 ciphers instead of the default 2 ciphers:
 
 `ax.set_xticklabels(['{:g}'.format(round(xx[int(ti)], 0)) for ti in xt])`
 
-In addition, it is interesting, though not absolutely necessary to add the following code to **pgimly** which allows summing up the number of raysand ray lengths having crossed each cell during all iterations and in this way plotting the final model avoiding the areas where no ray at all passed during any of the iteration steps:
+In addition, it is interesting, though not absolutely necessary to add the following code to **pgimly** which allows summing up the number of rays and ray lengths having crossed each cell during all iterations and in this way plotting the final model avoiding the areas where no ray at all passed during any of the iteration steps:
 
 File **ENV/site-packages/pygimli/frameworks/inversion.py**
 

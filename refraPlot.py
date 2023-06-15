@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Tue June 06, 2023
+last modified on Mon June 12, 2023
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -185,8 +185,8 @@ class Window(QMainWindow, Ui_MainWindow):
                         "release at high-cut. Point on negative horizontal "+\
                         "axis means that corresponding filter is not applied"
         self.fk_text = "Pull slider left of screen to desired velocity and "+\
-                       "release mouse to accept velocity, or simply press "+\
-                       "ENTER if default velocity is ok."
+                       "release mouse to accept velocity, or simply click "+\
+                       "on slider if default velocity is ok."
         self.trace_filter_text = "Click on trace to be filtered"
         self.inver_text = "Inversion results: to return to seismograms click "+\
                        "on file in right window; Press C to change color "+\

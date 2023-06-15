@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Sat May 06, 2023
+last modified on Wed June 14, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -309,6 +309,11 @@ class Data():
         print("All files read \n")
         self.time_0 = np.array(self.time_0)
         self.time = self.t0 + self.dt*np.arange(self.nsamp)
+# Remove trace averages
+        for s in self.st:
+            for t in s:
+                t.detrend('constant')
+# Back up detrended data into array st_ori
         self.st_ori = deepcopy(self.st)
 
 
@@ -493,13 +498,16 @@ class Data():
             t_cut = (i1+n_slope/2)*self.main.data.dt
         return tr,t_cut
 
-    def tr_head_seg2_y(self,tr_in_file,trace,tr,x_fact=1,t_fact=100,lag=0):
+    def tr_head_seg2_y(self,trace,tr_in_file,tr_in_shot,tr,x_fact=1,t_fact=100,lag=0):
         """
         Fill SEGY trace header with information from SEG2 header
 
         Input:
         tr_in_file: int
                     number of trace in the SEGY file to be written starting with 0
+        tr_in_shot: int
+                    number of trace within shot gather. This value is written to
+                    segy header variable trace_number_within_the_original_field_record
         trace: number of trace from list of all recorded traces starting with 0
         tr (Stream from obspy): Data of one trace
         x_fact : int
@@ -518,7 +526,6 @@ class Data():
         shot_nr = self.main.traces.shot[trace]
         receiver_nr = self.main.traces.receiver[trace]
         file_nr = self.main.traces.file[trace]
-        trace_nr = self.main.traces.trace[trace]
 
 # Define header entries
         tr.stats.location = str(tr.stats.seg2.SOURCE_STATION_NUMBER)
@@ -570,7 +577,7 @@ class Data():
         tr.stats.segy.trace_header.shotpoint_number = \
             int(tr.stats.seg2.SOURCE_STATION_NUMBER)
         tr.stats.segy.trace_header.trace_number_within_the_original_field_record\
-            = trace_nr+1
+            = tr_in_shot
         tr.stats.segy.trace_header.trace_sequence_number_within_line =\
             trace+1
         tr.stats.segy.trace_header.trace_sequence_number_within_segy_file =\
@@ -694,6 +701,7 @@ class Data():
             data_flag = "y"
             one_file_flag = True
             file_out = f"rec{self.main.window.fig_plotted+1:0>5d}"
+        shot_t_nr = np.zeros(len(self.main.traces.sht_pt_dict),dtype=int)
 
         if self.save_su:
             file_out = file_out+'.su'
@@ -739,6 +747,7 @@ class Data():
                         continue
                     else:
                         stored[ishot,irec] += 1
+                shot_t_nr[ishot] += 1
                 if not hasattr(stw[ifile][itrace].stats, 'segy.trace_header'):
                     stw[ifile][itrace].stats.segy = {}
                     stw[ifile][itrace].stats.segy.trace_header = SEGYTraceHeader()
@@ -748,6 +757,11 @@ class Data():
                     tr.stats.segy.trace_header.delay_recording_time = 0
                     if S_time == 3:
                         if self.main.traces.npick[t] == 0:
+                            off = self.main.traces.offset[t]
+                            noff = np.where(np.abs(self.main.traces.offset-off)<1.5)[0]
+                            to = self.main.traces.trace[noff]
+                            to = to[self.main.traces.npick[to]>0]
+                            
                             tt = -1.
                         else:
                             tt = self.main.traces.pick_times[t][0]
@@ -766,7 +780,8 @@ class Data():
                 if np.isclose(np.std(tr.data), 0.):
                     continue
                 i_store += 1
-                tr = self.tr_head_seg2_y(i_store,t,tr,mult_x,mult_topo,lag)
+#                tr = self.tr_head_seg2_y(i_store,t,tr,mult_x,mult_topo,lag)
+                tr = self.tr_head_seg2_y(i_store,t,shot_t_nr[ishot],tr,mult_x,mult_topo,lag)                
                 if S_time == 3:
                     if  np.isclose(mute_t, 0.):
                         tr.stats.segy.trace_header.data_use = 0
@@ -2071,6 +2086,41 @@ class Utilities:
             x[1] = self.window.coor_x[1]
             t[0] = self.window.coor_y[0]
             t[1] = self.window.coor_y[1]
+# Make sure plotted lines stay within zoomed window
+            xmn = self.window.zooms[self.window.i_zooms][0]
+            xmx = self.window.zooms[self.window.i_zooms][1]
+            nmn = self.window.zooms[self.window.i_zooms][2]
+            nmx = self.window.zooms[self.window.i_zooms][3]
+            tmn = nmn*self.main.data.dt+self.main.data.t0
+            tmx = nmx*self.main.data.dt+self.main.data.t0
+            if x[1] > x[0]:
+                if x[1] > xmx:
+                    t[1] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmx-x[0])
+                    x[1] = xmx
+                elif x[0] < xmn:
+                    t[0] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmn-x[0])
+                    x[1] = xmn
+            else:
+                if x[1] < xmn:
+                    t[1] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmn-x[0])
+                    x[1] = xmn
+                elif x[0] < xmx:
+                    t[0] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmx-x[0])
+                    x[1] = xmx
+            if t[1] > t[0]:
+                if t[1] > tmx:
+                    x[1] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmx-t[0])
+                    t[1] = tmx
+                elif t[0] < tmn:
+                    x[0] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmn-t[0])
+                    t[1] = tmn
+            else:
+                if t[1] < tmn:
+                    x[1] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmn-t[0])
+                    t[1] = tmn
+                elif t[0] < tmx:
+                    x[0] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmx-t[0])
+                    t[1] = tmx
             self.window.axes[self.window.fig_plotted].plot(x,t,"k")
             self.window.axes[self.window.fig_plotted].draw(renderer)
             dx = self.window.coor_x[1]-self.window.coor_x[0]
@@ -2088,10 +2138,18 @@ class Utilities:
                     depth = 0
                     if n_lay_r > 1:
                         for i in range(n_lay_r):
-                            tt = tt-2*self.thick_r[i]/self.vels_r[i]*\
-                                 np.sqrt(1-(self.vels_r[i]/vel)**2)
-                    tk = np.round(tt*self.vels_r[n_lay_r-1]/\
-                                (2*np.sqrt(1-(self.vels_r[n_lay_r-1]/vel)**2)),2)
+                            fac = self.vels_r[i]/vel
+                            if fac < 1:
+                                tt = tt-2*self.thick_r[i]/self.vels_r[i]*\
+                                     np.sqrt(1-fac**2)
+                            else:
+                                tt = np.nan
+                    fac = self.vels_r[n_lay_r-1]/vel
+                    if fac < 1:
+                        tk = np.round(tt*self.vels_r[n_lay_r-1]/\
+                                (2*np.sqrt(1-fac**2)),2)
+                    else:
+                        tk = np.nan
                 if n_lay_r > 0:
                     depth = self.depths_r[-1]+tk
                 else:
@@ -2104,10 +2162,18 @@ class Utilities:
                     depth = 0
                     if n_lay_l > 1:
                         for i in range(n_lay_l):
-                            tt = tt-2*self.thick_l[i]/self.vels_l[i]*\
-                                 np.sqrt(1-(self.vels_l[i]/vel)**2)
-                    tk = np.round(tt*self.vels_l[n_lay_l-1]/\
-                                (2*np.sqrt(1-(self.vels_l[n_lay_l-1]/vel)**2)),2)
+                            fac = self.vels_l[i]/vel
+                            if fac < 1.:
+                                tt = tt-2*self.thick_l[i]/self.vels_l[i]*\
+                                     np.sqrt(1-fac**2)
+                            else:
+                                tt = np.nan
+                    fac = self.vels_l[n_lay_l-1]/vel
+                    if fac < 1:
+                        tk = np.round(tt*self.vels_l[n_lay_l-1]/\
+                                    (2*np.sqrt(1-fac**2)),2)
+                    else:
+                        tk = np.nan
                 if n_lay_l > 0:
                     depth = self.depths_l[-1]+tk
                 else:

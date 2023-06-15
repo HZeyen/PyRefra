@@ -92,6 +92,6 @@ In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg
 
 If the program stops after having written to the screen “folder: …” followed by “files read” without a list of files, the most probable reason is that obspy had been reinstalled and you must do the above corrections again!
 
-This issue has been fixed within obspy (28/12/2022, bug fix #3178) but only installed for Python >3.9. Since Pygimli only works in 3.8, the fix must still be done manually.
+This issue has been fixed within obspy (28/12/2022, bug fix #3178) but the corrected version is only installed for Python >3.9. Since Pygimli only works in 3.8, the fix must still be done manually.
 
 If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`

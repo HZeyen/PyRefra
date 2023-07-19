@@ -11,15 +11,15 @@ The program is based on the files produced by DMT stations like Summit2 and Summ
         
 		Y_shot [m]
         
-		Z_shot [m] (positive downwards)
+		Z_shot [m] (positive upwards)
         
 In this file, every shot point number should have different coordinates associated. If due to recording errors two shots at the same coordinates were recorded with different shot point numbers, use file **file_corrections.dat** to correct shot point number for the corresponding file(s) (see below).
 
 **receivers.geo**
 
-	This file contains the same kind of information as shots.geo, also in 4 columns
+	This file contains the same kind of information as shots.geo, also in 4 columns. However, a fifth column may be added containing any letter describing the geophone component recorded in a trace (e.g., when working with 3-component geophones). You may select traces by this letter. Usually, letters are V or Z for vertical component, E or N for geographic directions, L or T for longitudinal or transverse components. However, any other letters are allowed. By default (no 5th column in a line), the letter “Z” is associated to a trace. So, you are not obliged to write the letter into all lines.
   
-The coordinates should be treated to eliminate a possible trend, such that the line goes in X or Y direction.
+The program plots traces generally as function of offset which is calculated using the three coordinates. Therefore, in principle, absolute metric coordinates (e.g., UTM) may be given in both geometry files. However, we suggest strongly to convert coordinates to a local system and eliminate a possible trend, such that the line goes in X or Y direction. The program, internally, uses only the coordinate which has the largest extent (important for cdp points used, e.g, for distance gathers or export to SEGY format).
 
 ## Data file names
 Files acquired with Summit equipment have by default the structure prefixNNNNN.ext. “prefix” is set by the user during acquisition. NNNNN is file number always with 5 ciphers filled to the left with zeros. “ext” may be “sg2” (Summit 2) or “seg2” (Summit X1).

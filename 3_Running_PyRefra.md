@@ -1,10 +1,10 @@
 # Running PyRefra
 
-To start **PyRefra.py**, the best is to open it in Spyder and click on the green arrow or press F5. **If you configured Spyder as indicated in “Installation.5”, and you restart refraPy, you must first close the console of the earlier run. If not, a possible change of the folder will not be taken into account.**
+To start **PyRefra.py**, the best is to open it in Spyder and click on the green arrow or press F5. **If you configured Spyder as indicated in “Installation.6”, and you restart refraPy, you must first close the console of the earlier run. If not, a possible change of the folder will not be taken into account.**
 
-Before running the program, $\textcolor{red}{\text{you must define the path to the python files}}$ and may want to set manually the path to your data folder. For this go to **approximately line 90**. There, you will see a line starting with `sys_path = r”…”`. Replace the existing path by the path of the python files. In the following line, starting with `self.dir0 = r”…”`, replace the existing path by the path to the data files. This is not necessary, since you may choose the path interactively, but if you work for a longer time on the same data set, it avoids searching on each program start your data on the disk.
+Before running the program, $\textcolor{red}{\text{you must define the path to the python files}}$ and may want to set manually the path to your data folder. For this go to **approximately line 70**. There, you will see a line starting with `sys_path = r”…”`. Replace the existing path by the path of the python files. In the following line, starting with `self.dir0 = r”…”`, replace the existing path by the path to the data files. This is not necessary, since you may choose the path interactively, but if you work for a longer time on the same data set, it avoids searching on each program start your data on the disk.
 
-The program will ask for the files to be opened. It proposes initially files with ending **seg2**. If none is shown in the dialog box, probably you are dealing with Summit2 or SEGY files, so you may change the default ending to **sg2** or **sgy** (or even show all files). Usually, you will want to open all available files. Click on one of them and chose them with **CTRL-A**. If not, you may choose them as usual in the explorer, using SHFT or CTRL keyboard keys. No problem, if also folders are chosen with CTRL-A, the program filters them out. If you know that there are bad files, you may copy them into another folder or change their name-endings to something else than “.seg2”, “.sg2” or .”sgy” in which case the default option will not find these files and they are not opened. File numbering does not need to be contiguous. $\textcolor{red}{\text{For information}}$: if segy files are read, internally, the program copies the important segy header entries to seg2 headers. If the program has problems, it might be that not all necessary header entries exist or have been copied over.
+The program will ask for the files to be opened. It proposes initially files with ending **seg2**. If none is shown in the dialog box, probably you are dealing with Summit2 or SEGY files, so you may change the default ending to **sg2**, **segy** or **sgy** (or even show all files). Usually, you will want to open all available files. Click on one of them and chose them with **CTRL-A**. If not, you may choose them as usual in the explorer, using SHFT or CTRL keyboard keys. No problem, if also folders are chosen with CTRL-A, the program filters them out. If you know that there are bad files, you may copy them into another folder or change their name-endings to something else than “.seg2”, “.sg2”, "segy" or .”sgy” in which case the default option will not find these files and they are not opened. File numbering does not need to be contiguous. $\textcolor{red}{\text{For information}}$: if segy files are read, internally, the program copies the important segy header entries to seg2 headers. If the program has problems, it might be that not all necessary header entries exist or have been copied over.
 
 In the beginning, the program shows a warning:
 
@@ -16,7 +16,10 @@ When opened, the GUI shows in the $\textcolor{blue}{\text{main window}}$ the dat
 
 ![Main_window_screen_copy](https://github.com/HZeyen/PyRefra/blob/main/images/Screen_shot_refrapy.png)
 
-The first thing to do will be to increase the GUI to full screen size. If the window is too small, certain graphs containing multiple partial windows (e.g., tomography results) will not show up correctly, even in the stored png files (overlapping axis texts of different sub-windows).
+The GUI is automatically sized to full screen size. The window size may be reduced, however, if the window is too small, certain graphs containing multiple partial windows (e.g., tomography results) will not show up correctly, even in the stored png files (overlapping axis texts of different sub-windows).
+
+$\textcolor{red}{\text{ATTENTION}}$: in the following, if shortcut letters are given as capital letters, this is only for reading purposes. Usually, you will use small letters. Do not use SHFT for single letters, since the combination with SHFT has usually another meaning. However, if the caps lock has been pressed, this is ok.
+
 
 ## $\textcolor{red}{\text{Actions without Menu:}}$
 
@@ -39,9 +42,13 @@ Usually, you will not need this menu point. It allows you to choose new data set
  Save data in SEGY format (e.g., to continue with Seismic Unix)
  A dialog box opens where you may choose a series of options:
    - Data to be saved: 
-     - only data visible on the screen (if zoomed)
      - all data, including possible data recorded before the trigger
      - all data recorded after the trigger
+     - only data visible on the screen (if zoomed)
+     - data recorded after trigger, but first arrival signals are muted. This option makes only sense if picks have been measured. If this option is chosen, a second dialog window opens, asking for the approximate source signal length. The program searches for the minimum amplitude after the pick_time+signal_length and before pick_time+2*signal_length. Then it applies a slope of length signal_length/4 to the data before this minimum, bringing them gradually to zero. All data before this slope are muted. If no pick exists, it is supposed that the corresponding trace has strong noise and it is entirely muted. As a consequence, if the first arrival cannot be measured, but the later signal seems to be ok, a dummy pick should be placed (save perhaps first the file picks.dat with the useful picks to another name to be able to do tomography). The data of traces without pick are saved in the file without any mute and the header value duse is set to 0 (normal value is 1). In this way, those data may be excluded from treatment in SU with the following command:
+     - 
+		suwind <in_file.su key=duse min=1 >out_file.su
+
    - Data of all shots or only those of the active shot
    - Save all data in one single file (this file will be called prefix00000.sgy) or each shot in another file
 

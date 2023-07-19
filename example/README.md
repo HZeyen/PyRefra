@@ -2,16 +2,16 @@ For the data in the given example, 60 geophones were placed at 1m distance from 
 
 The numbering of the files is not contiguous, because several shot were repeated and the bad files were deleted. So, although the file numbers go from 1 to 34, only 31 files are stored, one per shot point.
 
-Several shots had bad trigger timing, triggering too early. In file “file_corrections.dat”, the time corrections are given for recorded files (not shot point numbers!) 6, 7, 8, 9, 11, 14, 18, 21, 25 and 26. In recorded file 23, a wrong shot point number was stored. This is also corrected by an entry in file “file_corrections.dat”. Not corrections for specific receivers had to be applied, therefore, no file “receiver_corrections.dat” is present.
+Several shots had bad trigger timing, triggering too early. In file “file_corrections.dat”, the time corrections are given for recorded files (not shot point numbers!) 6, 7, 8, 9, 11, 14, 18, 21, 25 and 26. In recorded file 23, a wrong shot point number was stored. This is also corrected by an entry in file “file_corrections.dat”. No corrections for specific receivers had to be applied, therefore, no file “receiver_corrections.dat” is present.
 
 Finally, there is a file “picks.dat” containing picks already done by myself and a file “calc_picks.dat” containing calculated picks from a tomography model.
 
 To test the program, you should copy all files into a folder which may be different from the program folder. Now, you may first store files file_corrections.dat, picks.dat and calc_picks.dat somewhere else (or change their names), just to see the original data with the wrong arrival times for the above-mentioned files.
 
-Edit PyRefra.py: Find line starting with `sys_path =` (approx. line 97) and replace the existing path with the path to the folder where the program files are stored.
+Edit PyRefra.py: Find line starting with `sys_path =` (approx. line 70) and replace the existing path with the path to the folder where the program files are stored.
 On the following line starting with `dir0 =`, you may replace the existing path with the one where the data files are stored.
 
-Open spyder and within spyder PyRefra.py and run the program,
+Open spyder and within spyder open PyRefra.py and run the program,
 
 Or open a command window (under Windows: Anaconda Prompt) and execute the following commands:
 

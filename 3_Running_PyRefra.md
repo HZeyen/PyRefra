@@ -45,9 +45,7 @@ Usually, you will not need this menu point. It allows you to choose new data set
      - all data, including possible data recorded before the trigger
      - all data recorded after the trigger
      - only data visible on the screen (if zoomed)
-     - data recorded after trigger, but first arrival signals are muted. This option makes only sense if picks have been measured. If this option is chosen, a second dialog window opens, asking for the approximate source signal length. The program searches for the minimum amplitude after the pick_time+signal_length and before pick_time+2*signal_length. Then it applies a slope of length signal_length/4 to the data before this minimum, bringing them gradually to zero. All data before this slope are muted. If no pick exists, it is supposed that the corresponding trace has strong noise and it is entirely muted. As a consequence, if the first arrival cannot be measured, but the later signal seems to be ok, a dummy pick should be placed (save perhaps first the file picks.dat with the useful picks to another name to be able to do tomography). The data of traces without pick are saved in the file without any mute and the header value duse is set to 0 (normal value is 1). In this way, those data may be excluded from treatment in SU with the following command:
-     - 
-		suwind <in_file.su key=duse min=1 >out_file.su
+     - data recorded after trigger, but first arrival signals are muted. This option makes only sense if picks have been measured. If this option is chosen, a second dialog window opens, asking for the approximate source signal length. The program searches for the minimum amplitude after the pick_time+signal_length and before pick_time+2*signal_length. Then it applies a slope of length signal_length/4 to the data before this minimum, bringing them gradually to zero. All data before this slope are muted. If no pick exists, it is supposed that the corresponding trace has strong noise and it is entirely muted. As a consequence, if the first arrival cannot be measured, but the later signal seems to be ok, a dummy pick should be placed (save perhaps first the file picks.dat with the useful picks to another name to be able to do tomography). The data of traces without pick are saved in the file without any mute and the header value duse is set to 0 (normal value is 1). In this way, those data may be excluded from treatment in SU with the following command: `suwind <in_file.su key=duse min=1 >out_file.su`
 
    - Data of all shots or only those of the active shot
    - Save all data in one single file (this file will be called prefix00000.sgy) or each shot in another file
@@ -75,7 +73,6 @@ The amplitudes are calculated as stored_value/(maximum_value*factor)*correspondi
 
 **$\textcolor{violet}{\text{Save headers}}$** (keyboard shortcut: **H**)
 Writes headers of all traces to ASCII files. Every data file has its corresponding header file "header_nnnnn.dat". These header files are written to folder Headers. If this folder does not exist, it is created.
-
 
 **$\textcolor{violet}{\text{Save Plot}}$** (keyboard shortcut: **P**): 
 Save actual screen into png file. File names depend on what is actually shown
@@ -105,6 +102,11 @@ Plot distance gathers, i.e., all traces from all acquired files that have a comm
 
 **$\textcolor{violet}{\text{Choose component}}$** (keyboard shortcut: **G** (for “geophone type”))
 If several components have been recorded, choose the one to be plotted or to plot all components
+
+**$\textcolor{violet}{\text{Phase angles}}$** (no keyboard shortcut)
+If several components have been recorded, plot the angles (arctan) between full horizontal component and vertical component (inclination) and between the two horizontal components (if they exist) (declination). The first trace at one position is inclination, the second declination.
+
+**TODO**: For the moment, when clicking this option, only the hook is set, but the plot is not changed immediately. The next time you choose a file/shot/receiver to be plotted, the angles will be plotted.
 
 
 **$\textcolor{red}{\text{Zoom options}}$**:
@@ -161,11 +163,13 @@ On call, a dialog box is opened asking for:
 - Initial and final velocities: Ray tracing needs an initial model with a vertical gradient. This initial model is defined by these two values. **TODO**: allow for a refined starting model.
 - Minimum and maximum allowed velocities: Pygimli allows to limit search space of model velocities. Give here the desired extreme velocities. **TODO**: Understand working of Pygimli: Even if very large upper velocity limit is given, pygimli limits the velocity model to a range of values much narrower than given. Only if the parameter “limits=[vmin,vmax]” is not at all used, velocities seem to be completely free. Therefore, if both given velocities are zero, the program makes a call to mgr.invert without using key word "limits".
 - velocity color scale min and max: If you do inversions for different profiles, it may be interesting to have the same color scale for all. In this case, you may give the values of the minimum and maximum velocities appearing in the color bar.
-- Plot title: The default title is the name of the data folder. You may change it to any text. Appears only at main title of the inversion results plot.
+- Plot title: The default title is the one given in file PyRefra.config (see "Data preparation"). You may change it to any text. Appears only at main title of the inversion results plot.
 
 At the end of the inversion, the resulting model is shown in the upper 60% of the screen. Below, smaller sub-windows show the initial model, the rays of the final model with the “coverage” (i.e., a measure of resolution), the measured travel times as function of shot point position and receiver point position, the misfits in a similar plot calculated as “calculated times minus measured times” and finally, a plot showing average misfits for the different shot points and the different receiver points. This last plot allows you to verify if there are problems with certain shots or receivers.
 This plot is stored in a png file, together with other inversion results such as velocity model, misfits, rays of final model and chi²-evolution in a folder created automatically by Pygimli named ./date-time (where the “.” is the data folder; date and time of folder creation).
-To leave this plot, click on an entrance in the “Available plots” window. To show the plot again, you should open the saved png outside of the program or you must do the inversion again.
+If you are not happy with the colour scale or you want to change the maximum plotted depth, you may press “c” or “C” (but not “SHFT+c”) to call a now dialogue window asking for this information. See also below “Change colors tomo”.
+The program offers writing output files for use in SOFI2D software (https://git.scc.kit.edu/GPIAG-Software/SOFI2D): model files for P-waves, S-waves and densities (see function prepareSOFI for more information), receivers and shots in SOFI format as well as Jason-format control file for SOFI2D.
+To leave this plot, close the window or simply go back to the main screen. To show the plot again, press "C" again.
 
 **$\textcolor{violet}{\text{Tau-P}}$** (keyboard shortcut: **CTRL-T**): 
 Tool calculates and shows Tau-P analysis. For the moment, only the plot is shown. If you want to save it, use $\textcolor{violet}{\text{File -> Save plot}}$. **TODO** use obspy function for this.
@@ -190,6 +194,9 @@ Plots animation of wave evolution in time along the geophone line actually on th
 
 **$\textcolor{violet}{\text{Attenuation}}$** (keyboard shortcut: **Q**): 
 Function searches for each trace the maximum of the envelopes of data plotted on the screen (you may use muting functions to focus surgically on certain phases). Amplitudes are multiplied by the absolute offset to counteract geometric spreading. Then, for each side of a shot point, an exponential function is fitted to the amplitude evolution, if at least 4 traces are available. If more than 6 traces exist on the corresponding side, two independent lines are fitted whose results may be interpreted as attenuation near the surface and deeper down. A plot is presented with the fitted logarithm of the amplitudes and the amplitude fit itself. Instead of slope, a Q value is indicated (-1/slope) as well as a r² value for the ensemble of the two lines.
+
+**$\textcolor{violet}{\text{Pseudo velocity}}$** (keyboard shortcut: **V**):
+Function produces two figures on one screen: First the average velocity (pseudo velocity) for every pick as function of offset (y-axis) and midpoint position between shot and receiver (x-axis). In the second plot, local slownesses are plotted, as well as function of offset and midpoint. For this calculation, for every shot point, at receiver i, the slowness is calculated as : `(t[i+1]-t[i-1])/(offset[i+1]-offset[i-1])`. In this way some smoothing is done. If one of the times does not exist (trace i-1 or i+1 has not been measured), the slowness value is stored as nan. The Y axis is scaled with offset/3, which gives a very (very) rough estimate of depth. For slownesses, a logarithmic colour scale is used. The plot is stored in file “pseudo_section_slowness.png”. This kind of plot may serve to detect problems with single measurements or shots/receivers.
 
 ### **$\textcolor{red}{\text{Picking Menu}}$**
 
@@ -241,6 +248,9 @@ Change uncertainties of picks. Use is similar as for moving picks: Vertical keyb
 **$\textcolor{violet}{\text{Erase all picks}}$** (keyboard shortcut: **CTRL-E**): 
 Erase all picks of the actually shown seismogram gather (other picks are maintained). Usually used if automatic picking gave too bad results.
 
+**$\textcolor{violet}{\text{Plot all picks}}$** (keyboard shortcut: **ALT-P**)
+Plots all picks at the coordinate of the corresponding trace. Picks are colored by shot point number.
+
 **$\textcolor{violet}{\text{Plot calculated times}}$** (no keyboard shortcut): 
 Activated after using Tomography or if the program at start finds a file called “calc_picks.dat”. The calculated picks are plotted as a connected line. As long as this tool is not pressed again, calculated picks are plotted for all gathers. Deactivation of the tool takes only effect at the next screen refreshment (next gather, next zoom etc.)
 
@@ -251,7 +261,7 @@ Store all available picks (not only those of the actual seismogram gather) into 
 
 nr shot point as in file shots.geo, nr receiver point as in file receivers.geo. The uncertainties are normally considered to be symmetric, but certain automatic picking routines may give different uncertainties before and after the pick.
 
-PyRefra stores automatically all picks each time manual picking is finished with right mouse key. However, automatic picking routines don’t do this yet, mainly because they are too uncertain. It is recommended to use CTRL-S after automatic picking if you are satisfied.
+PyRefra stores automatically all picks each time picking or modifications of picks are finished with right mouse key.
 
 **$\textcolor{violet}{\text{Store Gimli format}}$** (no keyboard shortcut): 
 Stores calculated picks in Gimli format (file picks.sgt), used by the Tomography tool. Usually, you do not need this tool, since when calling Tomography, the measured picks are automatically stored in this format before starting inversion.

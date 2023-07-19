@@ -21,7 +21,7 @@ Or open a command window (under Windows: Anaconda Prompt) and execute the follow
 
 `python PyRefra.py`
 
-The program starts asking for the data files you want to treat. Chose all available ones. Then the data from the first shot point show up, which correspond to those of file 1. Shot points 1 to 31 are available in the right window.
+The program first asks you for a general title and the geographical direction in which the beginning of the line is placed. Choose whatever you like. Then the program asks for the data files you want to treat. Chose all available ones. Then the data from the first shot point show up, which correspond to those of file 1. Shot points 1 to 31 are available in the right window.
 
 ![Start_window](https://github.com/HZeyen/PyRefra/blob/main/example/images/First_screen_shot-point1.PNG)
 

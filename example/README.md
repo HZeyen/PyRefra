@@ -34,6 +34,6 @@ Click on File 6 in the right window and see the wrong trigger time:
 
 Stop the program, copy file file_corrections.dat and calc_picks.dat (perhaps also picks.dat) back to the data folder and run again. The trigger time corrections are done, and you may explore the program and do some picking, creating a new file picks.dat. Try also plotting the calculated arrival times.
 
-A tomography using the existing file picks.dat and the default options should give the following image except for the title (path to your data folder should appear):
+A tomography using the existing file picks.dat and the default options should give the following image except for the title (which you gave when calling the program for the first time):
 ![File_gather](./images/Tomography_screen.PNG)
 

@@ -63,7 +63,7 @@ PyRefra.py checks in the beginning if one or both of these files exist and if ne
 Another optional file, **PyRefra.config**, may contain two text lines used for plot titles:
 - title (used as title for most windows)
 - direction contains the geographic direction of the beginning of the profile, may be one of
-  		[S, SSW, SW, WSW, W, WNW, NW, NNW, N, NNE, NE, ENE, E, ESE, SE or SSE]
+  		[S, SSW, SW, WSW, W, WNW, NW, NNW, N, NNE, NE, ENE, E, ESE, SE or SSE].
 		The corresponding direction of the end of the profile is then determined automatically. So, if you enter e.g. SW for the beginning of the line, this means that the line runs in SW -> NE direction.
   
 If this file does not exist at the beginning of a run, a dialogue box is opened asking for this information. The values are then stored in a newly created file PyRefra.config which will be used automatically the next time PyRefra is started.

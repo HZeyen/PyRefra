@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Wed June 14, 2023
+last modified on Fri July 14, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -106,6 +106,10 @@ class Files():
                     filter="seg2 (*.seg2 *.sg2) ;; segy (*.sgy *.segy) ;; all (*.*)"))
         if len(files) == 0:
             print("No file chosen, program finishes")
+            sys.exit("No file chosen")
+        elif len(files[0]) == 0:
+            print("\nNo file chosen, program finishes\n\n"+\
+                  "You probably must close the Spyder console before restarting")
             sys.exit("No file chosen")
 
 # Sort chosen file names
@@ -1260,14 +1264,14 @@ class Geometry():
                 d[i_rec]["x"] = float(line[1])
                 d[i_rec]["y"] = float(line[2])
                 d[i_rec]["z"] = float(line[3])
-                if len(line) == 5:
+                if len(line) > 4:
                     d[i_rec]["type"] = line[4][0].upper()
                 else:
                     d[i_rec]["type"] = "Z"
         except:
             _ = QtWidgets.QMessageBox.critical(None, "Error",
-                     "Error reading file receivers.geo.\n"+\
-                     "Must have 4 or 5 columns: nr, X, Y, Z [,comp]\n\n"+\
+                     f"Error reading file {filename}.\n"+\
+                     "Must have 4 or 5 columns: nr, X, Y, Z [,component]\n\n"+\
                      "Program stops", QtWidgets.QMessageBox.Ok)
             raise Exception(f"File {filename} wrong format.\n")
         return d
@@ -1313,8 +1317,26 @@ class Geometry():
 # Find profile direction (profiles goes mainly in X or in Y direction
         x = np.array([self.rec_dict[d]["x"] for d in self.rec_dict])
         y = np.array([self.rec_dict[d]["y"] for d in self.rec_dict])
+        z = np.array([self.rec_dict[d]["z"] for d in self.rec_dict])
+        self.positions = np.unique(np.vstack((x, y, z)).T,axis=0)
+        self.pos_dict = {}
+        for i in range(len(self.positions)):
+            self.pos_dict[i] ={}
+            self.pos_dict[i]["rec"] = []
+            self.pos_dict[i]["comp"] = []
+            for d in self.rec_dict:
+                if np.isclose(self.rec_dict[d]["x"],self.positions[i,0]) and\
+                   np.isclose(self.rec_dict[d]["y"],self.positions[i,1]) and\
+                   np.isclose(self.rec_dict[d]["z"],self.positions[i,2]):
+                     self.pos_dict[i]["rec"].append(d)
+                     self.pos_dict[i]["comp"].append(self.rec_dict[d]["type"])
+                     self.rec_dict[d]["unique"] = i
         dx = x.max()-x.min()
         dy = y.max()-y.min()
+        dz = np.abs(z[1:]-z[:-1])
+        self.zmin = z.min()
+        self.zmax = z.max()
+        self.dz_geo = round(dz.max(),1)
         if dx>dy:
             self.x_dir = True
             self.d_x = abs(x[1]-x[0])
@@ -1458,6 +1480,7 @@ class Traces():
                 if nsht in geom.sht_dict:
                     xs = geom.sht_dict[nsht]["x"]
                     ys = geom.sht_dict[nsht]["y"]
+                    zs = geom.sht_dict[nsht]["z"]
                 else:
                     _ = QtWidgets.QMessageBox.critical(None, "Error",
                              f"Shot point number {nsht+1} not found in shots.geo\n\n"+\
@@ -1468,9 +1491,10 @@ class Traces():
                 if nrec in geom.rec_dict:
                     xr = geom.rec_dict[nrec]["x"]
                     yr = geom.rec_dict[nrec]["y"]
+                    zr = geom.rec_dict[nrec]["z"]
                     self.shot_pos.append(xs)
                     self.receiver_pos.append(xr)
-                    off = np.sqrt((xs-xr)**2+(ys-yr)**2)
+                    off = np.sqrt((xs-xr)**2+(ys-yr)**2++(zs-zr)**2)
                     self.xcdp.append(np.round(xs+xr,0)*0.5)
                 else:
                     _ = QtWidgets.QMessageBox.critical(None, "Error",
@@ -1720,37 +1744,43 @@ class Traces():
         sensors_s = np.zeros((nsht,3))
         sensors_r = np.zeros((nrec,3))
         xs =np.array([self.geom.sht_dict[d]["x"] for d in self.geom.sht_dict])
-#         xs =np.array([self.traces.sht_pt_dict[d]["x"] for d in self.geom.sht_dict])
-# sht_pt_dict
         sensors_s[:,0] = xs
         ys = np.array([self.geom.sht_dict[d]["y"] for d in self.geom.sht_dict])
         sensors_s[:,1] = ys
         zs = np.array([self.geom.sht_dict[d]["z"] for d in self.geom.sht_dict])
-        sensors_s[:,2] = -zs
+        sensors_s[:,2] = zs
         xr = np.array([self.geom.rec_dict[d]["x"] for d in self.geom.rec_dict])
         sensors_r[:,0] = xr
         yr = np.array([self.geom.rec_dict[d]["y"] for d in self.geom.rec_dict])
         sensors_r[:,1] = yr
         zr = np.array([self.geom.rec_dict[d]["z"] for d in self.geom.rec_dict])
-        sensors_r[:,2] = -zr
+        sensors_r[:,2] = zr
         zmax1 = np.max(sensors_s[:,2])
         zmax2 = np.max(sensors_r[:,2])
         zmax = max(zmax1,zmax2)
-        sensors_s[:,2] -= zmax
-        sensors_r[:,2] -= zmax
         shts = list(self.geom.sht_dict.keys())
         recs = list(self.geom.rec_dict.keys())
-
+        
         sensors = np.unique(np.concatenate((sensors_r,sensors_s)),axis=0)
 
-        ncoor = sensors.shape[0]
+        ncoor = len(sensors)
+            
         isht = np.zeros(nsht,dtype=int)
         for i in range(nsht):
-            isht[i] = np.where(xs[i] == sensors[:,0])[0][0]
+            for j in range(ncoor):
+                if np.isclose(xs[i],sensors[j,0]) and\
+                   np.isclose(ys[i],sensors[j,1]) and\
+                   np.isclose(zs[i],sensors[j,2]):
+                    isht[i] = j
+                    break
         irec = np.zeros(nrec,dtype=int)
         for i in range(nrec):
-            irec[i] = np.where(xr[i] == sensors[:,0])[0][0]
-
+            for j in range(ncoor):
+                if np.isclose(xr[i],sensors[j,0]) and\
+                   np.isclose(yr[i],sensors[j,1]) and\
+                   np.isclose(zr[i],sensors[j,2]):
+                    irec[i] = j
+                    break
         t = np.zeros((nsht,nrec))
         e = np.zeros((nsht,nrec))
         n = np.zeros((nsht,nrec),dtype=int)
@@ -1765,7 +1795,7 @@ class Traces():
                 if self.npick[ntr] > 0:
                     t[i,j] += max(self.pick_times[ntr][0],self.data.dt)
                     e[i,j] += (self.pick_times_max[ntr][0]-\
-                               self.pick_times_min[ntr][0])/2
+                                self.pick_times_min[ntr][0])/2
                     if e[i,j] <= 0:
                         e[i,j] = unc
                     n[i,j] += 1
@@ -1784,20 +1814,41 @@ class Traces():
                         irecord.append(irec[j])
                         tim.append(t[i,j])
                         err.append(e[i,j])
-
+# PyGIMLi has problems with positive Z-coordinates (it seems, rays are calculated,
+#         but everything above 0 is not plotted. Therefore, zmax is subtracted)
+        sensors[:,2] = sensors[:,2]-zmax
         with open("picks.sgt","w") as fo:
-            ncoor = sensors.shape[0]
             ndat = len(tim)
             fo.write(f"{ncoor} # shot/geophone points\n")
+# Write coordinates to file. For 2D inversion, pyGIMLi uses the y coordinate for
+#       depth. Therefore, the z coordiante (c[2] below) is written into the
+#       second column.
+            # fo.write("# x y z\n")
+            # for c in sensors:
+            #     fo.write(f"{c[0]:0.2f} {c[1]:0.2f} {c[2]:0.2f}\n")
             fo.write("# x y z\n")
             for c in sensors:
-                fo.write(f"{c[0]:0.2f} {c[1]:0.2f} {c[2]:0.2f}\n")
+                fo.write(f"{c[0]:0.2f} {c[2]:0.2f} 0.\n")
             fo.write(f"{ndat} # measurements\n")
             fo.write("# s g t err\n")
             for i in range(ndat):
                 fo.write(f"{ishot[i]+1} {irecord[i]+1} {tim[i]:0.6f} {err[i]:0.6f}\n")
+#                fo.write(f"{irecord[i]+1} {ishot[i]+1} {tim[i]:0.6f} {err[i]:0.6f}\n")
         print(f"\n{ndat} picks written to file picks.sgt")
-
+        with open("pick_dist.dat","w") as fo:
+            fo.write("Offset, time, uncertainty,midpoint: x,y,z\n")
+            for i in range(ndat):
+                ns = ishot[i]
+                nr = irecord[i]
+                o = np.sqrt((sensors[ns,0]-sensors[nr,0])**2+\
+                            (sensors[ns,1]-sensors[nr,1])**2+\
+                            (sensors[ns,2]-sensors[nr,2])**2)
+                midx = (sensors[ns,0]+sensors[nr,0])*0.5
+                midy = (sensors[ns,1]+sensors[nr,1])*0.5
+                midz = (sensors[ns,2]+sensors[nr,2])*0.5
+                fo.write(f"{o:0.2f} {tim[i]:0.6f} {err[i]:0.6f} {midx:0.2f} " +\
+                         f"{midy:0.2f} {midz:0.2f} \n")
+            
 
 class Utilities:
     def __init__(self, main, files, data, traces, geom, window):
@@ -2099,28 +2150,28 @@ class Utilities:
                     x[1] = xmx
                 elif x[0] < xmn:
                     t[0] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmn-x[0])
-                    x[1] = xmn
+                    x[0] = xmn
             else:
                 if x[1] < xmn:
                     t[1] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmn-x[0])
                     x[1] = xmn
-                elif x[0] < xmx:
+                elif x[0] > xmx:
                     t[0] = t[0]+(t[1]-t[0])/(x[1]-x[0])*(xmx-x[0])
-                    x[1] = xmx
+                    x[0] = xmx
             if t[1] > t[0]:
                 if t[1] > tmx:
                     x[1] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmx-t[0])
                     t[1] = tmx
                 elif t[0] < tmn:
                     x[0] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmn-t[0])
-                    t[1] = tmn
+                    t[0] = tmn
             else:
                 if t[1] < tmn:
                     x[1] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmn-t[0])
                     t[1] = tmn
-                elif t[0] < tmx:
+                elif t[0] > tmx:
                     x[0] = x[0]+(x[1]-x[0])/(t[1]-t[0])*(tmx-t[0])
-                    t[1] = tmx
+                    t[0] = tmx
             self.window.axes[self.window.fig_plotted].plot(x,t,"k")
             self.window.axes[self.window.fig_plotted].draw(renderer)
             dx = self.window.coor_x[1]-self.window.coor_x[0]
@@ -2551,8 +2602,6 @@ class Utilities:
 # If seventh checkbox has been checked, fill the corresponding part in array c
 #   with max/min values depending on the order of checing stored in ch_order
             if ck_results[6]:
-                # if i == 18:
-                #     print("18")
                 rel = self.max_min_amplitudes(dat, 5)
                 rel[:nmin] = 0.
                 c[:,i,ck_order[6]] = np.flip(rel)/max(rel)
@@ -2939,8 +2988,7 @@ class Utilities:
                     self.high_cut_flag = False
                 print(f"Low-cut  frequency: {int(self.fmin)}\n"+\
                       f"High-cut frequency: {int(self.fmax)}")
-                return
-        print("New frequency filter defined")
+                return True
         ndat = np.size(self.window.v[0,:])
         tr_spec = self.window.actual_traces[tr1:tr2]
         F = np.zeros(ndat,dtype=np.complex128)
@@ -2984,7 +3032,10 @@ class Utilities:
         self.window.followLine(True,[])
 # (xline,yline) are the frquency and amplitude coordinates of the points defining the line
         xline = np.array(self.window.coor_x)
-        print(xline)
+        if len(xline) == 0:
+            print("No filter chosen, filtering cancelled")
+            return False
+        print("New frequency filter defined")
         if xline[0]<0 or xline[0]>fmax:
             self.fmin = 0
             self.low_cut_flag = False
@@ -3114,43 +3165,45 @@ class Utilities:
             tr2 = tr1+1
         tr_filt = self.main.window.actual_traces[tr1:tr2]
         if plot_flag:
-            _ = self.spectrum(tr1,tr2)
-            if self.all_freq_filter:
-                tr1 = 0
-                tr2 = len(self.main.traces.trace)
-                tr_filt = np.arange(tr2)
-        if self.low_cut_flag==False and self.high_cut_flag==False:
-            print("Frequency filter cancelled")
-        else:
-            if self.fmin==0 and self.fmax>0:
-                print(f"\nLow pass filter {int(self.fmax)}Hz of ",\
-                      f"{len(tr_filt)} traces")
-            elif self.fmin>0 and self.fmax==0:
-                print(f"\nHigh pass filter {int(self.fmin)}Hz of ",\
-                      f"{len(tr_filt)} traces")
-            elif self.fmin>0 and self.fmax>0:
-                print(f"\nBand pass filter {int(self.fmin)}-{int(self.fmax)}",\
-                      f"Hz of {len(tr_filt)} traces")
+            flag = self.spectrum(tr1,tr2)
+            if flag:
+                if self.all_freq_filter:
+                    tr1 = 0
+                    tr2 = len(self.main.traces.trace)
+                    tr_filt = np.arange(tr2)
+        if flag:
+            if self.low_cut_flag==False and self.high_cut_flag==False:
+                print("Frequency filter cancelled")
             else:
-                print("Error in frequencies, no filter applied")
-                return
-            for ii,it in enumerate(range(tr1,tr2)):
-                if (ii+1)%500 == 0:
-                    print(f"     Trace {ii+1}")
-                t = tr_filt[ii]
-                fnr = self.traces.file[t]
-                tnr = self.traces.trace[t]
-                dat = self.ffilter(self.data.st[fnr][tnr].data, self.fmin,\
-                                   self.fmax, self.main.data.dt)
-                self.data.st[fnr][tnr].data = np.float32(dat)
-                if t in self.main.window.actual_traces:
-                    iit = np.where(self.main.window.actual_traces==np.int64(t))[0][0]
-                    if self.traces.amplitudes[t] > 0:
-                        self.main.window.v[iit,:] = dat
-                    elif self.traces.amplitudes[t] < 0:
-                        self.main.window.v[iit,:] = -dat
-        self.filtered = True
-        print("     All traces filtered")
+                if self.fmin==0 and self.fmax>0:
+                    print(f"\nLow pass filter {int(self.fmax)}Hz of ",\
+                          f"{len(tr_filt)} traces")
+                elif self.fmin>0 and self.fmax==0:
+                    print(f"\nHigh pass filter {int(self.fmin)}Hz of ",\
+                          f"{len(tr_filt)} traces")
+                elif self.fmin>0 and self.fmax>0:
+                    print(f"\nBand pass filter {int(self.fmin)}-{int(self.fmax)}",\
+                          f"Hz of {len(tr_filt)} traces")
+                else:
+                    print("Error in frequencies, no filter applied")
+                    return
+                for ii,it in enumerate(range(tr1,tr2)):
+                    if (ii+1)%500 == 0:
+                        print(f"     Trace {ii+1}")
+                    t = tr_filt[ii]
+                    fnr = self.traces.file[t]
+                    tnr = self.traces.trace[t]
+                    dat = self.ffilter(self.data.st[fnr][tnr].data, self.fmin,\
+                                       self.fmax, self.main.data.dt)
+                    self.data.st[fnr][tnr].data = np.float32(dat)
+                    if t in self.main.window.actual_traces:
+                        iit = np.where(self.main.window.actual_traces==np.int64(t))[0][0]
+                        if self.traces.amplitudes[t] > 0:
+                            self.main.window.v[iit,:] = dat
+                        elif self.traces.amplitudes[t] < 0:
+                            self.main.window.v[iit,:] = -dat
+            self.filtered = True
+            print("     All traces filtered")
         if plot_flag:
             self.window.v_set = False
             self.window.drawNew(True)
@@ -3409,17 +3462,17 @@ class Utilities:
                 fac = (freq[j]/f0+(2*nf_damp+1))/(2*nf_damp+1)
                 F_filt[j,ik] = F_filt[j,ik]*fac
 
-# Plot filtered spectrum
-        if plot_flag:
-            Fabs = np.log10(np.abs(np.fft.fftshift(F_filt))+1E-10)
-            Fmin = np.min(Fabs)
-            Fmax = np.max(Fabs)
-            c = self.window.axes[self.window.fig_plotted].\
-                  pcolormesh(k_shift,f_shift[nf:nf_p_max],Fabs[nf:nf_p_max,:],\
-                  cmap=cmp,vmin=Fmin,vmax=Fmax,shading='auto')
-# Show f-k spectrum and wait for key stroke
-            self.window.figs[self.window.fig_plotted].canvas.draw()
-            self.window.figs[self.window.fig_plotted].canvas.flush_events()
+# # Plot filtered spectrum
+#         if plot_flag:
+#             Fabs = np.log10(np.abs(np.fft.fftshift(F_filt))+1E-10)
+#             Fmin = np.min(Fabs)
+#             Fmax = np.max(Fabs)
+#             c = self.window.axes[self.window.fig_plotted].\
+#                   pcolormesh(k_shift,f_shift[nf:nf_p_max],Fabs[nf:nf_p_max,:],\
+#                   cmap=cmp,vmin=Fmin,vmax=Fmax,shading='auto')
+# # Show f-k spectrum and wait for key stroke
+#             self.window.figs[self.window.fig_plotted].canvas.draw()
+#             self.window.figs[self.window.fig_plotted].canvas.flush_events()
 
 # Calculate the inverse 2D Fourier transform
         d = np.fft.ifft2(F_filt)
@@ -3781,7 +3834,9 @@ class Utilities:
         from matplotlib.gridspec import GridSpec
         from matplotlib.path import Path
         import matplotlib.tri as tri
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
         import copy
+        import matplotlib.pyplot as plt
         try:
             import pygimli as pg
         except:
@@ -3794,13 +3849,13 @@ class Utilities:
 
         self.main.function = "inver"
         def vel_scale(self, ncol=128):
-            self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
-                      ['violet','darkgreen','darkgreen','cyan','blue',\
-                       'mediumseagreen','lightseagreen','lime','yellow',\
-                       'yellow','gold','orange','orangered','red'],N=ncol)
-            self.cmp.set_under('pink')
-            self.cmp.set_over('darkred')
-            self.colors = self.cmp(np.linspace(0, 1, ncol))
+                self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
+                          ['violet','darkgreen','darkgreen','cyan','blue',\
+                           'mediumseagreen','lightseagreen','lime','yellow',\
+                           'yellow','gold','orange','orangered','red'],N=ncol)
+                self.cmp.set_under('pink')
+                self.cmp.set_over('darkred')
+                self.colors = self.cmp(np.linspace(0, 1, ncol))
 # If code == 0, color scale and maximum depth for model plot are calculated
 #    automatically
         self.tick_size_mod = 18
@@ -3841,8 +3896,8 @@ class Utilities:
                      "Initial velocity at bottom [m/s]",\
                      "Minimum allowed velocity [m/s]",\
                      "Maximum allowed velocity [m/s]",\
-                     "\nNegative color scale entry: automatic scaling\n"+\
-                     "any letter in one of the two: special velocity scale",\
+                     "\nAny negative color scale entry: linear scale\n"+\
+                     " both positive: special velocity scale (1500=cyan)",\
                      "Velocity color scale min [m/s]",\
                      "Velocity color scale max [m/s]",\
                      "Plot rays on final model"],\
@@ -3998,8 +4053,8 @@ class Utilities:
 #    and/or maximum plotted depth
         elif code == 67:
             res, okBut = self.main.dialog(\
-                               ["Negative color scale entry: automatic\n"+\
-                                " any letter in one of the two: special velocity scale",\
+                               ["Any negative color scale entry: linear scale\n"+\
+                                " both positive: special velocity scale",\
                                 "Velocity color scale min [m/s]",\
                                  "Velocity color scale max [m/s]",\
                                  "Maximum depth [m]",\
@@ -4007,6 +4062,8 @@ class Utilities:
                                 ["l","e","e","e","c"],\
                                 [None,self.v_scale_min,self.v_scale_max,self.zmax_plt,\
                                 None],"Change color scale")
+            if okBut == False:
+                return
             self.zmax_plt = float(res[3])
             try:
                 self.v_scale_min = float(res[1])
@@ -4020,22 +4077,31 @@ class Utilities:
                 self.rays_flag = False
 # If color scales are negative (default in first dialog box), they are set
 #    to the quantiles rounded to the next 100 m/s
+        ncol = 128
+        ncol1 = 128
         if self.v_scale_min < 0:
             self.v_scale_min = max(self.q1_start,self.q1_end)
             self.v_scale_min = np.round(self.v_scale_min/100,0)*100
+            ncol1 = 0
         if self.v_scale_max < 0:
             self.v_scale_max = max(self.q2_start,self.q2_end)
             self.v_scale_max = np.round(self.v_scale_max/100,0)*100
+            ncol1 = 0
 # Define color scale and colors for values above and below extreme scale values
-        ncol = 128
-        vel_scale(self)
-        ncyan = int(ncol/16*4)
-        self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
-        self.levels += list(np.linspace(1501,self.v_scale_max,ncol-ncyan))
+        vel_scale(self, ncol=ncol)
+        if ncol1 > 0:
+            ncyan = int(ncol/16*4)
+            self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
+            self.levels += list(np.linspace(1501,self.v_scale_max,ncol-ncyan))
+        else:
+            self.levels = list(np.linspace(self.v_scale_min,self.v_scale_max,128))
         self.levels = np.array(self.levels)
 
 # Define grid for different partial figures
-        self.w_tomo = rP.newWindow("Tomography results")
+        if code == 0:
+            self.w_tomo = rP.newWindow("Tomography results")
+        else:
+            self.figinv.clf()
         self.figinv = self.w_tomo.fig
         plt.tight_layout()
         self.gs = GridSpec(15, 13, figure=self.figinv)
@@ -4128,8 +4194,12 @@ class Utilities:
         self.triang.set_mask(self.mask)
         self.alpha = self.mask*1.
 # Plot final model
+        # if ncol1 == 0:
         gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
                                    levels=self.levels, colors=self.colors)
+        # else:
+        #     gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
+        #                                levels=self.levels, cmap=self.cmp)
         # gci0.cmap.set_under('pink')
         # gci0.cmap.set_over('darkred')
         # self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
@@ -4175,7 +4245,11 @@ class Utilities:
         ticks_vel = ticks_vel[ticks_vel <= self.v_scale_max]
 #        self.ax_mod.set_aspect('equal', adjustable='box', anchor='W', share=True)
         self.ax_mod.set_aspect('equal', adjustable='box', anchor='W')
-        cb = plt.colorbar(gci0, cmap=self.cmp, ax=self.ax_mod,\
+        divider = make_axes_locatable(self.ax_mod)
+        cax = divider.append_axes("right", size="2%", pad=0.2)
+        cax2 = divider.append_axes("top", size="2%", pad="10%")
+#        cb = plt.colorbar(gci0, cmap=self.cmp, ax=self.ax_mod,\
+        cb = plt.colorbar(gci0, cmap=self.cmp, cax=cax,\
                          format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
                          orientation='vertical',aspect=25, shrink=0.9,\
                          extend='both')
@@ -4211,6 +4285,9 @@ class Utilities:
         txt = self.ax_mod.text(xtxt,ytxt,"A",horizontalalignment="left",\
                                verticalalignment="bottom", fontsize=18)
         txt.set_bbox(dict(facecolor="white"))
+        cax2.text(0.5,0.5,self.plot_title, fontsize=24, fontweight="heavy",\
+                  ha="center",va="bottom")
+        cax2.axis('off')
 
 
         print("Final model plotted")
@@ -4344,14 +4421,6 @@ class Utilities:
             self.ax_tt.set_ylabel("Source positions [m]",fontsize=self.tick_size_sec)
             self.ax_tt.set_title("Measured travel times",fontsize=self.tick_size_sec+2)
             self.ax_tt.tick_params(axis='both', labelsize=self.tick_size_sec)
-            # xax_min, xax_max = self.ax_tt.get_xlim()
-            # yax_min, yax_max = self.ax_tt.get_ylim()
-            # ticks_x = self.window.set_ticks(xax_min, xax_max, ntick=5)
-            # ticks_y = self.window.set_ticks(yax_min, yax_max, ntick=5)
-            # self.ax_tt.set_xticks(self.ticks_x)
-            # self.ax_tt.set_yticks(self.ticks_x)
-            # print("ticks_x: ",ticks_x,yax_min, yax_max,self.ticks_x)
-            # print("ticks_y: ",ticks_y,yax_min, yax_max)
             ax_xmin, ax_xmax = self.ax_tt.get_xlim()
             ax_ymin, ax_ymax = self.ax_tt.get_ylim()
             xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
@@ -4397,8 +4466,8 @@ class Utilities:
 #    stored, if scales are changed, only the last version is stored.
 #            self.window.figs[ip].suptitle(self.plot_title, fontsize="xx-large",\
 #                                          fontweight="heavy")
-            self.figinv.suptitle(self.plot_title, fontsize="xx-large",\
-                                          fontweight="heavy")
+            # self.figinv.suptitle(self.plot_title, fontsize="xx-large",\
+            #                               fontweight="heavy")
 #        self.w_tomo.showMaximized()
         self.w_tomo.show()
         if code == 0:
@@ -4430,6 +4499,7 @@ class Utilities:
         elif code == 67:
             self.figinv.savefig(os.path.join(self.p_aim,\
                                 "inversion_results.png"))
+        code = 0
         self.traces.calc_picks = False
         self.traces.readCalcPicks()
 
@@ -4693,7 +4763,7 @@ class Utilities:
         Function searches for each trace the maximum of the envelopes of data
         plotted on the screen (you may use muting functions to focus surgically
         on certain phases). Amplitudes are multiplied by the absolute offset to
-        counteract geometric spreading. The, for each side of a shot point,
+        counteract geometric spreading. Then, for each side of a shot point,
         an exponential function is fitted to the amplitude evolution, if at least
         4 traces are available. If more than 6 traces exist on the corresponding
         side, two independent lines are fitted whose results may be interpreted
@@ -4760,7 +4830,6 @@ class Utilities:
                 slope_neg[:] = model.coef_.squeeze()
                 q_factor_neg = -1./slope_neg
                 r2_neg = model.score(-x[nx_neg].reshape(-1, 1), lamp[nx_neg].reshape(-1, 1))
-#                print("negative:",slope_neg[0],intercept_neg[0],r2_neg)
                 amp_calc[nx_neg] = np.exp(-x[nx_neg]*slope_neg[0]+intercept_neg[0])
                 lamp_calc[nx_neg] = intercept_neg[0]-x[nx_neg]*slope_neg[0]
                 plt_txt = f" neg: Q={q_factor_neg[0]:0.2f}, R2 = {r2_neg:0.3f}"
@@ -4841,6 +4910,239 @@ class Utilities:
             mode = "w"
         with open("Q.dat",mode) as fo:
             fo.write(f"{text}\n")
+
+    def pseudo(self):
+        """
+        Created on Wed Jun 28 08:23:09 2023
+        
+        @author: Hermann Zeyen
+        
+        Read pick file and plot average velocities for each pick and local
+        slownesses between picks
+        
+        """
+        from matplotlib.patches import Rectangle
+        import matplotlib.colors as colors
+        from matplotlib.gridspec import GridSpec
+        
+        # Define input parameters
+        # Folder where to find picks and geometry files
+        # If vsp=True, z-coordinates are used for midpoint calculation, else between x or y
+        #              the one having the largest extent
+        res, okBut = self.main.dialog(\
+                            ["Check if VSP configuration:\n  Z is main coordinate"],\
+                            ["c"],[None],"Check if VSP configuration")
+        if not okBut:
+            print("\nPeudo velocity plot abandoned\n")
+            return
+        vsp = False
+        if res[0] > -1:
+            vsp = True
+        title = self.main.title
+        # Distance between cdp points
+        dmid = abs(self.traces.xcdp[1]-self.traces.xcdp[0])
+        # Distance between geophones or shot points (the smallest of both)
+        if vsp:
+            doff = self.geom.dz_geo
+        else:
+            doff = self.geom.dx_geo
+        
+        rec_dict = self.geom.rec_dict
+        sht_dict = self.geom.sht_dict
+        if vsp:
+            direction = "z"
+            # xmn = self.geom.zmin
+            # xmx = self.geom.zmax
+        else:
+            direction = "x"
+            # xmn = self.geom.xmin
+            # xmx = self.geom.xmax
+
+        n_sht = len(sht_dict)
+        n_rec = len(rec_dict)
+        off_theo = np.zeros((n_sht,n_rec))
+        mid_theo = np.zeros((n_sht,n_rec))
+        for i,r in enumerate(rec_dict):
+            for j,s in enumerate(sht_dict):
+                dx = rec_dict[r]["x"] - sht_dict[s]["x"]
+                dy = rec_dict[r]["y"] - sht_dict[s]["y"]
+                dz = rec_dict[r]["z"] - sht_dict[s]["z"]
+                off_theo[j,i] = np.sqrt(dx*dx+dy*dy+dz*dz)
+                off_theo[j,i] = np.round(off_theo[j,i]/doff,0)*doff
+                mid_theo[j,i] = (rec_dict[r][direction] + sht_dict[s][direction])*0.5
+                mid_theo[j,i] = np.round(mid_theo[j,i]/dmid,0)*dmid
+        off_flat = off_theo.flatten()
+        mid_flat = mid_theo.flatten()
+        offsets = np.unique(off_flat)
+        
+        # For each offset calculate the distance between midpoints. E.g., if shotpoints
+        #     are located beside every second receiver, the paired shot points have
+        #     distance between midpoints = 2*receiver_distance, whereas for odd shot points,
+        #     the distance is equal to the one of the receivers
+        dx_mid = np.zeros(len(offsets))
+        for i,o in enumerate(offsets):
+            mid = np.unique(mid_flat[off_flat == 0.])
+            if len(mid > 1):
+                dx_mid[i] = abs(mid[1]-mid[0])
+            else:
+                dx_mid[i] = doff
+        
+        # Read pick file. pick_min_time and pick_max_time are not used
+        with open("picks.dat","r") as fh:
+            lines = fh.readlines()
+        pick_sht = []
+        pick_rec = []
+        pick_time = []
+        for l in lines:
+            line = l.split("\t")
+            if len(line)<2:
+                line = l.split(" ")
+            pick_sht.append(int(line[0])-1)
+            pick_rec.append(int(line[1])-1)
+            pick_time.append(float(line[2]))
+        pick_sht = np.array(pick_sht,dtype=int)
+        pick_rec = np.array(pick_rec,dtype=int)
+        pick_time = np.array(pick_time,dtype=float)
+        
+        # For each pick, calculate offset between shot and receiver and the midpoint position
+        pick_offset = np.zeros_like(pick_time)
+        pick_off_rd = np.zeros_like(pick_time)
+        pick_midpoint = np.zeros_like(pick_time)
+        pick_vel = np.zeros_like(pick_time)
+        for i in range(len(pick_sht)):
+            dx = rec_dict[pick_rec[i]]["x"] - sht_dict[pick_sht[i]]["x"]
+            dy = rec_dict[pick_rec[i]]["y"] - sht_dict[pick_sht[i]]["y"]
+            dz = rec_dict[pick_rec[i]]["z"] - sht_dict[pick_sht[i]]["z"]
+            pick_offset[i] = np.sqrt(dx*dx+dy*dy+dz*dz)
+            pick_midpoint[i] = (rec_dict[pick_rec[i]][direction]+\
+                                    sht_dict[pick_sht[i]][direction])/2
+        # Round offsets and midpoints to the values given at the beginning for doff and dmid
+            pick_off_rd[i] = round(pick_offset[i]/doff,0)*doff
+            pick_midpoint[i] = round(pick_midpoint[i]/dmid,0)*dmid
+        # Calculate average velocities for each pick. if time <= 0, exclude from calculation
+            if pick_time[i] <= 0:
+                pick_vel[i] = np.nan
+            else:
+                pick_vel[i] = pick_offset[i]/pick_time[i]
+         
+        # Set color scale
+        vmin = np.nanquantile(pick_vel,0.01)
+        vmax = np.nanquantile(pick_vel,0.99)
+        cmap = plt.get_cmap("rainbow")
+        norm = colors.Normalize(vmin,vmax)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        
+        # Start plot
+        self.w_pseudo = rP.newWindow("Pseudo-velocities")
+        self.fig_ps = self.w_pseudo.fig
+        self.fig_ps.set_figwidth(15)
+        self.fig_ps.set_figheight(13)
+        self.gs = GridSpec(15, 13, figure=self.fig_ps)
+        plt.tight_layout()
+# Axis for pseudo velocities
+        self.ax_pv = self.fig_ps.add_subplot(self.gs[:7, :])
+# Axis for local slownesses
+        self.ax_ls = self.fig_ps.add_subplot(self.gs[9:, :])
+        # For every offset and every pick define a rectangle with width dx_min and height doff
+        #     which is plotted with a color corresponding to the velocity
+        # For the plot, the offsets are divided by 3 so that the Y axis gives an approximate
+        #     idea of the depth
+        ax = self.ax_pv
+        for i,o in enumerate(offsets):
+            ipk = np.where(np.isclose(pick_off_rd,o))[0]
+            for j in ipk:
+                ax.add_patch(Rectangle((pick_midpoint[j]-dx_mid[i]*0.5,(o-doff*0.5)/3.),\
+                             dx_mid[i],doff,color=cmap(norm(pick_vel[j]))))
+        ax.set_xlim([pick_midpoint.min(),pick_midpoint.max()])
+        ax.set_ylim([pick_offset.max()/3.,pick_offset.min()/3.])
+        ax.set_title(title+" average velocities",fontsize=18)
+        ax.set_xlabel("midpoint position [m]",fontsize=14)
+        ax.set_ylabel("offset/3 [m]",fontsize=14)
+        ax.tick_params(labelsize=14)
+        cb = self.fig_ps.colorbar(sm, ax=ax)
+        cb.set_label(label = "average velocity [m/s]",size=14)
+        cb.ax.tick_params(labelsize=14)
+        ax_xmin, ax_xmax = ax.get_xlim()
+        ax_ymin, ax_ymax = ax.get_ylim()
+        ax.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_start,\
+                         horizontalalignment="left",\
+                         verticalalignment="bottom", fontsize=18)
+        ax.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_end,\
+                         horizontalalignment="right",\
+                         verticalalignment="bottom", fontsize=18)
+        xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+        ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+        _ = ax.text(xtxt,ytxt,"A",horizontalalignment="left",\
+                               verticalalignment="bottom", fontsize=18)
+        
+        # Plot local slowness
+        ax2 = self.ax_ls
+        shots = np.unique(pick_sht)
+        slow = []
+        # Do slowness calculation like centered finite differences time and offsets between
+        #    points i+1 and i-1
+        for i,s in enumerate(shots):
+            off = pick_offset[pick_sht==s]
+            mid = pick_midpoint[pick_sht==s]
+            t = pick_time[pick_sht==s]
+            for j in range(1,len(off)-1):
+                ddx = off[j+1]-off[j-1]
+                if np.isclose(ddx, 0.):
+                    slow.append(np.nan)
+                else:
+                    slow.append((t[j+1]-t[j-1])/ddx*1000.)
+                    if slow[-1] <= 0:
+                        slow[-1] = np.nan
+        slow = np.array(slow,dtype=float)
+        smin = max(np.nanquantile(slow,0.01),0.)
+        smax = np.nanquantile(slow,0.99)
+        cmap2 = plt.get_cmap("rainbow_r")
+        norm2 = colors.LogNorm(smin,smax)
+        #norm2 = colors.Normalize(smin,smax)
+        sm2 = plt.cm.ScalarMappable(cmap=cmap2, norm=norm2)
+        n = -1
+        # Loop over shot points. For every shotpoint search picks
+        for i,s in enumerate(shots):
+            off = pick_offset[pick_sht==s]
+            mid = pick_midpoint[pick_sht==s]
+            t = pick_time[pick_sht==s]
+        # For every offset and every pick define a rectangle with width dx_min and height doff
+        #     which is plotted with a color corresponding to the velocity
+        # For the plot, the offsets are divided by 3 so that the Y axis gives an approximate
+        #     idea of the depth
+            for j in range(1,len(off)-1):
+                n += 1
+                s = slow[n]
+                if np.isnan(s):
+                    continue
+                xx = mid[j]-doff*0.5
+                yy = ((off[j+1]+off[j-1]-doff)*0.5)/3.
+                ax2.add_patch(Rectangle((xx,yy),doff,doff,color=cmap2(norm2(s))))
+        ax2.set_xlim([pick_midpoint.min(),pick_midpoint.max()])
+        ax2.set_ylim([pick_offset.max()/3.,pick_offset.min()/3.])
+        ax2.set_title(title+" local slownesses",fontsize=18)
+        ax2.set_xlabel("midpoint position [m]",fontsize=14)
+        ax2.set_ylabel("offset/3 [m]",fontsize=14)
+        ax2.tick_params(labelsize=14)
+        cb2 = self.fig_ps.colorbar(sm2, ticks=[0.2,0.5,1.,2.,5.], format="%.1f")
+        cb2.set_label(label = "log10(local slowness [ms/m])", size=14)
+        cb2.ax.tick_params(labelsize=14)
+        ax_xmin, ax_xmax = ax2.get_xlim()
+        ax_ymin, ax_ymax = ax2.get_ylim()
+        ax2.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_start,\
+                         horizontalalignment="left",\
+                         verticalalignment="bottom", fontsize=18)
+        ax2.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_end,\
+                         horizontalalignment="right",\
+                         verticalalignment="bottom", fontsize=18)
+        xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
+        ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
+        _ = ax2.text(xtxt,ytxt,"B",horizontalalignment="left",\
+                               verticalalignment="bottom", fontsize=18)
+
+        self.w_pseudo.show()
+        # Store figure into png file
+        self.fig_ps.savefig("pseudo_section_slowness.png")
 
 
 #    atten_FFT_backup(self):

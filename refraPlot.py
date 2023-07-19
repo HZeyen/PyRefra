@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Mon June 12, 2023
+last modified on Wed July 12, 2023
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -23,6 +23,8 @@ Contains the following functions:
     tGain
     dGain
     AGC
+    agcCalc
+    phasePlot
     traceMute
         on Press
     muteAir
@@ -36,7 +38,6 @@ Contains the following functions:
     zoomOut
     zoomIn
     zoomIni
-    agcCalc
     seismogram
     plotRG
     plotReceiver
@@ -89,8 +90,7 @@ import numpy as np
 from matplotlib.figure import Figure
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.uic import loadUiType
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel,\
-     QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QVBoxLayout, QWidget
 import copy
 from matplotlib.backends.backend_qt5agg import(
         FigureCanvasQTAgg as FigureCanvas,
@@ -117,6 +117,9 @@ class Window(QMainWindow, Ui_MainWindow):
         self.fig_plotted = 0
         self.amp_plt = 1
         self.gain = "tnorm"
+        self.phase_plot = False
+        if len(self.geom.types) > 0:
+            self.phaseAngles.setEnabled(True)
         self.general_sign = self.data.general_sign
         self.n_zooms = 0
         self.i_zooms = -1
@@ -138,6 +141,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.rxmin = self.traces.off_min*1
         self.sxmax = self.traces.off_max*1
         self.sxmin = self.traces.off_min*1
+        self.shift = 0.1
         self.time = self.data.t0 + self.data.dt*np.arange(self.data.nsamp)
         self.addZoom(self.sxmin, self.sxmax, 0, self.nt_mx-1)
 # Set texts printed at bottom of sceen as help for different actions
@@ -192,7 +196,7 @@ class Window(QMainWindow, Ui_MainWindow):
                        "on file in right window; Press C to change color "+\
                        "scale and maximum plotted depth"
         self.cpick_text = "Correlation picking: Do one first manual pick on "+\
-                       "good trace"
+                       "good trace; Right click = cancel"
         self.falseCol_text = "Chose up to 3 indicators for false colour plot"
         self.animate_text = "Animation of spatial wave image. To return to "+\
                        "seismograms click on file in right window"
@@ -370,7 +374,7 @@ class Window(QMainWindow, Ui_MainWindow):
             return
         self.plotComponent = labels[int(results[0])]
         print(f"Plot {self.plotComponent}-component")
-        self.v_set = True
+        self.v_set = False
         self.drawNew(True)
 
     def original(self):
@@ -570,7 +574,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.Agc.setChecked(True)
             self.drawNew(True)
             self.setHelp(self.main_text) # Change help text to self module
-
+    
     def agcCalc(self,data,n_agc_win):
         """
         Calculate AGC gain for one trace
@@ -597,6 +601,107 @@ class Window(QMainWindow, Ui_MainWindow):
             if m > 0:
                 data[j] = data[j]/m
         return data
+    
+    def phasePlot(self):
+        if self.phase_plot:
+            self.phase_plot = False
+        else:
+            self.phase_plot = True
+
+    def phaseCalc(self):
+        """
+        Plot of phase angles for multi-component data
+
+        Returns
+        -------
+        None.
+
+        """
+        import scipy.signal
+        traces = np.array(self.actual_traces)[self.tr]
+        shots = self.traces.shot[traces]
+        receivers = self.traces.receiver[traces]
+        xx = self.x_ori[self.tr]
+        xr,xr_ind = np.unique(xx, return_index=True)
+        sr = np.vstack((shots,receivers)).T[xr_ind]
+        trac = np.array(traces)[xr_ind]
+        xx = []
+        v = []
+        for i in range(len(trac)):
+            sht = sr[i,0]
+            rec = sr[i,1]
+            pos = self.geom.rec_dict[rec]["unique"]
+            traces = []
+            components = []
+            for j,t in enumerate(self.geom.pos_dict[pos]["rec"]):
+                if t in receivers:
+                    traces.append(t)
+                    components.append(self.geom.pos_dict[pos]["comp"][j])
+            traces = np.array(traces, dtype=int)
+            ntr = len(traces)
+            if ntr < 2:
+                continue
+            if ntr == 2:
+                t1 = self.traces.sht_rec_dict[(sht,traces[0])]
+                t2 = self.traces.sht_rec_dict[(sht,traces[1])]
+                f1 = self.traces.file[t1]
+                f2 = self.traces.file[t2]
+                tf1 = self.traces.trace[t1]
+                tf2 = self.traces.trace[t2]
+                v1 = self.data.st[f1][tf1].data
+                v2 = self.data.st[f2][tf2].data
+                v1 = np.abs(scipy.signal.hilbert(v1))
+                v2 = np.abs(scipy.signal.hilbert(v2))
+                if components[0] == "Z" or components[0] == "V":
+                    ang = np.arctan(v1/v2)
+#                    ang = v2/v1
+                else:
+                    ang = np.arctan(v2/v1)
+#                    ang = v1/v2
+                # amin = np.quantile(ang,0.01)
+                # amax = np.quantile(ang,0.99)
+                # ang = np.clip(ang,amin,amax)
+                xx.append(xr[i])
+                v.append(list(ang))
+            else:
+                t1 = self.traces.sht_rec_dict[(sht,traces[0])]
+                t2 = self.traces.sht_rec_dict[(sht,traces[1])]
+                t3 = self.traces.sht_rec_dict[(sht,traces[2])]
+                f1 = self.traces.file[t1]
+                f2 = self.traces.file[t2]
+                f3 = self.traces.file[t3]
+                tf1 = self.traces.trace[t1]
+                tf2 = self.traces.trace[t2]
+                tf3 = self.traces.trace[t3]
+                if components[0] == "Z" or components[0] == "V":
+                    v1 = self.data.st[f1][tf1].data
+                    v2 = self.data.st[f2][tf2].data
+                    v3 = self.data.st[f3][tf3].data
+                elif components[1] == "Z" or components[1] == "V":
+                    v1 = self.data.st[f2][tf2].data
+                    v2 = self.data.st[f1][tf1].data
+                    v3 = self.data.st[f3][tf3].data
+                else:
+                    v1 = self.data.st[f3][tf3].data
+                    v2 = self.data.st[f1][tf1].data
+                    v3 = self.data.st[f2][tf3].data
+                v1 = np.abs(scipy.signal.hilbert(v1))
+                v2 = np.abs(scipy.signal.hilbert(v2))
+                v3 = np.abs(scipy.signal.hilbert(v3))
+                a = v2+v3
+                ang = np.arctan(v1/a)
+#                ang =a/v1
+                # amin = np.quantile(ang,0.01)
+                # amax = np.quantile(ang,0.99)
+                # ang = np.clip(ang,amin,amax)
+                xx.append(xr[i])
+                v.append(list(ang))
+                ang = np.arctan(v3/v2)
+                xx.append(xr[i])
+                v.append(list(ang))
+        xx = np.array(xx)
+        v = np.array(v)
+        return xx,v
 
     def traceMute(self,QselfWindow):
         """
@@ -809,7 +914,7 @@ class Window(QMainWindow, Ui_MainWindow):
         def onPress(event):
             if event.button == 1:
                 self.searchTrace(event.xdata)
-                self.traces.amplitudes[self.n_tr] *= -1
+                self.traces.amplitudes[self.itrace] *= -1
                 self.v[self.n_tr,:] *= -1
                 print("trace ", self.n_tr, " changed sign")
                 self.setHelp(self.trace_sign_text) # Rewrite help text
@@ -861,6 +966,9 @@ class Window(QMainWindow, Ui_MainWindow):
         zm = False
         self.setHelp(self.zoom_text) # Change help text
         self.followRect() # Pull a rectangle over the window to define area to be plotted
+        if len(self.coor_x) == 0:
+            self.coor_x.append(None)
+            self.coor_y.append(None)
         if self.coor_x[0] is None or self.coor_x[1] is None or\
             self.coor_y[0] is None or self.coor_y[1] is None:
             print("\nZoom coordinates not correctly detected. Zoom not executed")
@@ -940,6 +1048,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.zooms[self.i_zooms][:] = [self.sxmin, self.sxmax, self.nt_mn, self.nt_mx]
             self.plotFile(self.axes[self.fig_plotted],self.fig_plotted)
         else:
+            if self.phase_plot:
+                self.v_set = False
             self.sxmin = xmi
             self.sxmax = xma
             self.i_zooms += 1
@@ -1027,7 +1137,7 @@ class Window(QMainWindow, Ui_MainWindow):
         try:
             self.actual_axis = ax
             t = time[nt_min:nt_max]
-            dx = abs(x_pos[1]-x_pos[0])*2.
+#            dx = abs(x_pos[1]-x_pos[0])*2.
             ntrace = len(x_pos)
             if ntrace == 0:
                 _ = QtWidgets.QMessageBox.warning(None,"Warning",\
@@ -1037,12 +1147,14 @@ class Window(QMainWindow, Ui_MainWindow):
             nsamp = len(t)
             if nt_max == 0:
                 nt_max = nsamp
-            if traces == None or len(traces) == 0:
+            if np.array(traces).any() == None or len(traces) == 0:
                 traces = np.arange(ntrace,dtype='int')
             else:
                 traces = np.array(traces,dtype='int')
             xmin = x_pos[traces].min()
             xmax = x_pos[traces].max()
+            nt = len(x_pos[traces])-1
+            dx = (xmax-xmin)/(nt-1)
             self.x_zoom_min = xmin
             self.x_zoom_max = xmax
             self.t_zoom_min = nt_min*self.data.dt+self.data.t0
@@ -1156,6 +1268,7 @@ class Window(QMainWindow, Ui_MainWindow):
     def plotReceiver(self,ax,irec):
         self.time = self.data.t0+np.arange(int(self.data.nsamp))*self.data.dt
         self.x = []
+        self.x_ori = []
         self.tr = []
         self.stdev = []
 # Search traces having been recorded by receiver irec
@@ -1181,12 +1294,13 @@ class Window(QMainWindow, Ui_MainWindow):
             self.traces.plotted[ntr] = True
             xx = -self.traces.offset[ntr]
             self.x.append(xx)
+            self.x_ori.append(xx)
 # If a trace exists already at the actual position, shift the first one by -0.2m,
 #    the second one by +0.2m so they may be distinguished on the screen
             if j > 0:
                 if self.x[-1] == self.x[-2]:
-                    self.x[-1] += 0.2
-                    self.x[-2] -= 0.2
+                    self.x[-1] += self.shift
+                    self.x[-2] -= self.shift
             self.actual_number_traces += 1
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
@@ -1206,11 +1320,15 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.v_norm[j,:] = 0.
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
-            if (self.x[-1] >= self.zooms[self.i_zooms][0]-0.2 and\
-                self.x[-1] <= self.zooms[self.i_zooms][1]+0.2)\
+            if (self.x[-1] >= self.zooms[self.i_zooms][0]-self.shift and\
+                self.x[-1] <= self.zooms[self.i_zooms][1]+self.shift)\
                 or self.i_zooms == 0:
                 self.tr.append(i)
         self.x = np.array(self.x)
+        self.x_ori = np.array(self.x_ori)
+        n_traces = len(self.x)
+        self.v = self.v[:n_traces,:]
+        self.v_norm = self.v_norm[:n_traces,:]
         self.actual_number_traces += 1
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
@@ -1319,6 +1437,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.actual_number_traces = 0
         nrecplt = len(xx)
         self.x = []
+        self.x_ori = []
         self.tr = []
         self.stdev=[]
 # Loop over all traces of the distance gather
@@ -1330,6 +1449,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 j -= 1
                 continue
             self.x.append(xx[i])
+            self.x_ori.append(xx[i])
             self.actual_traces.append(traces[i])
             self.traces.plotted[traces[i]] = True
             self.actual_number_traces += 1
@@ -1338,15 +1458,19 @@ class Window(QMainWindow, Ui_MainWindow):
 #    so they may be distinguished on the screen
             if j > 0:
                 if self.x[-1] == self.x[-2]:
-                    self.x[-1] += 0.2
-                    self.x[-2] -= 0.2
+                    self.x[-1] += self.shift
+                    self.x[-2] -= self.shift
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
-            if (self.x[-1] >= self.zooms[self.i_zooms][0]-0.2 and\
-                self.x[-1] <= self.zooms[self.i_zooms][1]+0.2)\
+            if (self.x[-1] >= self.zooms[self.i_zooms][0]-self.shift and\
+                self.x[-1] <= self.zooms[self.i_zooms][1]+self.shift)\
                 or self.i_zooms == 0:
                     self.tr.append(j)
         self.x = np.array(self.x)
+        self.x_ori = np.array(self.x_ori)
+        n_traces = len(self.x)
+        self.v = self.v[:n_traces,:]
+        self.v_norm = self.v_norm[:n_traces,:]
         ns = self.data.nsamp
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
@@ -1457,6 +1581,7 @@ class Window(QMainWindow, Ui_MainWindow):
         if ntraces == 0:
             return
         self.x = []
+        self.x_ori = []
         self.tr = []
         self.actual_traces = []
         self.traces.plotted[:] = False
@@ -1473,7 +1598,7 @@ class Window(QMainWindow, Ui_MainWindow):
             ifile = self.traces.sht_pt_dict[sh]["file"][i]
             irec = self.traces.sht_pt_dict[sh]["receiver"][i]
             ntr = self.traces.sht_rec_dict[(sh,irec)]
-            if self.traces.component[irec] != self.plotComponent and \
+            if self.traces.component[ntr] != self.plotComponent and \
                 self.plotComponent != "All":
                 j -= 1
                 continue
@@ -1482,12 +1607,13 @@ class Window(QMainWindow, Ui_MainWindow):
             self.actual_number_traces += 1
             xx = self.traces.offset[ntr]
             self.x.append(xx)
+            self.x_ori.append(xx)
 # If a trace exists already at the actual position, shift the first one by -0.2m,
 #    the second one by +0.2m so they may be distinguished on the screen
             if j > 0:
                 if self.x[-1] == self.x[-2]:
-                    self.x[-1] += 0.2
-                    self.x[-2] -= 0.2
+                    self.x[-1] += self.shift
+                    self.x[-2] -= self.shift
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
             if self.v_set != True:
@@ -1504,11 +1630,15 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.v_norm[j,:] = 0.
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
-            if (self.x[-1] >= self.zooms[self.i_zooms][0]-0.2 and\
-                self.x[-1] <= self.zooms[self.i_zooms][1]+0.2)\
+            if (self.x[-1] >= self.zooms[self.i_zooms][0]-self.shift and\
+                self.x[-1] <= self.zooms[self.i_zooms][1]+self.shift)\
                 or self.i_zooms == 0:
                 self.tr.append(j)
         self.x = np.array(self.x)
+        self.x_ori = np.array(self.x_ori)
+        n_traces = len(self.x)
+        self.v = self.v[:n_traces,:]
+        self.v_norm = self.v_norm[:n_traces,:]
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
@@ -1517,12 +1647,21 @@ class Window(QMainWindow, Ui_MainWindow):
         else:
             text_t = ""
         text_t += f"Shot point {sh+1}"
-        if self.plotComponent != "All":
-            text_t += f"; {self.plotComponent}-component"
-        self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
-                        amp=self.amp_plt, traces=self.tr,\
-                        nt_min=self.nt_mn, nt_max=self.nt_mx,\
-                        text_x="Offset [m]", text_t=text_t)
+        if self.phase_plot:
+            xx,vv = self.phaseCalc()
+            text_t += ", Inclination/declination"
+            tt = np.arange(len(xx))
+            self.seismogram(ax, self.data.time, xx, vv, fill=True,\
+                            amp=self.amp_plt, traces = tt,\
+                            nt_min=self.nt_mn, nt_max=self.nt_mx,\
+                            text_x="Offset [m]", text_t=text_t)
+        else:
+            if self.plotComponent != "All":
+                text_t += f"; {self.plotComponent}-component"
+            self.seismogram(ax, self.data.time, self.x, self.v, fill=True,\
+                            amp=self.amp_plt, traces=self.tr,\
+                            nt_min=self.nt_mn, nt_max=self.nt_mx,\
+                            text_x="Offset [m]", text_t=text_t)
 # The following lines are only for testing purpose, to show potential picks from
 # false colour plots
         # try:
@@ -1584,6 +1723,7 @@ class Window(QMainWindow, Ui_MainWindow):
 
     def plotFile(self,ax,isht):
         self.x = []
+        self.x_ori = []
         self.tr = []
         self.actual_traces = []
         self.traces.plotted[:] = False
@@ -1611,6 +1751,13 @@ class Window(QMainWindow, Ui_MainWindow):
             self.actual_number_traces += 1
             xx = self.traces.offset[t]
             self.x.append(xx)
+            self.x_ori.append(xx)
+# If a trace exists already at the actual position, shift the first one by -0.2m,
+#    the second one by +0.2m so they may be distinguished on the screen
+            if j > 0:
+                if self.x[-1] == self.x[-2]:
+                    self.x[-1] += self.shift
+                    self.x[-2] -= self.shift
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
             if self.v_set != True:
@@ -1627,10 +1774,18 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.v_norm[j,:] = 0.
 # If trace position is within the zoom limits, include it in list of traces to
 #    be plotted (self.tr)
-            if (xx>=self.zooms[self.i_zooms][0] and xx<=self.zooms[self.i_zooms][1])\
+            if (self.x[-1] >= self.zooms[self.i_zooms][0]-self.shift and\
+                self.x[-1] <= self.zooms[self.i_zooms][1]+self.shift)\
                 or self.i_zooms == 0:
                 self.tr.append(j)
+            # if (xx>=self.zooms[self.i_zooms][0] and xx<=self.zooms[self.i_zooms][1])\
+            #     or self.i_zooms == 0:
+            #     self.tr.append(j)
         self.x = np.array(self.x)
+        self.x_ori = np.array(self.x_ori)
+        n_traces = len(self.x)
+        self.v = self.v[:n_traces,:]
+        self.v_norm = self.v_norm[:n_traces,:]
         self.indices = np.argsort(self.x)
         self.stdev = np.array(self.stdev)
 # Seismogram does the plotting
@@ -1752,6 +1907,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
             self.Tomography.setEnabled(True)
+            self.Pseudo_velocity.setEnabled(True)
         else:
             pass
 
@@ -2054,6 +2210,7 @@ class Window(QMainWindow, Ui_MainWindow):
         while (self.end != True):
             QtCore.QCoreApplication.processEvents()
         self.setHelp(self.main_text)
+        self.traces.storePicks()
 
     def movePick(self, sign):
         """
@@ -2148,6 +2305,7 @@ class Window(QMainWindow, Ui_MainWindow):
         while (self.end != True):
             QtCore.QCoreApplication.processEvents()
         self.setHelp(self.main_text)
+        self.traces.storePicks()
 
     def changeUnc(self,sign):
         """
@@ -2358,6 +2516,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.traces.npick[ipt] = 0
         self.drawNew(True)
         self.setHelp(self.main_text)
+        self.traces.storePicks()
 
     def pickManual(self):
         """
@@ -2550,10 +2709,10 @@ class Window(QMainWindow, Ui_MainWindow):
             number of samples to be summed on each side of sample point to
             calculate an approximation of derivative
 
-        For all samples n0-nwin <= i <= n0+nwin, the difference of the sum of
-        values v[i:i+nav] and v[i-nav:i] is calculated, giving a sort of first
-        derivative. Then the position is searched where the difference of
-        successive differences is maximum.
+        For all samples n0-nwin <= i <= n0+nwin, the difference of the average
+        slopes of values v[i:i+nav] and v[i-nav:i] is calculated, giving the first
+        derivatives. Then the position is searched where the difference of
+        successive first derivatives is maximum.
 
         Returns
         -------
@@ -2576,14 +2735,14 @@ class Window(QMainWindow, Ui_MainWindow):
             y2 = v[ii:ii+nav+1]
 #            dif.append(np.sum(v[ii:ii+nav])-np.sum(v[ii-nav:ii]))
             a1 = max((n*np.dot(x,y1)-sx*np.sum(y1))/(sxx-sx2),0.)
-            a2 = (n*np.dot(x,y2)-sx*np.sum(y2))/(sxx-sx2)
-            if v[ii] < 0.:
-                a2 = a1
+            a2 = max((n*np.dot(x,y2)-sx*np.sum(y2))/(sxx-sx2),0.)
+            # if v[ii] < 0.:
+            #     a2 = a1
             dif.append(a2-a1)
         im = np.array(im, dtype=int)
         dif = np.array(dif)
-        dif = dif[1:]-dif[:-1]
-        di = im[np.argmax(dif)+1]
+#        dif = dif[1:]-dif[:-1]
+        di = im[np.argmax(dif)]
         return di
 
 
@@ -2686,6 +2845,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 mapo,mava,mip,miva = \
                     self.main.utilities.min_max(self.v[trace_ref,n_pick_ref:],\
                                                 half_width=10)
+# half_width is distance of next maximum from pickes position in number of samples
                 half_width = max(mapo[0],10)
                 print(f"Half-width: {half_width}")
                 n_ref1 = 0
@@ -2762,7 +2922,8 @@ class Window(QMainWindow, Ui_MainWindow):
                             i_max_pos = np.argmax(cor)
                             dm = i_max_pos-n_ref+1+n_sam1-n_ref1
                         dm += self.findNearest2ndDerivative(self.v[i,:],\
-                                    nt_ref+dm, int(0.003/self.data.dt), 8)
+                                    nt_ref+dm, int(half_width/2), 20)
+#                                    nt_ref+dm, int(0.003/self.data.dt), 20)
                         n_act = n_pick_ref+dm
                         self.traces.pick_times[trace].\
                             append(time_ref+dm*self.data.dt)
@@ -2833,7 +2994,9 @@ class Window(QMainWindow, Ui_MainWindow):
                             i_max_pos = np.argmax(cor)
                             dm = i_max_pos-n_ref+1+n_sam1-n_ref1
                         dm += self.findNearest2ndDerivative(self.v[i,:],\
-                                    nt_ref+dm, int(0.003/self.data.dt), 8)
+                                    nt_ref+dm, int(half_width/2), 20)
+#                                    nt_ref+dm, int(0.003/self.data.dt), 20)
+                            
                         n_act = n_pick_ref+dm
                         self.traces.pick_times[trace].\
                             append(time_ref+dm*self.data.dt)
@@ -2844,6 +3007,12 @@ class Window(QMainWindow, Ui_MainWindow):
                             append(self.traces.pick_times[trace][-1]+umin)
 # When all traces inside the zoom have been treated, leave the function
                 self.end = True
+# if any other than left button was pressed, cancel correlation picking
+            else:
+                print("\nCorrelation picking cancelled")
+                self.setHelp(self.main_text)
+                return False
+                
 
 # Start function
 
@@ -2886,6 +3055,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.axes[self.fig_plotted].draw(renderer)
             self.canvas.blit(self.axes[self.fig_plotted].bbox)
         self.setHelp(self.main_text)
+        self.traces.storePicks()
 
     def Sta_Lta(self):
         """
@@ -2967,6 +3137,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.Tomography.setEnabled(True)
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
+            self.traces.storePicks()
 
     def ampPick(self,data,istart=0,iend=0,half_width=7):
         """
@@ -3321,8 +3492,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.Tomography.setEnabled(True)
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
-
-
+            self.traces.storePicks()
 
     def followRect(self):
         """
@@ -3620,7 +3790,6 @@ class Window(QMainWindow, Ui_MainWindow):
         yy = np.zeros_like(xpk,dtype='float')
         sig_best = 1E20
         i_best = -1
-        i_best_sig = 2
 
     # If n_lines==1 calculate the best fitting line through all points
         if n_lines == 1 or n_unique<4:

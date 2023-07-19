@@ -96,6 +96,7 @@
     <addaction name="receiverGather"/>
     <addaction name="distanceGather"/>
     <addaction name="component"/>
+    <addaction name="phaseAngles"/>
     <addaction name="separator"/>
     <addaction name="zoom"/>
     <addaction name="zoom_Out"/>
@@ -122,6 +123,7 @@
     <addaction name="Change_colors"/>
     <addaction name="Animation"/>
     <addaction name="Attenuation"/>
+    <addaction name="Pseudo_velocity"/>
    </widget>
    <widget class="QMenu" name="Picking">
     <property name="title">
@@ -705,6 +707,34 @@
    </property>
    <property name="shortcut">
     <string>G</string>
+   </property>
+  </action>
+  <action name="Pseudo_velocity">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Pseudo-velocities</string>
+   </property>
+   <property name="toolTip">
+    <string>Plot pseudo-velocity profile</string>
+   </property>
+   <property name="shortcut">
+    <string>V</string>
+   </property>
+  </action>
+  <action name="phaseAngles">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Phase-angles</string>
+   </property>
+   <property name="toolTip">
+    <string>Phase-angles for 2C or 3C data</string>
    </property>
   </action>
  </widget>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Thu May 04, 2023
+last modified on Wed July 19, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -64,13 +64,12 @@ import os
 #  sys_path is the folder where all python program files are located
 #  dir0 is the folder where the data are located
 
-# Paths on HZ computerall_freq_filter
+# Paths on HZ computer
 sys_path = r"E:/Sources_2010/Python_programs"
-#dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-#dir0 = r"G:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1/Blocs_shifted"
-dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
-#dir0 = r"G:/Seg2Dat/Pierre-Perthuis/Sismique_2019"
-#dir0 = r"G:/Seg2Dat/Fontaines-Salees/2022/L3_Ligne1"
+dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
+#dir0 = r"E:/Seg2Dat/Siscarb/Falaise"
+#dir0 = r"E:/Seg2Dat/Barbeau"
 
 # Example of paths for programs and data on department desktop
 # sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"
@@ -80,11 +79,9 @@ dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
 #dir0 = r"C:/Users/marsj/Desktop/Leo/Line2"
 
-
 #Example of paths for Linux
 # sys_path = r"/home/zeyen/src/Python"
 # dir0 = r"/home/zeyen/Seismics/Fontaines_salees/2021-10-17_Profil5"
-
 
 if sys_path not in sys.path:
     sys.path.append(sys_path)
@@ -139,7 +136,7 @@ class Main(QtWidgets.QWidget):
         self.window.Save_headers.triggered.connect(self.data.saveHeader) # In refraData.py
         self.window.Save_plot.triggered.connect(self.window.savePlot) # In refraPlot.py
         self.window.quitAction.triggered.connect(self.closeApp) # In PyRefra.py
-# Actions for menu Plot
+# Actions for menu Display
         self.window.originalDataScreen.triggered.connect(self.window.originalScreen) # In refraPlot.py
         self.window.originalDataAll.triggered.connect(self.window.original) # In refraPlot.py
         self.window.shotGather.triggered.connect(self.window.plotSG) # In refraPlot.py
@@ -147,6 +144,7 @@ class Main(QtWidgets.QWidget):
         self.window.receiverGather.triggered.connect(self.window.plotRG) # refraPlot.py
         self.window.distanceGather.triggered.connect(self.window.plotDG) # refraPlot.py
         self.window.component.triggered.connect(self.window.chooseComponent) # refraPlot.py
+        self.window.phaseAngles.triggered.connect(self.window.phasePlot) # In refraPlot.py
         self.window.zoom.triggered.connect(self.window.zooming) # In refraPlot.py
         self.window.zoom_Out.triggered.connect(self.window.zoomOut) # In refraPlot.py
         self.window.zoom_In.triggered.connect(self.window.zoomIn) # In refraPlot.py
@@ -166,6 +164,7 @@ class Main(QtWidgets.QWidget):
         self.window.Change_colors.triggered.connect(self.utilities.invCol) # In refraData.py
         self.window.Animation.triggered.connect(self.window.animateLine) # In PyRefra.py
         self.window.Attenuation.triggered.connect(self.utilities.atten_amp) # In refraData.py
+        self.window.Pseudo_velocity.triggered.connect(self.utilities.pseudo) # In refraData.py
 # Actions for menu Picking
         self.window.ManualPicks.triggered.connect(self.window.pickManual) # In refraPlot.py
         self.window.AmpPicks.triggered.connect(self.window.ampPicks) # In refraPlot.py
@@ -218,6 +217,7 @@ class Main(QtWidgets.QWidget):
         None.
 
         """
+        from PyQt5.QtGui import QWindow
         if (event.type() == QtCore.QEvent.KeyRelease and obj is self.window):
 # In main function, only "+" and "-" keys have a meaning, changing amplitude
             if self.function == "main":
@@ -298,7 +298,18 @@ class Main(QtWidgets.QWidget):
             elif self.function == "vfilt":
                 if self.window.verticalSlider.isVisible() and event.key() == 16777220:
                     self.window.verticalSlider.setVisible(False)
-        return super(Main, self).eventFilter(obj, event)
+# Check whether the letter C has been types in tomography result window
+#       No idea why, but after typing C the first time, the event gets associated to
+#       2 types of objects, rP.newWindow and PyQt5.QtGui.QWindow and the dialogue
+#       window appears again after plotting the tomography results with the new
+#       settings. Only when the object type is QWindow, the event should be
+#       accepted.
+# This works as long as only one key is pressed (so, do not press SHFT+C), just "c"
+        elif event.type() == QtCore.QEvent.KeyRelease and self.function == "inver":
+            if type(obj) is QWindow:
+                if event.key() == 67 or event.key() == 16777248:
+                    self.utilities.invCol()
+        return QtWidgets.QWidget.eventFilter(self, obj, event)
 
     def fileOpen(self):
         """
@@ -321,6 +332,7 @@ class Main(QtWidgets.QWidget):
                         "S","SSW","SW","WSW","W","WNW","NW","NNW"], dtype=str)
         if os.path.exists("PyRefra.config"):
             with open("PyRefra.config","r") as fo:
+                self.dir_flag = True
                 self.title = fo.readline().split("\n")[0]
                 print(f"Title: {self.title}")
                 self.dir_start = fo.readline().split("\n")[0]
@@ -414,8 +426,8 @@ class Main(QtWidgets.QWidget):
 
         Returns
         -------
-        results : list of bool
-            Response of each data entrance field. Should transformed to the
+        results : list of str
+            Response of each data entrance field. Should be transformed to the
             needed data format (int, float...) in the calling function
     		For radiobuttons, the returned value indicates the number of the
     		active button (counting starts at 0). For checkboxes, the returned
@@ -478,7 +490,8 @@ class Main(QtWidgets.QWidget):
                         if self.traces.amplitudes[i] != self.window.general_sign:
                             a = self.traces.amplitudes[i]*\
                                 self.window.general_sign
-                            fh.write(f"{i+1} {a:0.0f} 1\n")
+                            rec = self.traces.receiver[i]
+                            fh.write(f"{rec} {a:0.0f}\n")
             print("application finished")
             if self.utilities.w_tau:
                 self.utilities.w_tau.close()

@@ -58,3 +58,12 @@ If during interactive data treatment with program PyRefra.py amplitudes are chan
 
 PyRefra.py checks in the beginning if one or both of these files exist and if needed applies corrections in the data structure: ipos, ir_start and ir_step are used to change shot-point and receiver-point numbers in the headers, dt, fact and interp are directly applied to the corresponding trace data; if dt is not zero, the following procedure is applied: if dt is negative, `(-dt/sample-interval)` samples are taken away at the beginning of the traces and the same number of samples is added at the end with zero values. If dt is positive, `(dt/sample-interval)` samples are added at the beginning with zero values and the same number of samples is taken away at the end of the traces. In this way, the traces maintain their initial length in number of samples.
 
+
+## PyRefra.config
+Another optional file, **PyRefra.config**, may contain two text lines used for plot titles:
+- title (used as title for most windows)
+- direction contains the geographic direction of the beginning of the profile, may be one of
+  		[S, SSW, SW, WSW, W, WNW, NW, NNW, N, NNE, NE, ENE, E, ESE, SE or SSE]
+		The corresponding direction of the end of the profile is then determined automatically. So, if you enter e.g. SW for the beginning of the line, this means that the line runs in SW -> NE direction.
+  
+If this file does not exist at the beginning of a run, a dialogue box is opened asking for this information. The values are then stored in a newly created file PyRefra.config which will be used automatically the next time PyRefra is started.

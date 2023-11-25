@@ -25,7 +25,8 @@ This opens a command window. Then type the following commands:
     4. `conda activate pg`
     5. `conda install obspy`
     6. `conda install statsmodels`
-    7. `conda update –all`  (just to be sure to have the latest versions)
+    7. `conda install scikit-learn`
+    8. `conda update -–all`  (just to be sure to have the latest versions)
 
     I had sometimes problems with Conda blocking or installing only parts. In this case, after `conda update --all`, continue with
 

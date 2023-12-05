@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Fri July 14, 2023
+last modified on Mon Nov 06, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -147,35 +147,40 @@ class Files():
             else:
                 ff = f
             l = ff.rfind(".")
-# get file number
-            try:
-# Default file names from Summit2 instruments are PrefixNNNNN.sg2
-# Default file names from Summit X1 instruments are PrefixNNNNN.seg2
-# Prefix is set by user during data acquisition
-                self.prefix = ff[0:l-5]
-                num = int(ff[l-5:l])
-            except:
-# If not Summit files suppose that the file numbers are given just before the dot
-# if by default, this is not the case, the file names should be changed before
-# using refraPy.py or corresponding files are ignored.
-                num = -1
-                for ipos in range(l-1):
-                    try:
-                        num = abs(int(ff[ipos:l]))
-                        break
-                    except:
-                        continue
-                if num < 0:
-                    answer = QtWidgets.QMessageBox.warning(None,"Warning",\
-                         f"File {ff} does not have standard numbering\n "+\
-                         "Ignore this file or stop program and correct\n",\
-                        QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Close,\
-                        QtWidgets.QMessageBox.Close)
-                    if answer == QtWidgets.QMessageBox.Close:
-                        raise Exception("Wrong file name")
-                        sys.exit()
-                    else:
-                        continue
+# # get file number
+#             try:
+# # Default file names from Summit2 instruments are PrefixNNNNN.sg2
+# # Default file names from Summit X1 instruments are PrefixNNNNN.seg2
+# # Prefix is set by user during data acquisition
+#                 self.prefix = ff[0:l-5]
+#                 num = int(ff[l-5:l])
+#             except:
+# # If not Summit files suppose that the file numbers are given just before the dot
+# # if by default, this is not the case, the file names should be changed before
+# # using refraPy.py or corresponding files are ignored.
+            num = -1
+            for ipos in range(l-1):
+                try:
+                    num = abs(int(ff[ipos:l]))
+                    break
+                except:
+                    continue
+            if num < 0:
+                answer = QtWidgets.QMessageBox.warning(None,"Warning",\
+                     f"File {ff} does not have standard numbering\n "+\
+                     "Ignore this file or stop program and correct\n",\
+                    QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Close,\
+                    QtWidgets.QMessageBox.Close)
+                if answer == QtWidgets.QMessageBox.Close:
+                    raise Exception("Wrong file name")
+                    sys.exit()
+                else:
+                    continue
+            else:
+                if ipos == 0:
+                    self.prefix = ""
+                else:
+                    self.prefix = ff[:ipos]
             self.numbers.append(num)
             self.names.append(ff)
             self.file_dict[nfil] = {'name' : ff}
@@ -199,7 +204,15 @@ class Data():
         for nf,ff in enumerate(files.names):
             try:
                 if files.file_type == "seg2":
-                    self.st.append(seg2._read_seg2(ff))
+                    try:
+                        self.st.append(seg2._read_seg2(ff))
+                    except:
+                        _ = QtWidgets.QMessageBox.critical(None, "Error",
+                                 f"Error reading data file {ff}\n\nHas Obspy bug "+\
+                                  "'NOTE' been corrected?\n"\
+                                  "   (see installation manual)\n\n Program stops",
+                                 QtWidgets.QMessageBox.Ok)
+                        raise Exception("Data file error")
                 else:
                     self.st.append(_read_segy(ff, unpack_trace_headers=True))
 # If SEGY files have been read, create seg2 header dictionary and integrate
@@ -1253,6 +1266,7 @@ class Geometry():
         d = {}
         try:
             for i in range(n_rec):
+                if lines[i] == "\n": continue
                 line = lines[i].split("\t")
                 if len(line)<2:
                     line = line.split(" ")
@@ -1269,10 +1283,16 @@ class Geometry():
                 else:
                     d[i_rec]["type"] = "Z"
         except:
-            _ = QtWidgets.QMessageBox.critical(None, "Error",
-                     f"Error reading file {filename}.\n"+\
-                     "Must have 4 or 5 columns: nr, X, Y, Z [,component]\n\n"+\
-                     "Program stops", QtWidgets.QMessageBox.Ok)
+            if filename == "shots.geo":
+                _ = QtWidgets.QMessageBox.critical(None, "Error",
+                         f"Error reading file {filename}.\n"+\
+                         "Must have 4 columns: nr, X, Y, Z\n\n"+\
+                         "Program stops", QtWidgets.QMessageBox.Ok)
+            else:
+                _ = QtWidgets.QMessageBox.critical(None, "Error",
+                         f"Error reading file {filename}.\n"+\
+                         "Must have 4 or 5 columns: nr, X, Y, Z [component]\n\n"+\
+                         "Program stops", QtWidgets.QMessageBox.Ok)
             raise Exception(f"File {filename} wrong format.\n")
         return d
 
@@ -2099,16 +2119,22 @@ class Utilities:
         ax.tick_params(axis='both', labelsize=18)
         self.w_tau.show()
 
-    def pModel(self):
+    def pModel(self, model="P"):
         """
 
         Function determines line slopes and intercept times to calculate
         velocities and interface depths
+        
+        Input:
+            model: str, optional
+            may be "P" for P-wave model (default) or "S" for S-wave model
+            Used only for contructing the name of the output file 
 
         """
+        if not model: model = "P"
         if self.window.dg_flag:
             print("Measuring velocities makes no sense in a distance gather")
-            print("P_Model canceled")
+            print(f"{model}_Model canceled")
             return
         self.main.function = "P_model"
         self.window.setHelp(self.window.p_model_text)
@@ -2131,15 +2157,17 @@ class Utilities:
             background = figure.canvas.copy_from_bbox(figure.bbox) # copy background picture
             self.window.followLine(True,n_lay_l,n_lay_r)
             if len(self.window.coor_x) <= 0:
-                print("P-wave model cancelled")
+                print(f"{model}-wave model cancelled")
                 return
             x[0] = self.window.coor_x[0]
             x[1] = self.window.coor_x[1]
             t[0] = self.window.coor_y[0]
             t[1] = self.window.coor_y[1]
 # Make sure plotted lines stay within zoomed window
-            xmn = self.window.zooms[self.window.i_zooms][0]
-            xmx = self.window.zooms[self.window.i_zooms][1]
+            # xmn = self.window.zooms[self.window.i_zooms][0]
+            # xmx = self.window.zooms[self.window.i_zooms][1]
+            xmn = self.window.x.min()
+            xmx = self.window.x.max()
             nmn = self.window.zooms[self.window.i_zooms][2]
             nmx = self.window.zooms[self.window.i_zooms][3]
             tmn = nmn*self.main.data.dt+self.main.data.t0
@@ -2287,15 +2315,15 @@ class Utilities:
                 if self.window.rg_flag:
                     fname = "receiver_"+\
                         f"{self.traces.receiver[self.window.actual_traces[0]]+1:0>5}_"+\
-                        f"{d1}_{c_time}.1Dmod"
+                        f"{d1}_{c_time}.1D{model}"
                 elif self.window.sg_flag:
                     fname = "shot_point_"+\
                         f"{self.traces.shot[self.window.actual_traces[0]]+1:0>5}_"+\
-                        f"{d1}_{c_time}.1Dmod"
+                        f"{d1}_{c_time}.1D{model}"
                 elif self.window.fg_flag:
                     fname = "file_"+\
                         f"{self.files.numbers[self.window.fig_plotted]:0>5}_"+\
-                        f"{d1}_{c_time}.1Dmod"
+                        f"{d1}_{c_time}.1D{model}"
                 with open(fname,"w") as fo:
                     if n_lay_l > 0:
                         fo.write("Negative direction:\n")
@@ -2316,6 +2344,15 @@ class Utilities:
                                      f"{self.thick_r[i]:0.2f} "+\
                                      f"{self.tints_r[i]:0.4f}\n")
         self.window.setHelp(self.window.main_text)
+
+    def sModel(self):
+        """
+
+        Function determines line slopes and intercept times to calculate
+        velocities and interface depths
+        
+        """
+        self.pModel("S")
 
     def envel(self):
         """
@@ -2730,7 +2767,7 @@ class Utilities:
         if ck_results[7]:
             txt += ";  white: av. acor, yellow: av. trace"
         ax.set_xlabel("Distance[m]", fontsize=18)
-        ax.set_ylabel("Time [s]]", fontsize=18)
+        ax.set_ylabel("Time [s]", fontsize=18)
         if self.window.sg_flag:
             sht = self.traces.shot[self.window.actual_traces[0]]
             ax.set_title(f"shot {sht+1}: {txt}", fontsize=20)
@@ -3164,6 +3201,7 @@ class Utilities:
             tr1 = trace_filt
             tr2 = tr1+1
         tr_filt = self.main.window.actual_traces[tr1:tr2]
+        flag = False
         if plot_flag:
             flag = self.spectrum(tr1,tr2)
             if flag:
@@ -3848,11 +3886,14 @@ class Utilities:
             return
 
         self.main.function = "inver"
-        def vel_scale(self, ncol=128):
-                self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
-                          ['violet','darkgreen','darkgreen','cyan','blue',\
-                           'mediumseagreen','lightseagreen','lime','yellow',\
-                           'yellow','gold','orange','orangered','red'],N=ncol)
+        def vel_scale(self, ncol=128, scale="special"):
+                if "special" in scale:
+                    self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
+                              ['violet','darkgreen','darkgreen','cyan','blue',\
+                               'mediumseagreen','lightseagreen','lime','yellow',\
+                               'yellow','gold','orange','orangered','red'],N=ncol)
+                else:
+                    self.cmp = plt.get_cmap(scale)
                 self.cmp.set_under('pink')
                 self.cmp.set_over('darkred')
                 self.colors = self.cmp(np.linspace(0, 1, ncol))
@@ -3886,6 +3927,7 @@ class Utilities:
             self.xax_max = max(gx_max,sx_max)
             self.plot_title = self.main.title
 # Call dialog window for input of a number of inversion control parameters
+            self.model_colors = ["Special (cyan=1500)","rainbow","viridis","seismic"]
             results, okButton = self.main.dialog(\
                     ["Maximum depth (m, positive down)",\
                      "Initial smoothing parameter (<0: optimize)",\
@@ -3896,13 +3938,15 @@ class Utilities:
                      "Initial velocity at bottom [m/s]",\
                      "Minimum allowed velocity [m/s]",\
                      "Maximum allowed velocity [m/s]",\
-                     "\nAny negative color scale entry: linear scale\n"+\
-                     " both positive: special velocity scale (1500=cyan)",\
+                     "\nIf min or max is 0, the corresponding limit\n"+\
+                     " of the color scale is calculated automatically\n",\
                      "Velocity color scale min [m/s]",\
                      "Velocity color scale max [m/s]",\
+                     "Type of color scale:",\
+                     self.model_colors,\
                      "Plot rays on final model"],\
-                    ["e","e","e","e","e","e","e","e","e","l","e","e","c"],\
-                    [self.zmax,200,0.8,0.2,0,200,4000,150,6000,None,'200','6000',-1],\
+                    ["e","e","e","e","e","e","e","e","e","l","e","e","l","b","c"],\
+                    [self.zmax,200,0.8,0.2,0,200,4000,150,6000,None,'200','6000',None,None,-1],\
                      "Inversion parameters")
 
             if not okButton:
@@ -3936,7 +3980,9 @@ class Utilities:
             except:
                 self.v_scale_min = 150
                 self.v_scale_max = 6000
-            if int(results[12]) > -1:
+            color_scale = self.model_colors[int(results[13])]
+            if "Special" in color_scale: color_scale = "special"
+            if int(results[14]) > -1:
                 self.rays_flag = True
             else:
                 self.rays_flag = False
@@ -4053,49 +4099,68 @@ class Utilities:
 #    and/or maximum plotted depth
         elif code == 67:
             res, okBut = self.main.dialog(\
-                               ["Any negative color scale entry: linear scale\n"+\
-                                " both positive: special velocity scale",\
+                               ["If min or max is 0, the corresponding limit\n"+\
+                               " of the color scale is calculated automatically\n",\
                                 "Velocity color scale min [m/s]",\
                                  "Velocity color scale max [m/s]",\
+                                 "Type of color scale:",\
+                                 self.model_colors,\
                                  "Maximum depth [m]",\
                                  "Plot rays on final model"],\
-                                ["l","e","e","e","c"],\
-                                [None,self.v_scale_min,self.v_scale_max,self.zmax_plt,\
+                                ["l","e","e","l","b","e","c"],\
+                                [None,self.v_scale_min,self.v_scale_max,None,0,self.zmax_plt,\
                                 None],"Change color scale")
             if okBut == False:
                 return
-            self.zmax_plt = float(res[3])
+            self.zmax_plt = float(res[5])
             try:
                 self.v_scale_min = float(res[1])
                 self.v_scale_max = float(res[2])
             except:
                 self.v_scale_min = 150
                 self.v_scale_max = 6000
-            if int(res[4]) > -1:
+            color_scale = self.model_colors[int(res[4])]
+            if "Special" in color_scale: color_scale = "special"
+            if int(res[6]) > -1:
                 self.rays_flag = True
             else:
                 self.rays_flag = False
 # If color scales are negative (default in first dialog box), they are set
 #    to the quantiles rounded to the next 100 m/s
         ncol = 128
-        ncol1 = 128
-        if self.v_scale_min < 0:
+#        ncol1 = 128
+        if color_scale == "special":
+            lin_scale = False
+        else:
+            lin_scale = True
+        if self.v_scale_min <= 0:
             self.v_scale_min = max(self.q1_start,self.q1_end)
             self.v_scale_min = np.round(self.v_scale_min/100,0)*100
-            ncol1 = 0
-        if self.v_scale_max < 0:
+#            ncol1 = 0
+        if self.v_scale_max <= 0:
             self.v_scale_max = max(self.q2_start,self.q2_end)
             self.v_scale_max = np.round(self.v_scale_max/100,0)*100
-            ncol1 = 0
+#            ncol1 = 0
+        if self.v_scale_max < 1600 and color_scale=="special":
+            _ = QtWidgets.QMessageBox.warning(None,"Warning",\
+                "Maximum velocity < 1600\nColor scale changed to rainbow"+\
+                "Once the plot is finished, you may press 'C' to change color scale",
+                QtWidgets.QMessageBox.Close)
+            lin_scale = True
+            color_scale = "rainbow"
 # Define color scale and colors for values above and below extreme scale values
-        vel_scale(self, ncol=ncol)
-        if ncol1 > 0:
-            ncyan = int(ncol/16*4)
-            self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
-            self.levels += list(np.linspace(1501,self.v_scale_max,ncol-ncyan))
+        vel_scale(self, ncol=ncol, scale=color_scale)
+        if lin_scale:
+            self.levels = np.linspace(self.v_scale_min,self.v_scale_max,128)
         else:
-            self.levels = list(np.linspace(self.v_scale_min,self.v_scale_max,128))
-        self.levels = np.array(self.levels)
+#            if ncol1 > 0:
+            if color_scale == "special":
+                ncyan = int(ncol/16*4)
+                self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
+                self.levels += list(np.linspace(1501,self.v_scale_max,ncol-ncyan))
+            else:
+                self.levels = list(np.linspace(self.v_scale_min,self.v_scale_max,128))
+            self.levels = np.array(self.levels)
 
 # Define grid for different partial figures
         if code == 0:

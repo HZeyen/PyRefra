@@ -113,6 +113,7 @@
      <string>Utilities</string>
     </property>
     <addaction name="PModel"/>
+    <addaction name="SModel"/>
     <addaction name="Tomography"/>
     <addaction name="Envelopes"/>
     <addaction name="TauP"/>
@@ -262,7 +263,7 @@
     <string>P_Model</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+P</string>
+    <string>Alt+P</string>
    </property>
   </action>
   <action name="StaLta">
@@ -590,6 +591,9 @@
    </property>
   </action>
   <action name="Envelopes">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Envelopes</string>
    </property>
@@ -681,7 +685,7 @@
     <string>Plot all picks</string>
    </property>
    <property name="shortcut">
-    <string>Alt+P</string>
+    <string>Ctrl+P</string>
    </property>
   </action>
   <action name="Save_headers">
@@ -735,6 +739,14 @@
    </property>
    <property name="toolTip">
     <string>Phase-angles for 2C or 3C data</string>
+   </property>
+  </action>
+  <action name="SModel">
+   <property name="text">
+    <string>S-model</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+S</string>
    </property>
   </action>
  </widget>

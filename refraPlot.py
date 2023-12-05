@@ -1136,6 +1136,8 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         try:
             self.actual_axis = ax
+            if nt_max == 0:
+                nt_max = len(time)
             t = time[nt_min:nt_max]
 #            dx = abs(x_pos[1]-x_pos[0])*2.
             ntrace = len(x_pos)
@@ -2791,7 +2793,7 @@ class Window(QMainWindow, Ui_MainWindow):
         -------
         None.
 
-        """
+        """        
         self.main.function = "cpick"
         global figure,r_flag
         self.setHelp(self.cpick_text)
@@ -2843,10 +2845,10 @@ class Window(QMainWindow, Ui_MainWindow):
 # maximum to be searched (the full width corresponds thus approximately to
 # half a wavelenght of the signal)
                 mapo,mava,mip,miva = \
-                    self.main.utilities.min_max(self.v[trace_ref,n_pick_ref:],\
-                                                half_width=10)
-# half_width is distance of next maximum from pickes position in number of samples
-                half_width = max(mapo[0],10)
+                    self.main.utilities.min_max(self.v[trace_ref,n_pick_ref-5:],\
+                                                half_width=5)
+# half_width is distance of next maximum from picks position in number of samples
+                half_width = max(mapo[1]-5,10)
                 print(f"Half-width: {half_width}")
                 n_ref1 = 0
                 nd = int(np.round(t_half/self.data.dt,0))
@@ -2921,9 +2923,11 @@ class Window(QMainWindow, Ui_MainWindow):
 # If not, use absolute maximum
                             i_max_pos = np.argmax(cor)
                             dm = i_max_pos-n_ref+1+n_sam1-n_ref1
+                        dm1 = dm*1.
                         dm += self.findNearest2ndDerivative(self.v[i,:],\
                                     nt_ref+dm, int(half_width/2), 20)
 #                                    nt_ref+dm, int(0.003/self.data.dt), 20)
+                        print(f"trace {i}: dm1: {dm1}, dm: {dm}")
                         n_act = n_pick_ref+dm
                         self.traces.pick_times[trace].\
                             append(time_ref+dm*self.data.dt)
@@ -4009,7 +4013,7 @@ class Window(QMainWindow, Ui_MainWindow):
 #        self.drawNew(False)
 #        fig = self.figs[self.fig_plotted]
 #        ax = self.axes[self.fig_plotted]
-        self.w_anim = newWindow("TauP")
+        self.w_anim = newWindow("Animated wave")
         fig = self.w_anim.fig
         ax = fig.subplots()
         ax.set_xlim(self.x.min(),self.x.max())
@@ -4031,10 +4035,102 @@ class Window(QMainWindow, Ui_MainWindow):
             fig.canvas.flush_events()
         plt.ioff()
 
+    def virtualReafra(self):
+        import refraPlot as rP
+### Test for Supervirtual refraction interferometry
+        self.fig_corr = rP.newWindow("Supervirtual traces")
+        ax_corr = self.fig_corr.fig.subplots()
+#                plt.tight_layout()
+        rec1 = 10
+        rec2 = 11
+        dmin = 5
+        dmax = 50
+        t_half = 0.01
+        nt = 0
+        x = []
+        for key in self.traces.sht_pt_dict:
+            recs = np.array(self.traces.sht_pt_dict[key]["receiver"])
+            if rec1 in recs and rec2 in recs:
+                i1 = np.where(rec1==recs)[0][0]
+                i2 = np.where(rec2==recs)[0][0]
+                tr1 = self.traces.sht_rec_dict[(key,i1)]
+                tr2 = self.traces.sht_rec_dict[(key,i2)]
+                file1 = self.traces.file[tr1]
+                file2 = self.traces.file[tr2]
+                rec1 = self.traces.trace[tr1]
+                rec2 = self.traces.trace[tr2]
+                off1 = self.traces.offset[tr1]
+                off1_a = abs(off1)
+                off2 = self.traces.offset[tr2]
+                off2_a = abs(off2)
+                if off1_a<dmin or off1_a>dmax or off2_a<dmin or off2_a>dmax:
+                    continue
+                if self.traces.npick[tr1] > 0:
+                    n_ref = (self.traces.pick_times[tr1]-self.data.t0)/self.data.dt
+                    d = self.data.st[file1][rec1][n_ref-5:]
+                    mapo,mava,mip,miva = \
+                        self.main.utilities.min_max(d,half_width=5)
+# half_width is distance of next maximum from picks position in number of samples
+                    half_width = max(mapo[2]-5,10)
+#                    print(f"Half-width: {half_width}")
+                    n_ref1 = 0
+                    nd = int(np.round(half_width/self.data.dt,0))
+                    n_ref1 = max(0,n_ref-nd)
+                    n_max = self.v.shape[1]
+                    n_ref2 = min(n_ref+nd,n_max)
+                elif self.traces.npick[tr2] > 0:
+                    n_ref = (self.traces.pick_times[tr1]-self.data.t0)/self.data.dt
+                    d = self.data.st[file1][rec1][n_ref-5:]
+                    mapo,mava,mip,miva = \
+                        self.main.utilities.min_max(d,half_width=5)
+# half_width is distance of next maximum from picks position in number of samples
+                    half_width = max(mapo[2]-5,10)
+#                    print(f"Half-width: {half_width}")
+                    n_ref1 = 0
+                    nd = int(np.round(half_width/self.data.dt,0))
+                    n_ref1 = max(0,n_ref-nd)
+                    n_max = self.v.shape[1]
+                    n_ref2 = min(n_ref+nd,n_max)
+                else:
+                    continue
+                x.append(off1)
+                d1 = self.data.st[file1][rec1][n_ref1:n_ref2]
+                d2 = self.data.st[file2][rec2][n_ref1:n_ref2]
+                print(f"Shot {key}, i1,i2: ({i1},{i2}), traces: ({tr1},{tr2})")
+                print(f"Trace 1 :({self.traces.file[tr1]}/{self.traces.trace[tr1]}) "+\
+                      f"Trace 2 :({self.traces.file[tr2]}/{self.traces.trace[tr2]}); offset: {off1:0.1f}")
+                if nt == 0:
+                    v = np.correlate(d2,d1,'full')
+                    v /= np.std(v)
+                    if off1 < 0.:
+                        v = np.flip(v)
+                else:
+                    v = np.vstack((v, np.correlate(d2,d1,'full')))
+                    v[-1,:] /= np.std(v[-1,:])
+                    if off1 < 0.:
+                        v[-1,:] = np.flip(v[-1,:])
+                nt += 1
+                print("v.shape:", v.shape)
+        dx = 10.
+        x.append(max(x)+dx)
+        x = np.array(x)
+        v = np.vstack((v,np.mean(v,axis=0)))
+        n2 = len(d1)
+        n1 = -n2+1
+        t = np.arange(n1,n2)*self.data.dt
+        self.seismogram(ax_corr,t,x,v,text_x="offset [m]",text_y="delay time [s]",\
+                        text_t="virtual traces",amp=1., fill=True)
+        self.fig_corr.show()
+        return
+                
+
+        
+        
+
 class newWindow(QWidget):
     """
     This "window" is a QWidget. If it has no parent, it
-    will appear as a free-floating window as we want.
+    will appear as a free-floating window.
     """
     def __init__(self,title):
         super().__init__()

@@ -70,6 +70,8 @@ dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
 #dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
 #dir0 = r"E:/Seg2Dat/Siscarb/Falaise"
 #dir0 = r"E:/Seg2Dat/Barbeau"
+#dir0 = r"E:/Seg2Dat/Erreurs"
+#dir0 = r"E:/Seg2Dat/Beaufremont"
 
 # Example of paths for programs and data on department desktop
 # sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"
@@ -155,6 +157,7 @@ class Main(QtWidgets.QWidget):
         self.window.Agc.triggered.connect(self.window.AGC) # In refraPlot.py
 # Actions for menu Utilities
         self.window.PModel.triggered.connect(self.utilities.pModel) # In refraData.py
+        self.window.SModel.triggered.connect(self.utilities.sModel) # In refraData.py
         self.window.Tomography.triggered.connect(self.utilities.inversion) # In refraData.py
         self.window.Envelopes.triggered.connect(self.utilities.envel) # In refraData.py
         self.window.TauP.triggered.connect(self.utilities.tauP) # In refraData.py
@@ -193,6 +196,7 @@ class Main(QtWidgets.QWidget):
         self.window.fig_dict = {} #Prepare dictionary for data sets to be plotted
 
         self.window.mplfigs.itemClicked.connect(self.window.changeFig) # Allow for changing of data set to be plotted
+        # self.window.Envelopes.setEnabled(True)
 
 # Intercept CTL-C to exit in a controlled way
         signal(SIGINT, self.Handler)
@@ -420,7 +424,7 @@ class Main(QtWidgets.QWidget):
                 should be the number (natural numbering, starting at 1, not at 0)
                 of the radiobutton to be activated by default.
                 For labels, it may be "b" (bold text), "i" (italic) or anything
-                else, including None for standard text
+                else, including None for standard text. Not used for combo box
         title : str, default: "Title"
             Title of the dialog box.
 
@@ -541,6 +545,7 @@ class Dialog(QtWidgets.QWidget):
                             'c' for checkbox
                             'e' for LineEdit (to enter values)
                             'r' for radiobutton
+                            'b' for combobox (dropdown menu)
                             may be capital or not
         values (list, string, float or int): initial values for LineEdit fields,
                             number of radiobutton activated by default.
@@ -648,6 +653,8 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb[i].stateChanged.connect(self.checked)
                 ilin += 1
             elif types[i].lower() == 'b':
+                self.dlabels.append(None)
+                self.dlines.append(None)
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
@@ -656,6 +663,7 @@ class Dialog(QtWidgets.QWidget):
                     self.combo[i].addItem(l)
                 ilin += 1
                 self.mainLayout.addWidget(self.combo[i], ilin, 0, 1, 1)
+                il_add += 1
         ilin += 2
         il = ilin + il_add
         self.mainLayout.addWidget(self.YesBtn, il, 0)

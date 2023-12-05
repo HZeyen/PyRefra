@@ -158,7 +158,7 @@ When the model is finished, it is written to a file in the data folder with the 
 The resulting models are not further used in the inversion process. They are mainly meant for teaching purpose to allow students to get a rapid idea of the velocity structure and its lateral variability below a profile.
 
 
-**$\textcolor{violet}{\text{S_Model}}$** (keyboard shortcut: **ALT-S**):
+**$\textcolor{violet}{\text{S Model}}$** (keyboard shortcut: **ALT-S**):
 Same as P_Model only that the model is considered to be an S-wave velocity model. The results are stored in a file named prefix_number_data_time.1DS. See P_Model for more explanations
 
 
@@ -324,7 +324,10 @@ Click left and draw multiple line segments. The last segment is finished with ri
 
 ### **$\textcolor{red}{\text{Known bugs}}$**:
 - 	Sometimes, the progress bar gets stuck, although the program continues working (this is always the case if you go to another window while the progress bar is working). Look for messages in the command window or in Spyder to see the real advancement. Anyhow, if possible (two screens) leave the command window visible to see if some error has occurred if program seems to be stuck.
+ 
 - 	Sometimes, when doing manual picking, existing nearby picks are not shown.
+  
 - 	Sometimes the help line is written on top of the main window instead of at the bottom.
+  
 - 	Sometimes, the zoom is not behaving correctly. Go back to earlier zoom (CTRL+Z) and try again, it will work.
 

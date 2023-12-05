@@ -323,8 +323,8 @@ Click left and draw multiple line segments. The last segment is finished with ri
 Click left and draw multiple line segments. The last segment is finished with right click (i.e. the right click defines one more point).  Data after the traced line are eliminated for each trace from the nearest zero-crossing on. Traces that are not crossed by the line (at the right or left side of the screen will not be muted!
 
 ### **$\textcolor{red}{\text{Known bugs}}$**:
-•	Sometimes, the progress bar gets stuck, although the program continues working (this is always the case if you go to another window while the progress bar is working). Look for messages in the command window or in Spyder to see the real advancement. Anyhow, if possible (two screens) leave the command window visible to see if some error has occurred if program seems to be stuck.
-•	Sometimes, when doing manual picking, existing nearby picks are not shown.
-•	Sometimes the help line is written on top of the main window instead of at the bottom.
-•	Sometimes, the zoom is not behaving correctly. Go back to earlier zoom (CTRL+Z) and try again, it will work.
+- 	Sometimes, the progress bar gets stuck, although the program continues working (this is always the case if you go to another window while the progress bar is working). Look for messages in the command window or in Spyder to see the real advancement. Anyhow, if possible (two screens) leave the command window visible to see if some error has occurred if program seems to be stuck.
+- 	Sometimes, when doing manual picking, existing nearby picks are not shown.
+- 	Sometimes the help line is written on top of the main window instead of at the bottom.
+- 	Sometimes, the zoom is not behaving correctly. Go back to earlier zoom (CTRL+Z) and try again, it will work.
 

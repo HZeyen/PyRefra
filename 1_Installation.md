@@ -33,6 +33,8 @@ This opens a command window. Then type the following commands:
          ii. `conda install mamba`    
         iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels scikit-learn`
     In this case, do **not** go to pg and update --all, this may destroy the environment.
+
+   **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
         
 5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
     + In the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)

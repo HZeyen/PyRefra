@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Wed July 19, 2023
+last modified on Tue Dec 05, 2023
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -67,6 +67,11 @@ import os
 # Paths on HZ computer
 sys_path = r"E:/Sources_2010/Python_programs"
 dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line2"
+#dir0 = r"E:/Seg2Dat/Siscarb/Falaise"
+#dir0 = r"E:/Seg2Dat/Barbeau"
+#dir0 = r"E:/Seg2Dat/Erreurs"
+#dir0 = r"E:/Seg2Dat/Beaufremont"
 
 # Example of paths for programs and data on department desktop
 # sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"

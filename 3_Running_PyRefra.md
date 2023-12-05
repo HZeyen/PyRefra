@@ -141,19 +141,29 @@ Apply an Automatic Gain Control (traces are in addition trace normalized). A dia
 
 ### **$\textcolor{red}{\text{Utilities Menu}}$**
 
-**$\textcolor{violet}{\text{P Model}}$** (keyboard shortcut: **CTRL-P**): 
+**$\textcolor{violet}{\text{P Model}}$** (keyboard shortcut: **ALT-P**): 
 Allows to construct a 1D velocity model by tracing a series of straight lines across the record section.
 
 To trace a line, press left mouse button and pull the line. Releasing the mouse button is accepting the line.
+
+ATTENTION: The first mouse click determines on which side of a shot point you want to draw the line. It is not allowed to cross the zero-offset. This is even valid if the shot point is on one end of the line. In this case, do not make the first click outside of the seismogram section (negative side if the shot poit is at the left, positive side if it is at the right.
 
 The first straight line on each side of the shot point is considered to be the direct wave and is forced to pass through the origin. For all further lines, the position where the mouse is clicked is one point of the line, the position where the mouse is released is the second point.
 
 When releasing the mouse, a dialog window opens which allows you to accept the line and trace the next one, to accept it and finish the model or to redo the line. In addition, when clicking on “Show details”, the velocity, and intercept times are given as well as the depth to the layer limit (refractor) and the thickness of the layer above the refractor.
 The lines plotted will disappear when a new plot is called (right window or different gather). A new call to P_Model creates a new model, starting with the direct wave.
-When the model is finished, it is written to a file in the data folder with the following name structure: prefix_number_data_time.1Dmod where prefix may be “shot_point”, “receiver_point” or “file” depending on the type of gather used (it is supposed that the routine is not used when a distance gather is shown).
+
+When the model is finished, it is written to a file in the data folder with the following name structure: prefix_number_data_time.1DP where prefix may be “shot_point”, “receiver_point” or “file” depending on the type of gather used (it is supposed that the routine is not used when a distance gather is shown).
+
+The resulting models are not further used in the inversion process. They are mainly meant for teaching purpose to allow students to get a rapid idea of the velocity structure and its lateral variability below a profile.
+
+
+**$\textcolor{violet}{\text{S_Model}}$** (keyboard shortcut: **ALT-S**):
+Same as P_Model only that the model is considered to be an S-wave velocity model. The results are stored in a file named prefix_number_data_time.1DS. See P_Model for more explanations
+
 
 **$\textcolor{violet}{\text{Tomography}}$** (keyboard shortcut: **T**): 
-This tool is only activated if measured travel times exist. It uses **Pygimli** to invert travel times into a tomography model.
+This tool is only activated if measured travel times exist. It uses **Pygimli** to invert travel times into a tomography model. If Pygimli has not been installed, the option will never be activated.
 On call, a dialog box is opened asking for:
 - Maximum depth of the model [m]: The default value is calculated as 1/3 of the maximum available offset
 - Initial smoothing parameter: The bigger the value, the smoother will be the model. This will be a parameter to play with, doing different inversions with different smoothing
@@ -163,18 +173,25 @@ On call, a dialog box is opened asking for:
 - Initial and final velocities: Ray tracing needs an initial model with a vertical gradient. This initial model is defined by these two values. **TODO**: allow for a refined starting model.
 - Minimum and maximum allowed velocities: Pygimli allows to limit search space of model velocities. Give here the desired extreme velocities. **TODO**: Understand working of Pygimli: Even if very large upper velocity limit is given, pygimli limits the velocity model to a range of values much narrower than given. Only if the parameter “limits=[vmin,vmax]” is not at all used, velocities seem to be completely free. Therefore, if both given velocities are zero, the program makes a call to mgr.invert without using key word "limits".
 - velocity color scale min and max: If you do inversions for different profiles, it may be interesting to have the same color scale for all. In this case, you may give the values of the minimum and maximum velocities appearing in the color bar.
+  If min or max are =0, the corresponding limits of the color scale are calculated automatically using the 1% and 99% percentiles of the obtained velocities.
+- 	Type of color scale: The user may choose between different color scales. A special color scale has been created which plots the 1500 m/s velocity by cyan color, in order to highlight an approximate upper limit of the fully saturated zone.
 - Plot title: The default title is the one given in file PyRefra.config (see "Data preparation"). You may change it to any text. Appears only at main title of the inversion results plot.
 
 At the end of the inversion, the resulting model is shown in the upper 60% of the screen. Below, smaller sub-windows show the initial model, the rays of the final model with the “coverage” (i.e., a measure of resolution), the measured travel times as function of shot point position and receiver point position, the misfits in a similar plot calculated as “calculated times minus measured times” and finally, a plot showing average misfits for the different shot points and the different receiver points. This last plot allows you to verify if there are problems with certain shots or receivers.
 This plot is stored in a png file, together with other inversion results such as velocity model, misfits, rays of final model and chi²-evolution in a folder created automatically by Pygimli named ./date-time (where the “.” is the data folder; date and time of folder creation).
 If you are not happy with the colour scale or you want to change the maximum plotted depth, you may press “c” or “C” (but not “SHFT+c”) to call a now dialogue window asking for this information. See also below “Change colors tomo”.
-The program offers writing output files for use in SOFI2D software (https://git.scc.kit.edu/GPIAG-Software/SOFI2D): model files for P-waves, S-waves and densities (see function prepareSOFI for more information), receivers and shots in SOFI format as well as Jason-format control file for SOFI2D.
+The program offers writing output files for use in SOFI2D software (https://git.scc.kit.edu/GPIAG-Software/SOFI2D): model files for P-waves, S-waves and densities (see function prepareSOFI for more information), receivers and shots in SOFI format as well as Jason-format control file for SOFI2D. If the user does not work with SOFI2D, one should simply click on Cancel.
 To leave this plot, close the window or simply go back to the main screen. To show the plot again, press "C" again.
+
+**$\textcolor{violet}{\text{Envelopes}}$** (keyboard shortcut: **E**):
+Tool calculates and shows Envelope of all traces. For the moment, only the plot is shown. Option exists only for testing purposes, therefore this option is inactive, but may be activated in one of two ways: by editing the file refraWindow.ui, e.g., using QtDesigner, or, by uncommenting the line “self.window.Envelopes.setEnabled(True)” near the end of the __init__ of class Main (file PyRefra.py). The results for all traces of the treated shot point are stored in file envNNNNN.asc (NNNNN is the shot point number) the contents of which should be self-explaining.
 
 **$\textcolor{violet}{\text{Tau-P}}$** (keyboard shortcut: **CTRL-T**): 
 Tool calculates and shows Tau-P analysis. For the moment, only the plot is shown. If you want to save it, use $\textcolor{violet}{\text{File -> Save plot}}$. **TODO** use obspy function for this.
 
 **$\textcolor{violet}{\text{False colour}}$** (keyboard shortcut: **SHFT-F**): 
+**ATTENTION:** This option is purely experimental and is not meant for use in data treatment! The idea behind is to find out whether certain combinations of indicators would allow a better automatic picking. If you are interested to pursue this possibility, you are invited to add further options in function “falseColour” located in file refraData.py
+
 Possibility to plot 1 to 3 different indicators that may help for picking. This tool is for the moment only meant for display, to analyse data visually. Possible indicators are: Instant frequency, envelope, 2nd derivative of envelope, 2nd derivative of data, Sta-Lta transform, Akaike Information Criterium (AIC), max-min relation and autocorrelation. Max-min relation plots the relative amplitude difference between a maximum and its following minimum on the one hand and the same maximum and its preceding minimum on the other hand. Autocorrelation is usually plotted on its own since the time scale has no relation with the other options. On top of the autocorrelation, two traces are plotted: white is the average autocorrelation, yellow the average trace obtained from averaging the frequency spectra.
 
 A dialog box will open where you may check the desired indicators (1, 2 or 3 out of the 8 possibilities). The first indicator you click on will determine the red channel, the second one the green channel and the third one the blue channel. This implies also that if only one indicator is chosen, the plot will be between black and red. If 2 are chosen, colour may change between black, red, green, and yellow (no blue). If picks have been measured for the analysed gather, they are plotted on top of the false colour plot. In addition, a magenta line is plotted indicating evolution of maxima of the combined indicators (maximum brightness, Pythagoras of color values), as well as a white line which represents an optimum fit of the positions of the maxima via two straight lines. The maxima are possible picks, the straight lines indicate a possible two-layer velocity model. These lines are though not always meaningful.
@@ -194,6 +211,8 @@ Plots animation of wave evolution in time along the geophone line actually on th
 
 **$\textcolor{violet}{\text{Attenuation}}$** (keyboard shortcut: **Q**): 
 Function searches for each trace the maximum of the envelopes of data plotted on the screen (you may use muting functions to focus surgically on certain phases). Amplitudes are multiplied by the absolute offset to counteract geometric spreading. Then, for each side of a shot point, an exponential function is fitted to the amplitude evolution, if at least 4 traces are available. If more than 6 traces exist on the corresponding side, two independent lines are fitted whose results may be interpreted as attenuation near the surface and deeper down. A plot is presented with the fitted logarithm of the amplitudes and the amplitude fit itself. Instead of slope, a Q value is indicated (-1/slope) as well as a r² value for the ensemble of the two lines.
+
+All results, also from different shot points, are stored in file Q.dat
 
 **$\textcolor{violet}{\text{Pseudo velocity}}$** (keyboard shortcut: **V**):
 Function produces two figures on one screen: First the average velocity (pseudo velocity) for every pick as function of offset (y-axis) and midpoint position between shot and receiver (x-axis). In the second plot, local slownesses are plotted, as well as function of offset and midpoint. For this calculation, for every shot point, at receiver i, the slowness is calculated as : `(t[i+1]-t[i-1])/(offset[i+1]-offset[i-1])`. In this way some smoothing is done. If one of the times does not exist (trace i-1 or i+1 has not been measured), the slowness value is stored as nan. The Y axis is scaled with offset/3, which gives a very (very) rough estimate of depth. For slownesses, a logarithmic colour scale is used. The plot is stored in file “pseudo_section_slowness.png”. This kind of plot may serve to detect problems with single measurements or shots/receivers.
@@ -248,7 +267,7 @@ Change uncertainties of picks. Use is similar as for moving picks: Vertical keyb
 **$\textcolor{violet}{\text{Erase all picks}}$** (keyboard shortcut: **CTRL-E**): 
 Erase all picks of the actually shown seismogram gather (other picks are maintained). Usually used if automatic picking gave too bad results.
 
-**$\textcolor{violet}{\text{Plot all picks}}$** (keyboard shortcut: **ALT-P**)
+**$\textcolor{violet}{\text{Plot all picks}}$** (keyboard shortcut: **CTRL-P**):
 Plots all picks at the coordinate of the corresponding trace. Picks are colored by shot point number.
 
 **$\textcolor{violet}{\text{Plot calculated times}}$** (no keyboard shortcut): 
@@ -303,4 +322,9 @@ Click left and draw multiple line segments. The last segment is finished with ri
 **$\textcolor{violet}{\text{Mute after line}}$** (keyboard shortcut: **SHFT-L**): 
 Click left and draw multiple line segments. The last segment is finished with right click (i.e. the right click defines one more point).  Data after the traced line are eliminated for each trace from the nearest zero-crossing on. Traces that are not crossed by the line (at the right or left side of the screen will not be muted!
 
+### **$\textcolor{red}{\text{Known bugs}}$**:
+•	Sometimes, the progress bar gets stuck, although the program continues working (this is always the case if you go to another window while the progress bar is working). Look for messages in the command window or in Spyder to see the real advancement. Anyhow, if possible (two screens) leave the command window visible to see if some error has occurred if program seems to be stuck.
+•	Sometimes, when doing manual picking, existing nearby picks are not shown.
+•	Sometimes the help line is written on top of the main window instead of at the bottom.
+•	Sometimes, the zoom is not behaving correctly. Go back to earlier zoom (CTRL+Z) and try again, it will work.
 

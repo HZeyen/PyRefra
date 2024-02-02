@@ -26,12 +26,13 @@ This opens a command window. Then type the following commands:
     5. `conda install obspy`
     6. `conda install statsmodels`
     7. `conda install scikit-learn`
-    8. `conda update -–all`  (just to be sure to have the latest versions)
+    8. `conda install colorcet`
+    9. `conda update -–all`  (just to be sure to have the latest versions)
 
     I had sometimes problems with Conda blocking or installing only parts. In this case, after `conda update --all`, continue with
 
          ii. `conda install mamba`    
-        iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels scikit-learn`
+        iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels scikit-learn colorcet`
     In this case, do **not** go to pg and update --all, this may destroy the environment.
 
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**

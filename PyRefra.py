@@ -67,6 +67,11 @@ import os
 # Paths on HZ computer
 sys_path = r"E:/Sources_2010/Python_programs"
 dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line1"
+#dir0 = r"E:/Seg2Dat/Siscarb/Falaise"
+#dir0 = r"E:/Seg2Dat/Barbeau"
+#dir0 = r"E:/Seg2Dat/Erreurs/Couleurs_P-S"
+#dir0 = r"E:/Seg2Dat/Beaufremont"
 
 # Example of paths for programs and data on department desktop
 # sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"

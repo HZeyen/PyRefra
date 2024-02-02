@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Tue Dec 05, 2023
+last modified on Fri Feb 02, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -32,6 +32,8 @@ Contains the following Classes:
             __init__
             read_geo_file
             readGeom
+            unique_positions
+            get_unique_position
 
     Traces
         with the following functions:
@@ -222,7 +224,7 @@ class Data():
                     for itr,tr in enumerate(self.st[-1]):
                         self.st[-1][itr].stats.seg2 = {}
                         self.st[-1][itr].stats.seg2['DELAY'] =\
-                            self.st[-1][itr].stats.segy.trace_header.delay_recording_time
+                            self.st[-1][itr].stats.segy.trace_header.delay_recording_time/1000.
                         self.st[-1][itr].stats.seg2["UNIT_UNIQUE_ID"] = None
                         self.st[-1][itr].stats.seg2['RECEIVER_STATION_NUMBER']=\
                             self.st[-1][itr].stats.segy.trace_header.trace_number_within_the_original_field_record
@@ -338,6 +340,7 @@ class Data():
         import sys
         if os.path.isfile('file_corrections.dat'):
             self.correction_flag = True
+            check_dt = True
             self.file_corr_dict = {}
             warn_flag = True
             nl = 0
@@ -390,9 +393,9 @@ class Data():
                         time_add = float(nums[4])
                     if n>5:
                         interp = int(nums[5])
-                    if abs(time_add) > self.tmax:
+                    if abs(time_add) > self.tmax and check_dt:
                         answer = QtWidgets.QMessageBox.warning(None,"Warning",\
-                            f"Time correction seems too big ({time_add:0.1f}s)."+\
+                            f"Time correction seems too big ({time_add:0.4f}s)."+\
                               "\nIt should be given in seconds, not milliseconds."+\
                             "\nMaybe correct data in file 'file_corrections.dat'."+\
                               "\n\nIgnore and continue or close program.",
@@ -400,6 +403,8 @@ class Data():
                             QtWidgets.QMessageBox.Close)
                         if answer == QtWidgets.QMessageBox.Close:
                             raise Exception("Time correction error.\n")
+                        else:
+                            check_dt = False
                             sys.exit()
                     self.file_corr_dict[nf] = [nsht_corr,nrec_start,\
                                                nrec_step,time_add,interp]
@@ -587,7 +592,8 @@ class Data():
         tr.stats.segy.trace_header.second_of_minute = \
             tr.stats.starttime.second
         tr.stats.segy.trace_header.energy_source_point_number = \
-            int(tr.stats.seg2.SOURCE_STATION_NUMBER)
+            self.main.traces.unique_s_pos[tr_in_file]+1
+#            int(tr.stats.seg2.SOURCE_STATION_NUMBER)
         tr.stats.segy.trace_header.number_of_vertically_summed_traces_yielding_this_trace = \
             int(tr.stats.seg2.STACK)
         tr.stats.segy.trace_header.original_field_record_number = file_nr+1
@@ -595,6 +601,9 @@ class Data():
             int(tr.stats.seg2.SOURCE_STATION_NUMBER)
         tr.stats.segy.trace_header.trace_number_within_the_original_field_record\
             = tr_in_shot
+#            = receiver_nr+1
+        tr.stats.segy.trace_header.geophone_group_number_of_roll_switch_position_one\
+            = self.main.traces.unique_r_pos[tr_in_file]+1
         tr.stats.segy.trace_header.trace_sequence_number_within_line =\
             trace+1
         tr.stats.segy.trace_header.trace_sequence_number_within_segy_file =\
@@ -1296,7 +1305,6 @@ class Geometry():
             raise Exception(f"File {filename} wrong format.\n")
         return d
 
-
     def readGeom(self):
         """
         Reads geometry files "receivers.geo" and "shots.geo"
@@ -1403,7 +1411,51 @@ class Geometry():
             self.dx_geo = min(self.dx_geo,abs(xsort[1]-xsort[0]))
         self.xmin = min(xmin_r, xmin_s)
         self.xmax = max(xmax_r, xmax_s)
+        self.unique_positions()
         return None
+    
+    def unique_positions(self):
+        """
+        Calculate and order unique positions of shots and receivers combined
+
+        Returns
+        -------
+        None.
+
+        """
+        nsht = len(self.sht_dict)
+        nrec = len(self.rec_dict)
+        sensors_s = np.zeros((nsht,3))
+        sensors_r = np.zeros((nrec,3))
+        xs =np.array([self.sht_dict[d]["x"] for d in self.sht_dict])
+        sensors_s[:,0] = xs
+        ys = np.array([self.sht_dict[d]["y"] for d in self.sht_dict])
+        sensors_s[:,1] = ys
+        zs = np.array([self.sht_dict[d]["z"] for d in self.sht_dict])
+        sensors_s[:,2] = zs
+        xr = np.array([self.rec_dict[d]["x"] for d in self.rec_dict])
+        sensors_r[:,0] = xr
+        yr = np.array([self.rec_dict[d]["y"] for d in self.rec_dict])
+        sensors_r[:,1] = yr
+        zr = np.array([self.rec_dict[d]["z"] for d in self.rec_dict])
+        sensors_r[:,2] = zr
+        self.sensors = np.unique(np.concatenate((sensors_r,sensors_s)),axis=0)
+        self.sens_dict={}
+        for i,s in enumerate(self.sensors):
+            self.sens_dict[(s[0],s[1],s[2])] = i
+
+    def get_unique_position(self,x,y,z):
+        """
+        Find number of a shot or receiver position within the unique list of
+        geometry points
+
+        Returns
+        -------
+        int
+                number of the point in the list self.sensors (starting with 0)
+
+        """
+        return self.sens_dict[(x,y,z)]
 
 
 class Traces():
@@ -1414,6 +1466,8 @@ class Traces():
         self.shot_pos = []
         self.receiver = []
         self.receiver_pos = []
+        self.unique_s_pos = []
+        self.unique_r_pos = []
         self.component = []
         self.plotted = []
         self.nsample_trace = []
@@ -1507,6 +1561,7 @@ class Traces():
                               "File shots.geo may be incomplete.\n\nProgram stops",
                              QtWidgets.QMessageBox.Ok)
                     raise Exception("Shot point number missing.\n")
+                self.unique_s_pos.append(self.geom.get_unique_position(xs,ys,zs))
 # Check whether receiver point from trace header exists in shot point dictionary
                 if nrec in geom.rec_dict:
                     xr = geom.rec_dict[nrec]["x"]
@@ -1522,6 +1577,7 @@ class Traces():
                          "receivers.geo\nFile receivers.geo may be incomplete."+\
                          "\n\nProgram stops",QtWidgets.QMessageBox.Ok)
                     raise Exception("Receiver point number missing.\n")
+                self.unique_r_pos.append(self.geom.get_unique_position(xr,yr,zr))
 # Calculate signed offset
                 if xr < xs:
                     off = -off
@@ -1579,6 +1635,8 @@ class Traces():
         self.off_max = self.offset.max()
         self.xcdp = np.array(self.xcdp)
         self.plotted = np.array(self.plotted, dtype = bool)
+        self.unique_s_pos = np.array(self.unique_s_pos, dtype = int)
+        self.unique_r_pos = np.array(self.unique_r_pos, dtype = int)
         cdps = np.sort(np.unique(self.xcdp))
         nc = len(self.xcdp)
         self.ncdp = np.zeros(nc, dtype = int)
@@ -1761,49 +1819,17 @@ class Traces():
             unc = 2*self.data.dt
         nsht = len(self.geom.sht_dict)
         nrec = len(self.geom.rec_dict)
-        sensors_s = np.zeros((nsht,3))
-        sensors_r = np.zeros((nrec,3))
-        xs =np.array([self.geom.sht_dict[d]["x"] for d in self.geom.sht_dict])
-        sensors_s[:,0] = xs
-        ys = np.array([self.geom.sht_dict[d]["y"] for d in self.geom.sht_dict])
-        sensors_s[:,1] = ys
-        zs = np.array([self.geom.sht_dict[d]["z"] for d in self.geom.sht_dict])
-        sensors_s[:,2] = zs
-        xr = np.array([self.geom.rec_dict[d]["x"] for d in self.geom.rec_dict])
-        sensors_r[:,0] = xr
-        yr = np.array([self.geom.rec_dict[d]["y"] for d in self.geom.rec_dict])
-        sensors_r[:,1] = yr
-        zr = np.array([self.geom.rec_dict[d]["z"] for d in self.geom.rec_dict])
-        sensors_r[:,2] = zr
-        zmax1 = np.max(sensors_s[:,2])
-        zmax2 = np.max(sensors_r[:,2])
-        zmax = max(zmax1,zmax2)
+        zmax = max(self.geom.sensors[:,2])
         shts = list(self.geom.sht_dict.keys())
         recs = list(self.geom.rec_dict.keys())
-        
-        sensors = np.unique(np.concatenate((sensors_r,sensors_s)),axis=0)
-
-        ncoor = len(sensors)
+        sensors = np.copy(self.geom.sensors)
+        ncoor = len(sensors[:,0])
             
-        isht = np.zeros(nsht,dtype=int)
-        for i in range(nsht):
-            for j in range(ncoor):
-                if np.isclose(xs[i],sensors[j,0]) and\
-                   np.isclose(ys[i],sensors[j,1]) and\
-                   np.isclose(zs[i],sensors[j,2]):
-                    isht[i] = j
-                    break
-        irec = np.zeros(nrec,dtype=int)
-        for i in range(nrec):
-            for j in range(ncoor):
-                if np.isclose(xr[i],sensors[j,0]) and\
-                   np.isclose(yr[i],sensors[j,1]) and\
-                   np.isclose(zr[i],sensors[j,2]):
-                    irec[i] = j
-                    break
         t = np.zeros((nsht,nrec))
         e = np.zeros((nsht,nrec))
         n = np.zeros((nsht,nrec),dtype=int)
+        ps = np.zeros((nsht,nrec),dtype=int)
+        pr = np.zeros((nsht,nrec),dtype=int)
         for i in range(nsht):
             ii = shts[i]
             for j in range(nrec):
@@ -1819,6 +1845,8 @@ class Traces():
                     if e[i,j] <= 0:
                         e[i,j] = unc
                     n[i,j] += 1
+                    ps[i,j] = self.unique_s_pos[ntr]
+                    pr[i,j] = self.unique_r_pos[ntr]
 
         ishot = []
         irecord = []
@@ -1829,9 +1857,9 @@ class Traces():
                 if n[i,j] > 0:
                     t[i,j] /= n[i,j]
                     e[i,j] /= n[i,j]
-                    if isht[i] != irec[j]:
-                        ishot.append(isht[i])
-                        irecord.append(irec[j])
+                    if ps[i,j] != pr[i,j]:
+                        ishot.append(ps[i,j])
+                        irecord.append(pr[i,j])
                         tim.append(t[i,j])
                         err.append(e[i,j])
 # PyGIMLi has problems with positive Z-coordinates (it seems, rays are calculated,
@@ -1848,7 +1876,7 @@ class Traces():
             #     fo.write(f"{c[0]:0.2f} {c[1]:0.2f} {c[2]:0.2f}\n")
             fo.write("# x y z\n")
             for c in sensors:
-                fo.write(f"{c[0]:0.2f} {c[2]:0.2f} 0.\n")
+                fo.write(f"{c[0]:0.2f} 0. {c[2]:0.2f}\n")
             fo.write(f"{ndat} # measurements\n")
             fo.write("# s g t err\n")
             for i in range(ndat):
@@ -3305,6 +3333,7 @@ class Utilities:
 
         """
         from PyRefra import Seg2_Slide
+        import colorcet as cc
         nsamp = np.size(data,0)
         ntrace = np.size(data,1)
         dx = x[1]-x[0]
@@ -3355,9 +3384,12 @@ class Utilities:
 # Calculate and plot 2D Fourier transform
         F = np.fft.fft2(data_exp)
         Fabs = np.log10(np.abs(np.fft.fftshift(F))+1E-10)
-        Fmin = np.min(Fabs)
-        Fmax = np.max(Fabs)
-        cmp = plt.cm.gist_rainbow_r
+#        Fmin = np.min(Fabs)
+#        Fmax = np.max(Fabs)
+        Fmin = np.quantile(Fabs,0.05)
+        Fmax = np.quantile(Fabs,0.999)
+#        cmp = plt.cm.gist_rainbow_r
+        cmp = cc.cm.rainbow4
         if plot_flag:
             self.window.drawNew(False)
             c = self.window.axes[self.window.fig_plotted].\
@@ -3875,6 +3907,7 @@ class Utilities:
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         import copy
         import matplotlib.pyplot as plt
+        import colorcet as cc
         try:
             import pygimli as pg
         except:
@@ -3886,14 +3919,18 @@ class Utilities:
             return
 
         self.main.function = "inver"
-        def vel_scale(self, ncol=128, scale="special"):
+        def vel_scale(self, ncol=128, scale="specialP"):
                 if "special" in scale:
                     self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
                               ['violet','darkgreen','darkgreen','cyan','blue',\
                                'mediumseagreen','lightseagreen','lime','yellow',\
                                'yellow','gold','orange','orangered','red'],N=ncol)
+                elif "rainbow" in scale:
+#                    self.cmp = plt.get_cmap(scale)
+                    self.cmp = cc.cm.rainbow4
                 else:
                     self.cmp = plt.get_cmap(scale)
+
                 self.cmp.set_under('pink')
                 self.cmp.set_over('darkred')
                 self.colors = self.cmp(np.linspace(0, 1, ncol))
@@ -3927,7 +3964,8 @@ class Utilities:
             self.xax_max = max(gx_max,sx_max)
             self.plot_title = self.main.title
 # Call dialog window for input of a number of inversion control parameters
-            self.model_colors = ["Special (cyan=1500)","rainbow","viridis","seismic"]
+            self.model_colors = ["Special P (cyan=1500)","Special S (cyan=500)",\
+                                 "rainbow","viridis","seismic"]
             results, okButton = self.main.dialog(\
                     ["Maximum depth (m, positive down)",\
                      "Initial smoothing parameter (<0: optimize)",\
@@ -3981,7 +4019,11 @@ class Utilities:
                 self.v_scale_min = 150
                 self.v_scale_max = 6000
             color_scale = self.model_colors[int(results[13])]
-            if "Special" in color_scale: color_scale = "special"
+            if "Special" in color_scale:
+                if "1500" in color_scale:
+                    color_scale = "specialP"
+                else:
+                    color_scale = "specialS"
             if int(results[14]) > -1:
                 self.rays_flag = True
             else:
@@ -4120,7 +4162,11 @@ class Utilities:
                 self.v_scale_min = 150
                 self.v_scale_max = 6000
             color_scale = self.model_colors[int(res[4])]
-            if "Special" in color_scale: color_scale = "special"
+            if "Special" in color_scale:
+                if "1500" in color_scale:
+                    color_scale = "specialP"
+                else:
+                    color_scale = "specialS"
             if int(res[6]) > -1:
                 self.rays_flag = True
             else:
@@ -4129,7 +4175,7 @@ class Utilities:
 #    to the quantiles rounded to the next 100 m/s
         ncol = 128
 #        ncol1 = 128
-        if color_scale == "special":
+        if "special" in color_scale:
             lin_scale = False
         else:
             lin_scale = True
@@ -4141,7 +4187,7 @@ class Utilities:
             self.v_scale_max = max(self.q2_start,self.q2_end)
             self.v_scale_max = np.round(self.v_scale_max/100,0)*100
 #            ncol1 = 0
-        if self.v_scale_max < 1600 and color_scale=="special":
+        if self.v_scale_max < 1600 and color_scale=="specialP":
             _ = QtWidgets.QMessageBox.warning(None,"Warning",\
                 "Maximum velocity < 1600\nColor scale changed to rainbow"+\
                 "Once the plot is finished, you may press 'C' to change color scale",
@@ -4154,10 +4200,14 @@ class Utilities:
             self.levels = np.linspace(self.v_scale_min,self.v_scale_max,128)
         else:
 #            if ncol1 > 0:
-            if color_scale == "special":
+            if color_scale == "specialP":
                 ncyan = int(ncol/16*4)
                 self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
                 self.levels += list(np.linspace(1501,self.v_scale_max,ncol-ncyan))
+            elif color_scale == "specialS":
+                ncyan = int(ncol/16*4)
+                self.levels = list(np.linspace(self.v_scale_min,500,ncyan))
+                self.levels += list(np.linspace(501,self.v_scale_max,ncol-ncyan))
             else:
                 self.levels = list(np.linspace(self.v_scale_min,self.v_scale_max,128))
             self.levels = np.array(self.levels)
@@ -4221,16 +4271,17 @@ class Utilities:
                                verticalalignment="bottom", fontsize=18)
         txt.set_bbox(dict(facecolor="white"))
 # Share x and y axis parameters with ray plot and plot of final model
-        self.ax_start.get_shared_x_axes().join(self.ax_start, self.ax_rays)
-        self.ax_start.get_shared_x_axes().join(self.ax_start, self.ax_mod)
-        self.ax_start.get_shared_y_axes().join(self.ax_start, self.ax_rays)
-        self.ax_start.get_shared_y_axes().join(self.ax_start, self.ax_mod)
+        self.ax_rays.sharex(self.ax_start)
+        self.ax_mod.sharex(self.ax_start)
+        self.ax_rays.sharey(self.ax_start)
+        self.ax_mod.sharey(self.ax_start)
         print("Starting model plotted")
 
 # Plot coverage and rays of final model
         cov_min = np.min(self.cover[self.cover > -np.inf])
         cov_max = np.max(self.cover[self.cover < np.inf])
-        cmp = copy.copy(mpl.cm.get_cmap("gist_rainbow_r"))
+#        cmp = copy.copy(mpl.cm.get_cmap("gist_rainbow_r"))
+        cmp = cc.cm.fire_r
         data = copy.deepcopy(self.cover)
         data[np.isclose(data,0.)] = np.nan
         pg.viewer.showMesh(pg.Mesh(self.mgr.paraDomain), data=data, ax=self.ax_rays,
@@ -4422,11 +4473,6 @@ class Utilities:
             chi_ev = np.array(self.mgr.inv.chi2History)
             nit = len(chi_ev)
             self.ax_chi.plot(np.arange(nit)+1,chi_ev)
-            # self.ax_chi.set_ylabel("chi2",fontsize=18)
-            # self.ax_chi.set_xlabel("iteration #", fontsize=18)
-            # self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
-            #                       f"fac: {self.s_fact:0.2f}, "+\
-            #                       f"z: {self.zSmooth:0.2f}", fontsize=20)
             self.ax_chi.set_ylabel("chi2", fontsize=self.tick_size_sec)
             self.ax_chi.set_xlabel("iteration #", fontsize=self.tick_size_sec)
             self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\

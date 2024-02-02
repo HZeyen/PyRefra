@@ -17,21 +17,21 @@ In this file, every shot point number should have different coordinates associat
 
 **receivers.geo**
 
-	This file contains the same kind of information as shots.geo, also in 4 columns. However, a fifth column may be added containing any letter describing the geophone component recorded in a trace (e.g., when working with 3-component geophones). You may select traces by this letter. Usually, letters are V or Z for vertical component, E or N for geographic directions, L or T for longitudinal or transverse components. However, any other letters are allowed. By default (no 5th column in a line), the letter “Z” is associated to a trace. So, you are not obliged to write the letter into all lines.
+This file contains the same kind of information as shots.geo, also in 4 columns. However, a fifth column may be added containing any letter describing the geophone component recorded in a trace (e.g., when working with 3-component geophones). You may select traces by this letter. Usually, letters are V or Z for vertical component, E or N for geographic directions, L or T for longitudinal or transverse components. However, any other letters are allowed. By default (no 5th column in a line), the letter “Z” is associated to a trace. So, you are not obliged to write the letter into all lines.
   
 The program plots traces generally as function of offset which is calculated using the three coordinates. Therefore, in principle, absolute metric coordinates (e.g., UTM) may be given in both geometry files. However, we suggest strongly to convert coordinates to a local system and eliminate a possible trend, such that the line goes in X or Y direction. The program, internally, uses only the coordinate which has the largest extent (important for cdp points used, e.g, for distance gathers or export to SEGY format).
 
 ## Data file names
-Files acquired with Summit equipment have by default the structure prefixNNNNN.ext. “prefix” is set by the user during acquisition. NNNNN is file number always with 5 ciphers filled to the left with zeros. “ext” may be “sg2” (Summit 2) or “seg2” (Summit X1).
+Files acquired with Summit equipment have by default the structure prefixNNNNN.ext. “prefix” is set by the user during acquisition. NNNNN is file number always with 5 ciphers filled to the left with zeros. “ext” may be “sg2” (Summit 2) or “seg2” (Summit X1). Also segy files are read with extension “sgy” or “segy”.
 
-If the file names have a different structure, make sure that the file number is always just before the dot. Number of ciphers may be variable, not necessarily filled to the left with zeros.
+If the file names have a different structure, make sure that the file number is always just before the dot. The number of ciphers may be variable, not necessarily filled to the left with zeros.
 
 Optionally, there may be two files that allow correction of certain acquisition errors:
 
 ## file_corrections.dat
-This file is used to correct general errors for recorded files. You may only indicate files for which there are really problems. The file has five columns:
+This file is used to correct general errors for recorded files. You may only indicate files for which there are really problems. The file has six columns:
 
-**irec, ipos, ir_start, ir_step, dt**
+**irec, ipos, ir_start, ir_step, dt, interp**
 - **irec**:	Number of record (file number)
 DMT files have names of the following form:
 prefixnnnnn.sg2 for Summit 2 or prefixnnnnn.seg2 for Summit_X
@@ -46,8 +46,8 @@ nnnnn is shot number (not shot-point number! The same shot point may be recorded
 - **interp**	factor with which to increase the number of samples per trace (interpolation). I.e., if sampling interval is too large
 
 ## receiver_corrections.dat
-This file is used to correct geophone problems occurring in all recorded shots. You may only indicate geophone positions where there is really a problem, no need to have a line for each geophone position It has three columns:
-	**igeo, fact, interp**
+This file is used to correct geophone problems occurring in all recorded shots. You may only indicate geophone positions where there is really a problem, no need to have a line for each geophone position It has two columns:
+	**igeo, fact**
 
 - **igeo**:	 number of geophone position (numbering starts at zero!)
 - **fact**:	factor with which to multiply the data. This factor may be

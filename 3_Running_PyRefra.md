@@ -80,7 +80,7 @@ Save actual screen into png file. File names depend on what is actually shown
 **$\textcolor{violet}{\text{Quit}}$** (keyboard shortcut: **CTRL-Q**): 
 Finish program with cleaning up. A dialog window opens to confirm termination.
 
-### **$\textcolor{red}{\text{Plot Menu}}$**
+### **$\textcolor{red}{\text{Display Menu}}$**
 
 **$\textcolor{violet}{\text{Original data this screen}}$** (keyboard shortcut: **O**): 
 Plot the original, not treated data shown on the actual screen (e.g., to undo filtering). All other data are not reset. A potential zoom is maintained.
@@ -146,27 +146,27 @@ Allows to construct a 1D velocity model by tracing a series of straight lines ac
 
 To trace a line, press left mouse button and pull the line. Releasing the mouse button is accepting the line.
 
-ATTENTION: The first mouse click determines on which side of a shot point you want to draw the line. It is not allowed to cross the zero-offset. This is even valid if the shot point is on one end of the line. In this case, do not make the first click outside of the seismogram section (negative side if the shot poit is at the left, positive side if it is at the right.
+ATTENTION: The first mouse click determines on which side of a shot point you want to draw the line. It is not allowed to cross the zero-offset. This is even valid if the shot point is on one end of the line. In this case, do not make the first click outside of the seismogram section (negative side if the shot point is at the left, positive side if it is at the right.
 
 The first straight line on each side of the shot point is considered to be the direct wave and is forced to pass through the origin. For all further lines, the position where the mouse is clicked is one point of the line, the position where the mouse is released is the second point.
 
 When releasing the mouse, a dialog window opens which allows you to accept the line and trace the next one, to accept it and finish the model or to redo the line. In addition, when clicking on “Show details”, the velocity, and intercept times are given as well as the depth to the layer limit (refractor) and the thickness of the layer above the refractor.
 The lines plotted will disappear when a new plot is called (right window or different gather). A new call to P_Model creates a new model, starting with the direct wave.
 
-When the model is finished, it is written to a file in the data folder with the following name structure: prefix_number_data_time.1DP where prefix may be “shot_point”, “receiver_point” or “file” depending on the type of gather used (it is supposed that the routine is not used when a distance gather is shown).
+When the model is finished, it is written to a file in the data folder with the following name structure: prefix_number_date_time.1DP where prefix may be “shot_point”, “receiver_point” or “file” depending on the type of gather used (it is supposed that the routine is not used when a distance gather is shown).
 
 The resulting models are not further used in the inversion process. They are mainly meant for teaching purpose to allow students to get a rapid idea of the velocity structure and its lateral variability below a profile.
 
 
 **$\textcolor{violet}{\text{S Model}}$** (keyboard shortcut: **ALT-S**):
-Same as P_Model only that the model is considered to be an S-wave velocity model. The results are stored in a file named prefix_number_data_time.1DS. See P_Model for more explanations
+Same as P_Model only that the model is considered to be an S-wave velocity model. The results are stored in a file named prefix_number_date_time.1DS. See P_Model for more explanations
 
 
 **$\textcolor{violet}{\text{Tomography}}$** (keyboard shortcut: **T**): 
 This tool is only activated if measured travel times exist. It uses **Pygimli** to invert travel times into a tomography model. If Pygimli has not been installed, the option will never be activated.
 On call, a dialog box is opened asking for:
 - Maximum depth of the model [m]: The default value is calculated as 1/3 of the maximum available offset
-- Initial smoothing parameter: The bigger the value, the smoother will be the model. This will be a parameter to play with, doing different inversions with different smoothing
+- Initial smoothing parameter: The bigger the value, the smoother will be the model. This will be a parameter to play with, doing different inversions with different smoothing. If the smoothing parameter is negative, the absolute value will be used for initial smoothing and the reduction of this parameter during the iterations will be automatically optimized and the following parameter (Smoothing reduction) will be ignored (not clear though, how PyGimli handles this…).
 - Smoothing reduction per iteration. If not zero, the smoothing parameter will be multiplied by this factor after each iteration
 - Smoothing in z direction: This value may be between 0 and 1. When 0, the different layers of the tomography will be independent from each other, if 1, the same smoothing factor will be used in vertical and horizontal direction.
 - Maximum iterations: The number of iterations may be limited with this value, e.g., for testing purposes. In general, the iterations are stopped if the data fit does not become better anymore, i.e., if the chi² value does not decrease by more than 1% of its actual value or if chi² becomes smaller than 1.
@@ -174,12 +174,12 @@ On call, a dialog box is opened asking for:
 - Minimum and maximum allowed velocities: Pygimli allows to limit search space of model velocities. Give here the desired extreme velocities. **TODO**: Understand working of Pygimli: Even if very large upper velocity limit is given, pygimli limits the velocity model to a range of values much narrower than given. Only if the parameter “limits=[vmin,vmax]” is not at all used, velocities seem to be completely free. Therefore, if both given velocities are zero, the program makes a call to mgr.invert without using key word "limits".
 - velocity color scale min and max: If you do inversions for different profiles, it may be interesting to have the same color scale for all. In this case, you may give the values of the minimum and maximum velocities appearing in the color bar.
   If min or max are =0, the corresponding limits of the color scale are calculated automatically using the 1% and 99% percentiles of the obtained velocities.
-- 	Type of color scale: The user may choose between different color scales. A special color scale has been created which plots the 1500 m/s velocity by cyan color, in order to highlight an approximate upper limit of the fully saturated zone.
-- Plot title: The default title is the one given in file PyRefra.config (see "Data preparation"). You may change it to any text. Appears only at main title of the inversion results plot.
+- 	Type of color scale: The user may choose between different color scales. A special color scale has been created which plots the 1500 m/s velocity by cyan color, in order to highlight an approximate upper limit of the fully saturated zone. For S-wave models, a similar color scale highlights the 500 m/s velocity by cyan.
+- Plot title: The default title is the one given in file PyRefra.config (see "Data preparation"). You may change it to any text. Appears only in main title of the inversion results plot.
 
 At the end of the inversion, the resulting model is shown in the upper 60% of the screen. Below, smaller sub-windows show the initial model, the rays of the final model with the “coverage” (i.e., a measure of resolution), the measured travel times as function of shot point position and receiver point position, the misfits in a similar plot calculated as “calculated times minus measured times” and finally, a plot showing average misfits for the different shot points and the different receiver points. This last plot allows you to verify if there are problems with certain shots or receivers.
 This plot is stored in a png file, together with other inversion results such as velocity model, misfits, rays of final model and chi²-evolution in a folder created automatically by Pygimli named ./date-time (where the “.” is the data folder; date and time of folder creation).
-If you are not happy with the colour scale or you want to change the maximum plotted depth, you may press “c” or “C” (but not “SHFT+c”) to call a now dialogue window asking for this information. See also below “Change colors tomo”.
+If you are not happy with the colour scale or you want to change the maximum plotted depth, you may press “c” or “C” (but not “SHFT+c”) to call a new dialogue window asking for this information. See also below “Change colors tomo”.
 The program offers writing output files for use in SOFI2D software (https://git.scc.kit.edu/GPIAG-Software/SOFI2D): model files for P-waves, S-waves and densities (see function prepareSOFI for more information), receivers and shots in SOFI format as well as Jason-format control file for SOFI2D. If the user does not work with SOFI2D, one should simply click on Cancel.
 To leave this plot, close the window or simply go back to the main screen. To show the plot again, press "C" again.
 
@@ -219,7 +219,7 @@ Function produces two figures on one screen: First the average velocity (pseudo 
 
 ### **$\textcolor{red}{\text{Picking Menu}}$**
 
-Introductory remarks: try to pick as many of your traces as possible before applying any filter or other data treatment. This is especially true for traces near the shot point, which have in general still high frequencies thus that their waveform is often strongly affected by frequency or velocity filters.
+Introductory remarks: try to pick as many of your traces as possible before applying any filter or other data treatment. This is especially true for traces near the shot point, which have in general still high frequencies such that their waveform is often strongly affected by frequency or velocity filters.
 
 From my experience, the best automatic picking results are mostly achieved using correlation picking, using it first on a good shot or file gather or doing first manual picking on one gather.
 
@@ -230,9 +230,9 @@ For all picks, two clicks with the left mouse button are needed: first you mark 
 
 To finish, click right mouse button
 
-You may erase picks by clicking the central mouse button (or the mouse wheel). The program searches first the trace nearest to the mouse click and erases then the pick nearest to the click. If no pick is available for the corresponding trace, nothing will happen.
+You may **erase picks** by clicking the central mouse button (or the mouse wheel). The program searches first the trace nearest to the mouse click and erases then the pick nearest to the click. If no pick is available for the corresponding trace, nothing will happen.
 
-When calling the tool, a stippled line is plotted showing the theoretical air-wave arrivals, which allows avoiding picking this wave as apparent direct wave, when working with near-surface data. In addition, a green stippled line is plotted, indicating picks done on other nearby traces at the same offset (maximum distance of nearby trace: 10 traces).
+When calling the tool, a stippled line is plotted showing the theoretical air-wave arrivals, which allows avoiding picking this wave as apparent direct wave, when working with near-surface data. If picking has been done on other shots, also a green stippled line is plotted, indicating picks done on other nearby traces at the same offset (maximum distance of nearby trace: 10 traces).
 
 **$\textcolor{violet}{\text{Amplitude picking}}$** (keyboard shortcut: **CTRL-A**): 
 Automatic picking tool that locates first arrivals by analysing full amplitudes.
@@ -248,9 +248,6 @@ Standard STA-LTA picking. You must give window lengths for STA (short) and LTA (
 
 **$\textcolor{violet}{\text{Correlation picking}}$** (keyboard shortcut: **SHFT-C**): 
 Do first one manual pick on a good trace which will be used as reference trace. From this pick on, further picks are searched by cross correlation. If picks from other shots exist, they are used by the algorithm as guide (maximum correlation near to other picks made at the same offset). The picks are only calculated for the traces visible on the screen. So, if part of your data is noisy, you may first make a zoom on the good traces, do the correlation picking, then filter the data and do another zoom on the traces not yet picked. Uncertainties are set to 2 samples if no filter was applied to the data, else to 4 samples.
-
-**$\textcolor{violet}{\text{Plot picks}}$** (no keyboard shortcut): 
-Plots all picks corresponding to actual data gather. Usually, you will not need this tool since picks are plotted automatically.
 
 **$\textcolor{violet}{\text{Move picks}}$** (keyboard shortcut: **CTRL-M**): 
 Move picks to other time. Especially useful to adjust automatically done bad picks.
@@ -289,7 +286,7 @@ Stores calculated picks in Gimli format (file picks.sgt), used by the Tomography
 
 ### **$\textcolor{red}{\text{Filter Menu}}$**
 
-**$\textcolor{violet}{\text{Filter}}$** (keyboard shortcut: **CTRL-F**): 
+**$\textcolor{violet}{\text{Frequency}}$** (keyboard shortcut: **CTRL-F**): 
 Frequency filter. Program calculates average FFT of all shown traces and allows user to define corner frequencies. Click left mouse at position of low-cut frequency, pull line and release at high-cut frequency. If one of the two frequencies is clicked outside the frequency axes (negative frequency or more than maximum frequency), the corresponding fllter is not applied.
 
 After filter frequencies have been defined graphically, a dialog box allows modifying them (e.g., rounding).

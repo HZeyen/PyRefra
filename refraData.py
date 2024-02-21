@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Fri Feb 02, 2024
+last modified on Wed Feb 21, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -161,7 +161,7 @@ class Files():
 # # if by default, this is not the case, the file names should be changed before
 # # using refraPy.py or corresponding files are ignored.
             num = -1
-            for ipos in range(l-1):
+            for ipos in range(l):
                 try:
                     num = abs(int(ff[ipos:l]))
                     break

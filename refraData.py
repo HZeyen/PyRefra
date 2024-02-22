@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Wed Feb 21, 2024
+last modified on Thu Feb 22, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -208,6 +208,12 @@ class Data():
                 if files.file_type == "seg2":
                     try:
                         self.st.append(seg2._read_seg2(ff))
+                        if not 'RECEIVER_STATION_NUMBER' in self.st[-1][0].stats.seg2:
+                            for itr,tr in enumerate(self.st[-1]):
+                                self.st[-1][itr].stats.seg2['RECEIVER_STATION_NUMBER']=\
+                                    self.st[-1][itr].stats.seg2['CHANNEL_NUMBER']
+                                self.st[-1][itr].stats.seg2['SOURCE_STATION_NUMBER']=\
+                                    self.main.files.numbers[nf]
                     except:
                         _ = QtWidgets.QMessageBox.critical(None, "Error",
                                  f"Error reading data file {ff}\n\nHas Obspy bug "+\

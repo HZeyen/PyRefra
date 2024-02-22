@@ -18,6 +18,8 @@ In this file, every shot point number should have different coordinates associat
 **receivers.geo**
 
 This file contains the same kind of information as shots.geo, also in 4 columns. However, a fifth column may be added containing any letter describing the geophone component recorded in a trace (e.g., when working with 3-component geophones). You may select traces by this letter. Usually, letters are V or Z for vertical component, E or N for geographic directions, L or T for longitudinal or transverse components. However, any other letters are allowed. By default (no 5th column in a line), the letter “Z” is associated to a trace. So, you are not obliged to write the letter into all lines.
+
+**If your system does not write the header words RECEIVER_STATION_NUMBER and SOURCE_STATION_NUMBER which are the ones corresponding to the first columns of files receivers.geo and shots.geo, the following definitions are made: RECEIVER_STATION_NUMBER is set to header keyword CHANNEL_NUMBER. SHOT_STATION_NUMBER is set to the number of your file (see below: NNNNN).** If this is not the good numbering, use file “file_corrections.dat” to change numbers. See below for explanations.
   
 The program plots traces generally as function of offset which is calculated using the three coordinates. Therefore, in principle, absolute metric coordinates (e.g., UTM) may be given in both geometry files. However, we suggest strongly to convert coordinates to a local system and eliminate a possible trend, such that the line goes in X or Y direction. The program, internally, uses only the coordinate which has the largest extent (important for cdp points used, e.g, for distance gathers or export to SEGY format).
 

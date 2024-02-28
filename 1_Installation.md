@@ -18,8 +18,8 @@
 
 6. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
 This opens a command window. Then type the following commands:
-    1. `conda update --all`
-    2. `conda config --add channels gimli --add channels conda-forge`
+    1. `conda config --add channels gimli --add channels conda-forge`
+    2. `conda update --all`
     3. `conda create -n pg pygimli`
 (this may take quite some time, don’t worry about error messages as long as conda is running).
     4. `conda activate pg`
@@ -31,9 +31,10 @@ This opens a command window. Then type the following commands:
 
     I had sometimes problems with Conda blocking or installing only parts. In this case, after `conda update --all`, continue with
 
-         ii. `conda install mamba`    
-        iii. `mamba create -n pg python=3.8 pygimli mamba spyder obspy statsmodels scikit-learn colorcet`
-    In this case, do **not** go to pg and update --all, this may destroy the environment.
+    3. `conda install mamba`    
+    4. `mamba create -n pg python=3.9 pygimli mamba spyder obspy statsmodels scikit-learn colorcet`
+    5. `conda activate pg`
+    6. `mamba update --all`
 
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
         
@@ -94,8 +95,8 @@ This is not important for working of the program, but it avoids an annoyingly lo
 
 In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg2.py** the line `if key == 'NOTE':` (line 337) in the line just above, change `value = ''` by `value = b''`
 
-If the program stops after having written to the screen “folder: …” followed by “files read” without a list of files, the most probable reason is that obspy had been reinstalled and you must do the above corrections again!
+If the program stops after having written to the screen “folder: …” followed by “files read” without a list of files, the most probable reason is that an old obspy version had been reinstalled and you must do the above corrections again!
 
-This issue has been fixed within obspy (28/12/2022, bug fix #3178) but the corrected version is only installed for Python >3.9. Since Pygimli only works in 3.8, the fix must still be done manually.
+This issue has been fixed within obspy (28/12/2022, bug fix #3178) but the corrected version is only installed for Python >=3.9.
 
 If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`

@@ -1928,7 +1928,9 @@ class Utilities:
         self.w_tomo = None
         self.w_fcol = None
         self.w_amp = None
-
+        self.v_scale_min = 200.
+        self.v_scale_max = 6000.
+        self.zmax_plt = 20.
     def min_max(self,data,half_width=3):
         """
         Find all relative minima and maxima in a data vector. A maximum is found
@@ -3942,9 +3944,9 @@ class Utilities:
                 self.colors = self.cmp(np.linspace(0, 1, ncol))
 # If code == 0, color scale and maximum depth for model plot are calculated
 #    automatically
-        self.tick_size_mod = 18
-        self.tick_size_sec = 14
-        if code == 0:
+        self.tick_size_mod = 16
+        self.tick_size_sec = 12
+        if not code == 67:
 # Store picks in Gimli format (picks.sgt)
             self.traces.saveGimli()
 # scheme contains the coordinates of shot and receiver points as  well as the
@@ -4145,7 +4147,7 @@ class Utilities:
             print("\nInversion finished")
 # If "C" was pressed, call another dialog box to change color scale
 #    and/or maximum plotted depth
-        elif code == 67:
+        else:
             res, okBut = self.main.dialog(\
                                ["If min or max is 0, the corresponding limit\n"+\
                                " of the color scale is calculated automatically\n",\
@@ -4587,7 +4589,7 @@ class Utilities:
             #                               fontweight="heavy")
 #        self.w_tomo.showMaximized()
         self.w_tomo.show()
-        if code == 0:
+        if not code == 67:
             self.figinv.savefig(os.path.join(self.p_aim,\
                                  "inversion_results_auto.png"))
             self.figinv.savefig(os.path.join(self.p_aim,\
@@ -4613,7 +4615,7 @@ class Utilities:
                 print(f'path {self.path} not found.\n',\
                       'Tomography results stay in original folder')
 
-        elif code == 67:
+        else:
             self.figinv.savefig(os.path.join(self.p_aim,\
                                 "inversion_results.png"))
         code = 0

@@ -64,18 +64,9 @@ import os
 #  sys_path is the folder where all python program files are located
 #  dir0 is the folder where the data are located
 
-# Paths on HZ computer
-sys_path = r"E:/Sources_2010/Python_programs"
-dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-#dir0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line1"
-#dir0 = r"E:/Seg2Dat/Siscarb/Falaise"
-#dir0 = r"E:/Seg2Dat/Barbeau"
-#dir0 = r"E:/Seg2Dat/Erreurs/Couleurs_P-S"
-#dir0 = r"E:/Seg2Dat/Beaufremont"
-
 # Example of paths for programs and data on department desktop
-# sys_path = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique"
-# dir0 = r"C:/Users/Utilisateur/Desktop/Geophysique/Sismique/data"
+sys_path = r"C:/Users/Invite/Desktop/Geophysique/Sismique"
+dir0 = r"C:/Users/Invite/Desktop/Geophysique/Sismique/data"
 
 # Example of paths for LIONEL
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
@@ -311,7 +302,8 @@ class Main(QtWidgets.QWidget):
 # This works as long as only one key is pressed (so, do not press SHFT+C), just "c"
         elif event.type() == QtCore.QEvent.KeyRelease and self.function == "inver":
             if type(obj) is QWindow:
-                if event.key() == 67 or event.key() == 16777248:
+#                if event.key() == 67 or event.key() == 16777248:
+                if event.key() == 67:
                     self.utilities.invCol()
         return QtWidgets.QWidget.eventFilter(self, obj, event)
 

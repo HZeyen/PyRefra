@@ -1200,7 +1200,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 if fill:
                     nulls = np.ones_like(t)*x_pos[i]
                     ax.fill_betweenx(t,nulls,x,where=nulls<=x)
-            ax.grid(b="on",which="major",axis="y")
+            ax.grid(which="major",axis="y")
             ax.tick_params(axis='both', labelsize=18)
             ax.set_xlabel(text_x, fontsize = 18)
             ax.set_ylabel(text_y, fontsize = 18)

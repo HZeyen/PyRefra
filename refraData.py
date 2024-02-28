@@ -3930,8 +3930,8 @@ class Utilities:
         def vel_scale(self, ncol=128, scale="specialP"):
                 if "special" in scale:
                     self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
-                              ['violet','darkgreen','darkgreen','cyan','blue',\
-                               'mediumseagreen','lightseagreen','lime','yellow',\
+                              ['violet','darkgreen','forestgreen','cyan','blue',\
+                               'springgreen','lime','greenyellow','yellow',\
                                'yellow','gold','orange','orangered','red'],N=ncol)
                 elif "rainbow" in scale:
 #                    self.cmp = plt.get_cmap(scale)
@@ -4113,7 +4113,6 @@ class Utilities:
                                  f"{self.mesh_coor[i,1]:0.3f} "+\
                                  f"{self.endModel[i]:0.0f}    {self.cover[i]:0.2f}\n")
                 self.cov_txt = "log10(Coverage) and rays"
-#            triang = tri.Triangulation(self.mesh_coor[:,0], self.mesh_coor[:,1])
 # pass pick times and calculated  from seconds to miliseconds
             self.v_nmo()
             self.dat = self.mgr.fop.data("t")*1000
@@ -4182,7 +4181,6 @@ class Utilities:
 # If color scales are negative (default in first dialog box), they are set
 #    to the quantiles rounded to the next 100 m/s
         ncol = 128
-#        ncol1 = 128
         if "special" in color_scale:
             lin_scale = False
         else:
@@ -4190,11 +4188,9 @@ class Utilities:
         if self.v_scale_min <= 0:
             self.v_scale_min = max(self.q1_start,self.q1_end)
             self.v_scale_min = np.round(self.v_scale_min/100,0)*100
-#            ncol1 = 0
         if self.v_scale_max <= 0:
             self.v_scale_max = max(self.q2_start,self.q2_end)
             self.v_scale_max = np.round(self.v_scale_max/100,0)*100
-#            ncol1 = 0
         if self.v_scale_max < 1600 and color_scale=="specialP":
             _ = QtWidgets.QMessageBox.warning(None,"Warning",\
                 "Maximum velocity < 1600\nColor scale changed to rainbow"+\
@@ -4207,7 +4203,6 @@ class Utilities:
         if lin_scale:
             self.levels = np.linspace(self.v_scale_min,self.v_scale_max,128)
         else:
-#            if ncol1 > 0:
             if color_scale == "specialP":
                 ncyan = int(ncol/16*4)
                 self.levels = list(np.linspace(self.v_scale_min,1500,ncyan))
@@ -4229,7 +4224,7 @@ class Utilities:
         plt.tight_layout()
         self.gs = GridSpec(15, 13, figure=self.figinv)
 # Axis for final model
-        self.ax_mod = self.figinv.add_subplot(self.gs[:7, :])
+        self.ax_mod = self.figinv.add_subplot(self.gs[:6, :])
 # Acis for initial model
         self.ax_start = self.figinv.add_subplot(self.gs[8:11,0:4])
 # Axis for ray and coverage plot
@@ -4255,7 +4250,6 @@ class Utilities:
                                              np.max(self.sens[:,0]))
         self.ticks_y = self.window.set_ticks(-self.zmax,0.)
 # Define annotated levels of velocity color scales
-#        self.levs = np.linspace(self.min_v, self.max_v, 20)
         self.levs = np.linspace(self.v_scale_min, self.v_scale_max, 20)
 
 # Plot starting model
@@ -4263,7 +4257,6 @@ class Utilities:
                        ax=self.ax_start,cMap=self.cmp, cMin=self.v_scale_min,\
                        cMax=self.v_scale_max,logScale=False, orientation="vertical",\
                        label="Velocity [m/s]",fitView=False)
-#        self.ax_start.set_aspect("auto")
         self.ax_start.set_xticks(self.ticks_x)
         self.ax_start.set_yticks(self.ticks_y)
         self.ax_start.set_xlim(left=self.xax_min, right=self.xax_max)
@@ -4288,7 +4281,6 @@ class Utilities:
 # Plot coverage and rays of final model
         cov_min = np.min(self.cover[self.cover > -np.inf])
         cov_max = np.max(self.cover[self.cover < np.inf])
-#        cmp = copy.copy(mpl.cm.get_cmap("gist_rainbow_r"))
         cmp = cc.cm.fire_r
         data = copy.deepcopy(self.cover)
         data[np.isclose(data,0.)] = np.nan
@@ -4318,20 +4310,8 @@ class Utilities:
         self.triang.set_mask(self.mask)
         self.alpha = self.mask*1.
 # Plot final model
-        # if ncol1 == 0:
         gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
                                    levels=self.levels, colors=self.colors)
-        # else:
-        #     gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
-        #                                levels=self.levels, cmap=self.cmp)
-        # gci0.cmap.set_under('pink')
-        # gci0.cmap.set_over('darkred')
-        # self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
-        # isbad = self.cover<self.v_scale_max
-        # self.mask=np.all(np.where(isbad[self.triang.triangles], True, False), axis=1)
-        # self.triang.set_mask(self.mask)
-        # _ = self.ax_mod.tricontourf(self.triang, self.endModel_all, colors="darkred")
-#                                       levels=np.linspace(150, 4000, 84))
 # self.scheme contains all shot and receiver coordinates as well as measured
 #    travel times, obtained at the beginning of the function from file picks.sgt
         y = pg.z(self.scheme)
@@ -4367,12 +4347,10 @@ class Utilities:
         ticks_vel = np.array([200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000,\
                       4500, 5000, 5500, 6000])
         ticks_vel = ticks_vel[ticks_vel <= self.v_scale_max]
-#        self.ax_mod.set_aspect('equal', adjustable='box', anchor='W', share=True)
         self.ax_mod.set_aspect('equal', adjustable='box', anchor='W')
         divider = make_axes_locatable(self.ax_mod)
         cax = divider.append_axes("right", size="2%", pad=0.2)
         cax2 = divider.append_axes("top", size="2%", pad="10%")
-#        cb = plt.colorbar(gci0, cmap=self.cmp, ax=self.ax_mod,\
         cb = plt.colorbar(gci0, cmap=self.cmp, cax=cax,\
                          format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
                          orientation='vertical',aspect=25, shrink=0.9,\

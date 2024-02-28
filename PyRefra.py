@@ -64,9 +64,9 @@ import os
 #  sys_path is the folder where all python program files are located
 #  dir0 is the folder where the data are located
 
-# Example of paths for programs and data on department desktop
-sys_path = r"C:/Users/Invite/Desktop/Geophysique/Sismique"
-dir0 = r"C:/Users/Invite/Desktop/Geophysique/Sismique/data"
+# Example of paths for programs and data on HZ desktop
+sys_path = r"E:/Sources_2010/Python_programs"
+dir0 = r"E:/Seg2Dat/Rouvres2/Data"
 
 # Example of paths for LIONEL
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"

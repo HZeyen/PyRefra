@@ -44,7 +44,7 @@ This opens a command window. Then type the following commands:
 
 6. Open Spyder
         + Open file PyRefra.py (File -> open…)
-        + In the Spyder tool bar click Run -> Configuration per file -> Execute in dedicated console
+        + In the Spyder tool bar click Run -> Configuration per file -> Execute in an external system terminal
 
 Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda. There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/envs/pg/Lib (Linux: ~/anaconda3/envs/pg/lib/python3.8). I will call this folder “ENV”. Site-packages are installed in “ENV/site-packages”
 

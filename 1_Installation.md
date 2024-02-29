@@ -16,37 +16,32 @@
 4. Form here, the windows installation is presented, while [Linux Installations](Linux_Installation.md)  is provided as well.
 
 
-6. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
+5. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
 This opens a command window. Then type the following commands:
     1. `conda config --add channels gimli --add channels conda-forge`
-    2. `conda update --all`
-    3. `conda create -n pg pygimli`
-(this may take quite some time, don’t worry about error messages as long as conda is running).
-    4. `conda activate pg`
-    5. `conda install obspy`
-    6. `conda install statsmodels`
-    7. `conda install scikit-learn`
-    8. `conda install colorcet`
-    9. `conda update -–all`  (just to be sure to have the latest versions)
+    2. `conda install mamba`
+    3. `conda install obspy`
+    4. `conda update --all`
+    5. `mamba create -n pg python=3.9 pygimli mamba spyder obspy statsmodels scikit-learn colorcet`
+   
+   This step creates a new “environment” (a new copy of Python) called “pg”. This is necessary since pygimli in its actual version (Feb. 2024) runs only under Python version <=3.9. If you prefer, you may choose another name than "pg". In this case replace pg in what follows by the name you chose. 
+   
+    6. `conda activate pg`
+    7. `mamba update --all`
 
-    I had sometimes problems with Conda blocking or installing only parts. In this case, after `conda update --all`, continue with
-
-    3. `conda install mamba`    
-    4. `mamba create -n pg python=3.9 pygimli mamba spyder obspy statsmodels scikit-learn colorcet`
-    5. `conda activate pg`
-    6. `mamba update --all`
+    Steps v. and vii. may also be done with conda, in which case you do not need step 2, but I had quite bad experiences with conda blocking while trying to install pygimli.
 
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
         
-5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
+6. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
     + In the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)
-    + In the main window search for the icon “Spyder” and click on “Install” or, if it is already installed, on “Launch”.
+    + In the main window search for the icon “Spyder” and click on “Launch”.
 
-6. Open Spyder
+7. Open Spyder
         + Open file PyRefra.py (File -> open…)
         + In the Spyder tool bar click Run -> Configuration per file -> Execute in an external system terminal
 
-Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda. There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/envs/pg/Lib (Linux: ~/anaconda3/envs/pg/lib/python3.8). I will call this folder “ENV”. Site-packages are installed in “ENV/site-packages”
+Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda. There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/envs/pg/Lib (Linux: ~/anaconda3/envs/pg/lib/python3.9). I will call this folder “ENV”. Site-packages are installed in “ENV/site-packages”
 
 You may simply copy the folders pygimli and obspy into the conda site-packages folder. The other option, if you do not want to copy-paste the provided folders, is to modify the following files:
 

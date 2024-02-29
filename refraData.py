@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Thu Feb 22, 2024
+last modified on Thu Feb 29, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -4078,6 +4078,16 @@ class Utilities:
                 self.p_aim = os.path.join(self.p_aim,pp)
             try:
                 self.cover = self.mgr.inv.cov_sum
+                mesh_x = self.mesh_coor_all[:,0]
+                mesh_y = self.mesh_coor_all[:,1]
+                mesh_v = self.mesh_coor_all[:,2]
+                mesh_x = mesh_x[self.cover > 0.]
+                mesh_y = mesh_y[self.cover > 0.]
+                mesh_v = mesh_v[self.cover > 0.]
+                self.mesh_coor = np.zeros((len(mesh_x),3))
+                self.mesh_coor[:,0] = mesh_x
+                self.mesh_coor[:,1] = mesh_y
+                self.mesh_coor[:,2] = mesh_v
                 self.cell_rays = np.array(self.mgr.inv.cell_rays)
                 self.ncover = np.sum(self.cell_rays,axis=0)
                 nchi = self.cell_rays.shape[0]
@@ -4091,6 +4101,13 @@ class Utilities:
                                  f"   {self.cover[i]:0.2f} "+\
                                  f"      {self.ncover[i]}    "+\
                                  f"{' '.join(map(str,self.cell_rays[:,i]))}\n")
+                self.cov_txt = "Coverage (cumulated ray lengths/cell_size) and rays"
+                del mesh_x,mesh_y,mesh_v
+                self.endModel = self.endModel_all[self.cover > 0.]
+            except:
+#                self.cover = self.mgr.coverage()/self.mgr.paraDomain.cellSize()
+                self.cover = self.mgr.coverage()/self.mgr.mesh.cellSizes().array()
+                cov_true = self.cover[self.cover > 0.]
                 mesh_x = self.mesh_coor_all[:,0]
                 mesh_y = self.mesh_coor_all[:,1]
                 mesh_v = self.mesh_coor_all[:,2]
@@ -4101,17 +4118,13 @@ class Utilities:
                 self.mesh_coor[:,0] = mesh_x
                 self.mesh_coor[:,1] = mesh_y
                 self.mesh_coor[:,2] = mesh_v
-                self.cov_txt = "Coverage (cumulated ray lengths/cell_size) and rays"
-                del mesh_x,mesh_y,mesh_v
                 self.endModel = self.endModel_all[self.cover > 0.]
-            except:
-                self.cover = self.mgr.coverage()/self.mgr.paraDomain.cellSize()
                 with open(os.path.join(self.p_aim,"vel&cover.txt"),"w") as fo:
                     fo.write("   X     Z     V     cover\n")
-                    for i in range(len(self.cover)):
+                    for i in range(len(cov_true)):
                         fo.write(f"{self.mesh_coor[i,0]:0.3f} "+\
                                  f"{self.mesh_coor[i,1]:0.3f} "+\
-                                 f"{self.endModel[i]:0.0f}    {self.cover[i]:0.2f}\n")
+                                 f"{self.endModel[i]:0.0f}    {cov_true[i]:0.2f}\n")
                 self.cov_txt = "log10(Coverage) and rays"
 # pass pick times and calculated  from seconds to miliseconds
             self.v_nmo()

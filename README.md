@@ -14,3 +14,4 @@ For preparing your own dataset, [2_Data_preparation.md](./2_Data_preparation.md)
 
 All these instructions are combined in a file [PyRefra.pdf](./PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the online version (.md files) is completely up to date, since it is more difficult to maintain.
 
+This program has doi number 10.5281/zenodo.10728121 from Zenodo

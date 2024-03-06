@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Wed July 12, 2023
+last modified on Tue Mar 05, 2024
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -152,8 +152,10 @@ class Window(QMainWindow, Ui_MainWindow):
         self.pick_manual_text = "Manual picking module: left click for pick, "+\
                          "second left click for uncertainty (double click: "+\
                          "2 samples uncertainty), central click to erase pick, "+\
-                         "right click to finish;    dashed line corresponds "+\
-                         "to air-wave arrivals"
+                         "right click to finish; "+\
+                         "SHFT+left click: accept picks along green line; "+\
+                         "blue dashed line: air-wave arrivals; "+\
+                         "green dashed line: nearby earlier picks"
         self.pick_move_text = "Move picks module: left click to choose pick, "+\
                          "up/down or Numpad8/Numpad2 key to move pick, with "+\
                          "SHFT 10 samples, with CTRL 1 ms; Right/Left key to "+\
@@ -1171,7 +1173,7 @@ class Window(QMainWindow, Ui_MainWindow):
                     fac[t>0] = t[t>0]**self.time_gain
                     for i in traces:
                         d[i,:] = d[i,:]*fac
-                    dmax = np.abs(d).max(axis=0)
+                    dmax = np.abs(d).max(axis=1)
                 elif self.gain == "dist":
                     fac = np.abs(x_pos)**self.dist_gain
                     for i in traces:
@@ -2542,6 +2544,46 @@ class Window(QMainWindow, Ui_MainWindow):
         def onPress(event):
             global figure, tpk, npi
             if event.button == 1:
+                modifiers = QtWidgets.QApplication.keyboardModifiers()
+                if modifiers == QtCore.Qt.ShiftModifier:
+                    print("Shift modifier")
+                    for i,itr in enumerate(self.i_pk):
+                        self.searchTrace(self.x_pk[i])
+                        trace = self.itrace
+                        sht = self.p_s
+                        stn = self.p_r
+                        npi = self.traces.npick[trace]
+                        self.traces.npick[trace] += 1
+                        print(f"Pick nr {self.traces.npick[trace]} at shot "+\
+                              f"{sht+1}, receiver {stn+1}")
+                        try:
+                            self.traces.pick_times[trace][npi] = self.t_pk[i]
+                            self.traces.pick_times_min[trace][npi] = self.t_pk[i]-umin
+                            self.traces.pick_times_max[trace][npi] = self.t_pk[i]+umin
+                        except:
+                            self.traces.pick_times[trace].append(self.t_pk[i])
+                            self.traces.pick_times_min[trace].append(self.t_pk[i]-umin)
+                            self.traces.pick_times_max[trace].append(self.t_pk[i]+umin)
+                        # self.canvas = self.lin.figure.canvas
+                        # x_coor = [self.x[self.n_tr]-0.3, self.x[self.n_tr]+0.3]
+                        # y_coor = [self.t_pk[i], self.t_pk[i]]
+                        # self.lin, = self.axes[self.fig_plotted].plot(x_coor,y_coor,"r")
+                        # self.axes[self.fig_plotted].draw_artist(self.lin)
+                        # self.canvas.blit(self.axes[self.fig_plotted].bbox)
+                        # x_coor = [self.x[self.n_tr], self.x[self.n_tr]]
+                        # y_coor = [self.traces.pick_times_min[trace][npi],\
+                        #           self.traces.pick_times_max[trace][npi]]
+                        # self.lin, = self.axes[self.fig_plotted].plot(x_coor,y_coor,"r")
+                        # self.axes[self.fig_plotted].draw_artist(self.lin)
+                        # self.canvas.blit(self.axes[self.fig_plotted].bbox)
+                        # self.lin.set_animated(False)
+                        # self.finish = True
+                        # self.lin.figure.canvas.mpl_disconnect(self.cidpress)
+                    self.drawNew(True)
+                    # self.setHelp(self.main_text) # Change help text to main module
+                    self.traces.storePicks()
+                    self.end = True
+                    return
 # Left mouse button pressed, define a new pick
                 if self.press == 0:
 # First click at the position of the pick
@@ -2667,16 +2709,19 @@ class Window(QMainWindow, Ui_MainWindow):
             self.axes[self.fig_plotted].draw(renderer)
             self.canvas.blit(self.axes[self.fig_plotted].bbox)
 
-# Search picks done earlier in nearby gathers an plot a line connecting them
+# Search picks done earlier in nearby gathers and plot a line connecting them
         x_pk_help, t_pk_help, i_pk_help = self.searchNearPicks()
         x1 = x_pk_help[(x_pk_help >= self.x_zoom_min) & \
                        (x_pk_help <= self.x_zoom_max)]
         t1 = t_pk_help[(x_pk_help >= self.x_zoom_min) &\
                        (x_pk_help <= self.x_zoom_max)]
-        x_pk = x1[x1 <= self.x_zoom_max]
-        t_pk = t1[x1 <= self.x_zoom_max]
-        if len(x_pk):
-            self.axes[self.fig_plotted].plot(x_pk, t_pk, c="g", ls="--")
+        pk1 = i_pk_help[(x_pk_help >= self.x_zoom_min) &\
+                       (x_pk_help <= self.x_zoom_max)]
+        self.x_pk = x1[x1 <= self.x_zoom_max]
+        self.t_pk = t1[x1 <= self.x_zoom_max]
+        self.i_pk = pk1[x1 <= self.x_zoom_max]
+        if len(self.x_pk):
+            self.axes[self.fig_plotted].plot(self.x_pk, self.t_pk, c="g", ls="--")
             renderer = figure.canvas.renderer
             self.axes[self.fig_plotted].draw(renderer)
             self.canvas.blit(self.axes[self.fig_plotted].bbox)

@@ -66,7 +66,7 @@ import os
 
 # Example of paths for programs and data on HZ desktop
 sys_path = r"E:/Sources_2010/Python_programs"
-dir0 = r"E:/Seg2Dat/Rouvres2/Data"
+dir0 = r"E:/Seg2Dat/Rouvres1"
 
 # Example of paths for LIONEL
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"

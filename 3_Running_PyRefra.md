@@ -1,16 +1,12 @@
 # Running PyRefra
 
-To start **PyRefra.py**, the best is to open it in Spyder and click on the green arrow or press F5. **If you configured Spyder as indicated in “Installation.6”, and you restart refraPy, you must first close the console of the earlier run. If not, a possible change of the folder will not be taken into account.**
+To start **PyRefra.py**, the best is to open it in Spyder and click on the green arrow or press F5.
 
-Before running the program, $\textcolor{red}{\text{you must define the path to the python files}}$ and may want to set manually the path to your data folder. For this go to **approximately line 70**. There, you will see a line starting with `sys_path = r”…”`. Replace the existing path by the path of the python files. In the following line, starting with `self.dir0 = r”…”`, replace the existing path by the path to the data files. This is not necessary, since you may choose the path interactively, but if you work for a longer time on the same data set, it avoids searching on each program start your data on the disk.
+Before running the program, $\textcolor{red}{\text{you must define the path to the python files}}$ and may want to set manually the path to your data folder. For this go to **approximately line 70**. There, you will see a line starting with `sys_path = r”…”`. Replace the existing path by the path of the python files. In the following line, starting with `self.dir0 = r”…”`, replace the existing path by the path to the data files. This second path is not necessary, since you may choose it interactively, but if you work for a longer time on the same data set, it avoids searching on each program start your data on the disk.
+
+If file PyRefra.config does not exist in the data folder, the program will first ask for the title and direction (see above). If this file is found the information will be used. If the file content must be changed, do it in a text editor or erase the file and restart the program.
 
 The program will ask for the files to be opened. It proposes initially files with ending **seg2**. If none is shown in the dialog box, probably you are dealing with Summit2 or SEGY files, so you may change the default ending to **sg2**, **segy** or **sgy** (or even show all files). Usually, you will want to open all available files. Click on one of them and chose them with **CTRL-A**. If not, you may choose them as usual in the explorer, using SHFT or CTRL keyboard keys. No problem, if also folders are chosen with CTRL-A, the program filters them out. If you know that there are bad files, you may copy them into another folder or change their name-endings to something else than “.seg2”, “.sg2”, "segy" or .”sgy” in which case the default option will not find these files and they are not opened. File numbering does not need to be contiguous. $\textcolor{red}{\text{For information}}$: if segy files are read, internally, the program copies the important segy header entries to seg2 headers. If the program has problems, it might be that not all necessary header entries exist or have been copied over.
-
-In the beginning, the program shows a warning:
-
-`C:\Users\Hermann\anaconda3\envs\pg\lib\site-packages\pkg_resources\__init__.py:123: PkgResourcesDeprecationWarning: -PKG-VERSION is an invalid version and will not be supported in a future release`
-
-This warning comes from “import obspy”. Hope, obspy developers will do something early enough…
 
 When opened, the GUI shows in the $\textcolor{blue}{\text{main window}}$ the data of the shot gather corresponding to the first shot point. A smaller window to the right shows all available $\textcolor{red}{\text{shot point numbers}}$. Clicking on one of the names plots the seismograms of the corresponding shot point in the $\textcolor{blue}{\text{main window}}$. Beneath the main window, a $\textcolor{green}{\text{help text}}$ is shown. To be visible, it may be necessary that the Windows task bar be automatically hidden. Above the main window, a $\textcolor{violet}{\text{menu bar}}$ is placed.
 
@@ -226,13 +222,15 @@ From my experience, the best automatic picking results are mostly achieved using
 **$\textcolor{violet}{\text{Manual picks}}$** (keyboard shortcut: **M**): 
 Manual picking.
 
-For all picks, two clicks with the left mouse button are needed: first you mark the position of the pick, then the uncertainty, which is considered to be symmetric around the pick position, so you may click above or below the pick position. A double click defines as default uncertainty 2 time-samples if no filter was applied to the data and 4 samples if a filter was applied.
+For all picks, two clicks with the **left mouse button** are needed: first you mark the position of the pick, then the uncertainty, which is considered to be symmetric around the pick position, so you may click above or below the pick position. A **double click** defines as default uncertainty 2 time-samples if no filter was applied to the data and 4 samples if a filter was applied.
 
 To finish, click right mouse button
 
-You may **erase picks** by clicking the central mouse button (or the mouse wheel). The program searches first the trace nearest to the mouse click and erases then the pick nearest to the click. If no pick is available for the corresponding trace, nothing will happen.
+You may **erase picks** by clicking the **central mouse button (or the mouse wheel)**. The program searches first the trace nearest to the mouse click and erases then the pick nearest to the click. If no pick is available for the corresponding trace, nothing will happen.
 
-When calling the tool, a stippled line is plotted showing the theoretical air-wave arrivals, which allows avoiding picking this wave as apparent direct wave, when working with near-surface data. If picking has been done on other shots, also a green stippled line is plotted, indicating picks done on other nearby traces at the same offset (maximum distance of nearby trace: 10 traces).
+**Right mouse button** finishes picking.
+
+When calling the tool, a stippled line is plotted showing the theoretical air-wave arrivals, which allows avoiding picking this wave as apparent direct wave, when working with near-surface data. If picking has been done on other shots, also a green stippled line is plotted, indicating picks done on other nearby traces at the same offset (maximum distance of nearby trace: 10 traces). Clicking **SHIFT+left mouse button** uses these picking times as picks for the actual gather and finishes picking. Picks may then be replaced using Move Picks (CTRL+M).
 
 **$\textcolor{violet}{\text{Amplitude picking}}$** (keyboard shortcut: **CTRL-A**): 
 Automatic picking tool that locates first arrivals by analysing full amplitudes.

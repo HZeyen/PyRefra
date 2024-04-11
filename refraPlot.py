@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Tue Mar 05, 2024
+last modified on Apr 11, 2024
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -327,6 +327,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         from datetime import datetime,date
+        answer = self.main.test_function()
+        if not answer:
+            return
         now = datetime.now()
         c_time = now.strftime("%H-%M-%S")
         today = date.today()
@@ -367,6 +370,9 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         labels = list(self.geom.types)+["All"]
         n = len(labels)
         results, okButton = self.main.dialog(\
@@ -388,7 +394,9 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        self.main.function = "plot_original"
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.data.st = copy.deepcopy(self.data.st_ori)
         self.v_set = False
         self.drawNew(True)
@@ -407,6 +415,9 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         for t in self.actual_traces:
             nf = self.traces.file[t]
             nt = self.traces.trace[t]
@@ -486,11 +497,15 @@ class Window(QMainWindow, Ui_MainWindow):
         print("Amp:",self.amp_plt)
         self.drawNew(True)
         self.setHelp(self.main_text) # Change help text to self module
+        self.main.function = "main"
 
     def tNorm(self):
         """
         Function set gain as trace normalized
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.gain = "tnorm"
         self.trace_norm = True
         self.t_Gain.setEnabled(True)
@@ -508,6 +523,9 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         Function set gain as time**time_gain
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         results, okButton = self.main.dialog(\
                                     ["Exponent for time gain"],["e"],["2"],\
                                     "Time gain")
@@ -532,6 +550,9 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         Function set gain as distance**dist_gain
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         results, okButton = self.main.dialog(\
                                             ["Exponent for distance gain"],\
                                              ["e"],["2"],"Distance gain")
@@ -556,6 +577,9 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         Function set gain as AGC
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         results, okButton = self.main.dialog(\
                                             ["AGC window length [ms]"],\
                                             ["e"],["100"],"AGC gain")
@@ -605,6 +629,9 @@ class Window(QMainWindow, Ui_MainWindow):
         return data
     
     def phasePlot(self):
+        answer = self.main.test_function()
+        if not answer:
+            return
         if self.phase_plot:
             self.phase_plot = False
         else:
@@ -711,7 +738,10 @@ class Window(QMainWindow, Ui_MainWindow):
         amplitudes to zero. The choice is selftained for the whole run
         until called again, also when changing data set.
         """
-        self.main.function = "trace_null"
+        answer = self.main.test_function()
+        if not answer:
+            return
+        self.main.function = "trace_mute"
         self.finish = False
         self.picked = False
         self.setHelp(self.trace_mute_text)
@@ -747,6 +777,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.lin.figure.canvas.mpl_disconnect(self.cidpress)
                 self.drawNew(True)
                 self.setHelp(self.main_text) # Change help text to self module
+                self.main.function = "main"
         self.x_coor=[]
         self.y_coor=[]
         self.lin, = self.axes[self.fig_plotted].plot(self.x_coor, self.y_coor,\
@@ -767,6 +798,9 @@ class Window(QMainWindow, Ui_MainWindow):
         modified traces
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "Mute_air"
         results, okButton = self.main.dialog(\
                                     ["Air velocity [m/s]",\
@@ -805,11 +839,18 @@ class Window(QMainWindow, Ui_MainWindow):
         self.v_set=False
         self.drawNew(True)
         self.setHelp(self.main_text)
+        self.main.function = "main"
 
     def muteBefore(self):
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.muteTime(-1)
 
     def muteAfter(self):
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.muteTime(1)
 
     def muteTime(self,sign):
@@ -909,6 +950,9 @@ class Window(QMainWindow, Ui_MainWindow):
         (the value is selftained for the whole run until called again,
           also when changing data set)
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "trace_sign"
         self.finish = False
         self.picked = False
@@ -930,6 +974,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.lin.figure.canvas.mpl_disconnect(self.cidpress)
                 self.drawNew(True)
                 self.setHelp(self.main_text) # Change help text to self module
+                self.main.function = "main"
         self.x_coor=[]
         self.y_coor=[]
         self.lin, = self.axes[self.fig_plotted].plot(self.x_coor, self.y_coor, animated=True)
@@ -941,12 +986,16 @@ class Window(QMainWindow, Ui_MainWindow):
         (the sign is selftained for the whole run until called again,
           also when changing data set)
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "change_sign"
         self.traces.amplitudes *= -1
         self.data.general_sign *= -1
         self.v *= -1
         self.drawNew(True)
         self.setHelp(self.main_text) # Change help text to self module
+        self.main.function = "main"
 
     def addZoom(self, xmin, xmax, nt_min, nt_max):
         self.n_zooms += 1
@@ -964,6 +1013,10 @@ class Window(QMainWindow, Ui_MainWindow):
         Output: Bool
                 False if rectangle too small (usually zero size by inadvertancy)
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
+
         self.main.function = "zoom"
         zm = False
         self.setHelp(self.zoom_text) # Change help text
@@ -1073,6 +1126,10 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         If several zooms have been used, zoom out one step
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
+
         if self.i_zooms == 0:
             print("No zoom out possible, already at initial zoom")
             return False
@@ -1091,6 +1148,10 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         If several zooms have been used, zoom in one step
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
+
         if self.i_zooms == self.n_zooms:
             print("No tighter zoom available, use Z to define new zoom")
             return False
@@ -1106,6 +1167,10 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         Go back to initial zoom (all data are plotted)
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
+
         self.i_zooms = 0
         self.nt_mn = self.zooms[0][2]
         self.nt_mx = self.zooms[0][3]
@@ -1230,6 +1295,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
 # Set flags correctly
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "plot_RG"
         self.mplfigs.clear()
         self.v_set = False
@@ -1360,6 +1428,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
 # Set flags correctly
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "plot_DG"
         self.v_set = False
         self.mplfigs.clear()
@@ -1521,7 +1592,11 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
 # Set flags correctly
+        self.main.function = "shot_gather"
         self.v_set = False
         self.fg_flag = False
         self.sg_flag = True
@@ -1687,7 +1762,11 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
 # Set flags correctly
+        self.main.function = "shot_gather"
         self.v_set = False
         self.sg_flag = False
         self.rg_flag = False
@@ -1947,10 +2026,13 @@ class Window(QMainWindow, Ui_MainWindow):
                 tmn = self.traces.pick_times_min[ntr][j]
                 tmx = self.traces.pick_times_max[ntr][j]
             except:
-                self.traces.pick_times_min[ntr][j] = t-2*self.data.dt
-                self.traces.pick_times_max[ntr][j] = t+2*self.data.dt
-                tmn = self.traces.pick_times_min[ntr][j]
-                tmn = self.traces.pick_times_max[ntr][j]
+                try:
+                    self.traces.pick_times_min[ntr][j] = t-2*self.data.dt
+                    self.traces.pick_times_max[ntr][j] = t+2*self.data.dt
+                    tmn = self.traces.pick_times_min[ntr][j]
+                    tmn = self.traces.pick_times_max[ntr][j]
+                except:
+                    return
             x_c = [self.x[i],self.x[i]]
             y_c = [max(tmn,self.time_plt_min),min(tmx,self.time_plt_max)]
             self.line, = self.axes[self.fig_plotted].plot(x_c, y_c,col)
@@ -1965,6 +2047,9 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         cols = ["b","g","r","c","m","y","k"]
         # self.drawNew(False)
         # self.figpk =  self.figs[self.fig_plotted]
@@ -2008,6 +2093,9 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         if not self.traces.calc_picks:
             print("\nNo calculated travel times available\n")
             return
@@ -2137,6 +2225,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         global figure,r_flag
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.setHelp(self.pick_move_text)
         self.main.function = "pick_move"
         def onPress(event):
@@ -2213,6 +2304,7 @@ class Window(QMainWindow, Ui_MainWindow):
             QtCore.QCoreApplication.processEvents()
         self.setHelp(self.main_text)
         self.traces.storePicks()
+        self.main.function = "main"
 
     def movePick(self, sign):
         """
@@ -2264,8 +2356,11 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         global figure,r_flag
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.setHelp(self.uncertainty_text)
-        self.main.function = "uncertainty"
+        self.main.function = "change_pick_uncertainty"
         def onPress(event):
 # If left öouse button has been clicked, search nearest pick
             if event.button == 1:
@@ -2308,6 +2403,7 @@ class Window(QMainWindow, Ui_MainWindow):
             QtCore.QCoreApplication.processEvents()
         self.setHelp(self.main_text)
         self.traces.storePicks()
+        self.main.function = "main"
 
     def changeUnc(self,sign):
         """
@@ -2513,6 +2609,9 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         for i in range(self.actual_number_traces):
             ipt = self.actual_traces[i]
             self.traces.npick[ipt] = 0
@@ -2533,8 +2632,11 @@ class Window(QMainWindow, Ui_MainWindow):
         Click right mouse button to finish manual picking
         """
         global figure
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.setHelp(self.pick_manual_text)
-        self.main.function = "mpick"
+        self.main.function = "manual_pick"
         self.press = 0
         self.finish = False
         if self.main.utilities.filtered:
@@ -2564,23 +2666,7 @@ class Window(QMainWindow, Ui_MainWindow):
                             self.traces.pick_times[trace].append(self.t_pk[i])
                             self.traces.pick_times_min[trace].append(self.t_pk[i]-umin)
                             self.traces.pick_times_max[trace].append(self.t_pk[i]+umin)
-                        # self.canvas = self.lin.figure.canvas
-                        # x_coor = [self.x[self.n_tr]-0.3, self.x[self.n_tr]+0.3]
-                        # y_coor = [self.t_pk[i], self.t_pk[i]]
-                        # self.lin, = self.axes[self.fig_plotted].plot(x_coor,y_coor,"r")
-                        # self.axes[self.fig_plotted].draw_artist(self.lin)
-                        # self.canvas.blit(self.axes[self.fig_plotted].bbox)
-                        # x_coor = [self.x[self.n_tr], self.x[self.n_tr]]
-                        # y_coor = [self.traces.pick_times_min[trace][npi],\
-                        #           self.traces.pick_times_max[trace][npi]]
-                        # self.lin, = self.axes[self.fig_plotted].plot(x_coor,y_coor,"r")
-                        # self.axes[self.fig_plotted].draw_artist(self.lin)
-                        # self.canvas.blit(self.axes[self.fig_plotted].bbox)
-                        # self.lin.set_animated(False)
-                        # self.finish = True
-                        # self.lin.figure.canvas.mpl_disconnect(self.cidpress)
                     self.drawNew(True)
-                    # self.setHelp(self.main_text) # Change help text to main module
                     self.traces.storePicks()
                     self.end = True
                     return
@@ -2635,6 +2721,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 stn = self.p_r
                 npi = self.traces.npick[trace]
                 if npi < 1:
+                    self.main.function = "main"
                     return
                 print(f"Erase pick nr {self.ipk+1} at shot {sht+1},"+\
                       f"receiver {stn+1}")
@@ -2661,6 +2748,7 @@ class Window(QMainWindow, Ui_MainWindow):
                                 self.traces.pick_times_max[trace][i]
                     self.traces.npick[trace] -= 1
                 elif npi == 0:
+                    self.main.function = "main"
                     return
                 else:
                     self.traces.npick[trace] = 0
@@ -2736,6 +2824,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.PlotPicks.setEnabled(True)
         self.MovePicks.setEnabled(True)
         self.setHelp(self.main_text)
+        self.main.function = "main"
 
     def findNearest2ndDerivative(self,v,n0,nwin,nav):
         """
@@ -2837,7 +2926,10 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        self.main.function = "cpick"
+        answer = self.main.test_function()
+        if not answer:
+            return
+        self.main.function = "corr_pick"
         global figure,r_flag
         self.setHelp(self.cpick_text)
 
@@ -3056,6 +3148,7 @@ class Window(QMainWindow, Ui_MainWindow):
             else:
                 print("\nCorrelation picking cancelled")
                 self.setHelp(self.main_text)
+                self.main.function = "main"
                 return False
                 
 
@@ -3101,6 +3194,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.canvas.blit(self.axes[self.fig_plotted].bbox)
         self.setHelp(self.main_text)
         self.traces.storePicks()
+        self.main.function = "main"
 
     def Sta_Lta(self):
         """
@@ -3113,7 +3207,10 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         import obspy.signal.trigger as trigger
 
-        self.main.function = "slpick"
+        answer = self.main.test_function()
+        if not answer:
+            return
+        self.main.function = "sta_lta_pick"
         visible_flag = True
         figure = self.figs[self.fig_plotted] # set figure (simply shorter variable name)
         results, okButton = self.main.dialog(\
@@ -3183,6 +3280,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.PlotPicks.setEnabled(True)
             self.MovePicks.setEnabled(True)
             self.traces.storePicks()
+        self.main.function = "main"
 
     def ampPick(self,data,istart=0,iend=0,half_width=7):
         """
@@ -3427,7 +3525,10 @@ class Window(QMainWindow, Ui_MainWindow):
             Amplitude at the position of the calculated pick.
 
         """
-        self.main.function = "apick"
+        answer = self.main.test_function()
+        if not answer:
+            return
+        self.main.function = "amp_pick"
         figure = self.figs[self.fig_plotted] # set figure (simply shorter variable name)
         self.keys_held = set()
         results, okButton = self.main.dialog(\
@@ -3441,7 +3542,8 @@ class Window(QMainWindow, Ui_MainWindow):
                                          "Amp_Pick parameter input")
 
         if okButton == False:
-            pass
+            self.main.function = "main"
+            return
         else:
             half_width = int(results[0])
             nlines = int(results[1])
@@ -4039,7 +4141,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
         import matplotlib.pyplot as plt
-        self.main.function = "Animated"
+        answer = self.main.test_function()
+        if not answer:
+            return
 # chose data to be plotted and set clipping to 99% of extreme amplitudes
         nd_start = self.zooms[self.i_zooms][2]
         nd_end = self.zooms[self.i_zooms][3]

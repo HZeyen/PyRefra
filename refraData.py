@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Tue Mar 05, 2024
+last modified on Apr 11, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -658,6 +658,9 @@ class Data():
         """
         from obspy.io.segy.segy import SEGYTraceHeader
         from obspy.io.segy.segy import SEGYBinaryFileHeader
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "save_SEGY"
 
 # Open dialog window for storing parameters:
@@ -686,6 +689,7 @@ class Data():
 
         if okButton == False:
             print("SEGY saving cancelled")
+            self.main.function = "main"
             return
         S_time = int(results[1])
         data_flag = results[2].lower()
@@ -845,6 +849,7 @@ class Data():
         del stw
         del sst
         self.save_su = False
+        self.main.function = "main"
 
     def saveSU(self):
         """
@@ -860,6 +865,9 @@ class Data():
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.save_su = True
         self.saveSEGY()
 
@@ -876,6 +884,9 @@ class Data():
 
         """
         from obspy.core import Stream
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "save_SEG2"
 
 # Open dialog window for storing parameters:
@@ -895,6 +906,7 @@ class Data():
 
         if okButton == False:
             print("SEG2 saving cancelled")
+            self.main.function = "main"
             return
         folder = results[0]
         if not os.path.exists(folder):
@@ -938,6 +950,7 @@ class Data():
                      "Only shot or file gathers may be saved in SEG2 format.\n"+\
                      "Save all gathers or change plot to shot or file gather\n"+
                      "     before trying again",QtWidgets.QMessageBox.Close)
+                self.main.function = "main"
                 return False
             self.seg2_write(stream, file)
 # If all files or shots should be saved, do this here
@@ -959,6 +972,7 @@ class Data():
                         if i == 0:
                             stream.stats = self.st[ifile].stats
                     self.seg2_write(stream, file)
+        self.main.function = "main"
 
     def seg2_write(self,st,file):
         """
@@ -1181,6 +1195,9 @@ class Data():
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         results, okButton = self.main.dialog(\
                                 ["Start_time (a(ll)/0/w(indow))"],\
                                 ["e"], [0], "Save FWI format")
@@ -1230,6 +1247,9 @@ class Data():
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         if not file_out:
             file_out = f"rec{self.main.window.fig_plotted+1:0>5}.asc"
         with open(file_out,'w') as fo:
@@ -1250,6 +1270,9 @@ class Data():
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         if not os.path.isdir("Headers"):
             os.makedirs("Headers")
         for n,s in enumerate(self.st):
@@ -1269,43 +1292,38 @@ class Geometry():
 
     def read_geo_file(self, filename):
         try:
-            with open(filename,"r") as f:
-                lines = f.readlines()
+            data = np.loadtxt(filename)
         except:
             _ = QtWidgets.QMessageBox.critical(None, "Error",
                      f"File {filename} cannot be opened or is missing.\n\n"+\
                          "Program stops", QtWidgets.QMessageBox.Ok)
             raise Exception(f"File {filename} cannot be opened or is missing.\n")
 
-        n_rec = len(lines)
-        d = {}
-        try:
-            for i in range(n_rec):
-                if lines[i] == "\n": continue
-                line = lines[i].split("\t")
-                if len(line)<2:
-                    line = line.split(" ")
 # receiver numbers in file receivers.geo start with 1, but Python neads numbering
 #   starting with 0. Therefore, the number read is reduced by 1 in the next line
-                i_rec = int(line[0]) - 1
+        try:
+            d = {}
+            nl, nc = data.shape
+            for i in  range(nl):
+                i_rec = int(data[i,0]) - 1
                 d[i_rec] = {}
                 d[i_rec]["line"] = i
-                d[i_rec]["x"] = float(line[1])
-                d[i_rec]["y"] = float(line[2])
-                d[i_rec]["z"] = float(line[3])
-                if len(line) > 4:
-                    d[i_rec]["type"] = line[4][0].upper()
+                d[i_rec]["x"] = data[i,1]
+                d[i_rec]["y"] = data[i,2]
+                d[i_rec]["z"] = data[i,3]
+                if nc > 4:
+                    d[i_rec]["type"] = data[i,4].upper()
                 else:
                     d[i_rec]["type"] = "Z"
         except:
             if filename == "shots.geo":
                 _ = QtWidgets.QMessageBox.critical(None, "Error",
-                         f"Error reading file {filename}.\n"+\
+                         f"Error reading file {filename}, line {i+1}.\n"+\
                          "Must have 4 columns: nr, X, Y, Z\n\n"+\
                          "Program stops", QtWidgets.QMessageBox.Ok)
             else:
                 _ = QtWidgets.QMessageBox.critical(None, "Error",
-                         f"Error reading file {filename}.\n"+\
+                         f"Error reading file {filename}, line {i+1}.\n"+\
                          "Must have 4 or 5 columns: nr, X, Y, Z [component]\n\n"+\
                          "Program stops", QtWidgets.QMessageBox.Ok)
             raise Exception(f"File {filename} wrong format.\n")
@@ -1669,19 +1687,36 @@ class Traces():
         ts_max (numpy float array) Upper uncertainty limit
 
         """
+        self.external_picks = False
         try:
             with open('picks.dat', 'r') as f:
+                self.ishs = []
+                self.ists = []
+                self.ts = []
+                self.ts_min = []
+                self.ts_max = []
                 while True:
                     try:
                         numbers = f.readline().split()
                         isht = int(numbers[0])-1
                         irec = int(numbers[1])-1
+# If picks of read shot points are found, store them in arrays for those shot points
                         if (isht,irec) in self.sht_rec_dict:
                             itr = self.sht_rec_dict[(isht,irec)]
                             self.npick[itr] += 1
                             self.pick_times[itr].append(float(numbers[2]))
                             self.pick_times_min[itr].append(float(numbers[3]))
                             self.pick_times_max[itr].append(float(numbers[4]))
+                        else:
+# If picks are found belonging to shot points not read in, store them into
+# backup arrays. Thos picks will be written in function storePicks after
+# picks belonging to active shot points.
+                            self.external_picks = True
+                            self.ishs.append(isht)
+                            self.ists.append(irec)
+                            self.ts.append(float(numbers[2]))
+                            self.ts_min.append(float(numbers[3]))
+                            self.ts_max.append(float(numbers[4]))
                     except:
                         break
         except:
@@ -1705,6 +1740,9 @@ class Traces():
 #  been read in. The reason is that if not all existing files were chosen, it
 #  is possible that existing picks from other files were not copied to the
 #  Traces array and would be lost without this procedure.
+        answer = self.main.test_function()
+        if not answer:
+            return
         try:
             nsht = int(np.max(list(self.geom.sht_dict.keys())))+1
             nrec = int(np.max(list(self.geom.rec_dict.keys())))+1
@@ -1713,20 +1751,6 @@ class Traces():
             tpkmn = np.zeros((nsht,nrec,5))
             tpkmx = np.zeros((nsht,nrec,5))
             print(f"\nstore {np.sum(self.npick)} picks into file picks.dat")
-            if os.path.isfile('picks.dat'):
-                if os.path.getsize('picks.dat')>0:
-                    with open('picks.dat', 'r') as f:
-                        while True:
-                            try:
-                                numbers = f.readline().split()
-                                isht =int(numbers[0])-1
-                                irec =int(numbers[1])-1
-                                tpk[isht,irec,npk[isht,irec]] = float(numbers[2])
-                                tpkmn[isht,irec,npk[isht,irec]] = float(numbers[3])
-                                tpkmx[isht,irec,npk[isht,irec]] = float(numbers[4])
-                                npk[isht,irec] += 1
-                            except:
-                                break
             for i in range(len(self.npick)):
                 isht = self.shot[i]
                 irec = self.receiver[i]
@@ -1747,6 +1771,14 @@ class Traces():
                                          f"{tpk[ish,ist,ipk]:0.5f} "+\
                                          f"{tpkmn[ish,ist,ipk]:0.5f} "+\
                                          f"{tpkmx[ish,ist,ipk]:0.5f}\n")
+# If they exist, save picks read into backup arrays
+                if self.external_picks:
+                    for i in range(len(self.ts)):
+                        fh.write(f"{self.ishs[i]+1} {self.ists[i]+1} "+\
+                                 f"{self.ts[i]:0.5f} "+\
+                                 f"{self.ts_min[i]:0.5f} "+\
+                                 f"{self.ts_max[i]:0.5f}\n")
+                    
             print("File picks.dat written")
         except:
             choice = QtWidgets.QMessageBox.warning(None, "Warning",
@@ -1819,6 +1851,9 @@ class Traces():
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         if self.main.utilities.filtered:
             unc = 4*self.data.dt
         else:
@@ -1931,6 +1966,7 @@ class Utilities:
         self.v_scale_min = 200.
         self.v_scale_max = 6000.
         self.zmax_plt = 20.
+
     def min_max(self,data,half_width=3):
         """
         Find all relative minima and maxima in a data vector. A maximum is found
@@ -2092,6 +2128,9 @@ class Utilities:
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "tau_p"
         results, okButton = self.main.dialog(\
                                     ["min velocity [m/s]",\
@@ -2101,6 +2140,7 @@ class Utilities:
                                     ["100","3100","50"],"tau_p parameters")
         if okButton == False:
             print("Tau-p calculation cancelled")
+            self.main.function = "main"
             return
         vmin = float(results[0])
         vmax = float(results[1])
@@ -2154,6 +2194,7 @@ class Utilities:
                       fontsize = 20)
         ax.tick_params(axis='both', labelsize=18)
         self.w_tau.show()
+        self.main.function = "main"
 
     def pModel(self, model="P"):
         """
@@ -2167,7 +2208,11 @@ class Utilities:
             Used only for contructing the name of the output file 
 
         """
-        if not model: model = "P"
+        answer = self.main.test_function()
+        if not answer:
+            return
+        if not model:
+            model = "P"
         if self.window.dg_flag:
             print("Measuring velocities makes no sense in a distance gather")
             print(f"{model}_Model canceled")
@@ -2194,6 +2239,7 @@ class Utilities:
             self.window.followLine(True,n_lay_l,n_lay_r)
             if len(self.window.coor_x) <= 0:
                 print(f"{model}-wave model cancelled")
+                self.main.function = "main"
                 return
             x[0] = self.window.coor_x[0]
             x[1] = self.window.coor_x[1]
@@ -2380,6 +2426,7 @@ class Utilities:
                                      f"{self.thick_r[i]:0.2f} "+\
                                      f"{self.tints_r[i]:0.4f}\n")
         self.window.setHelp(self.window.main_text)
+        self.main.function = "main"
 
     def sModel(self):
         """
@@ -2388,6 +2435,9 @@ class Utilities:
         velocities and interface depths
         
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.pModel("S")
 
     def envel(self):
@@ -2407,6 +2457,9 @@ class Utilities:
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
 # Save data into temporary array
         v_data = deepcopy(self.window.v)
         v_env = np.zeros((v_data.shape[0]*2,v_data.shape[1]))
@@ -2497,6 +2550,9 @@ class Utilities:
         from scipy.signal import hilbert,medfilt
         from obspy.signal import filter
         import statsmodels.api as sm
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "False_Colour"
         self.window.setHelp(self.window.falseCol_text)
         self.nd_start = self.window.zooms[self.window.i_zooms][2]
@@ -2817,6 +2873,7 @@ class Utilities:
 # Show false colour plot and wait for key stroke
         ax.tick_params(axis='both', labelsize=18)
         self.w_fcol.show()
+        self.main.function = "main"
 
     def secondDerivative(self,data,l_before,l_after):
         """
@@ -3156,6 +3213,9 @@ class Utilities:
         return True
 
     def filterAll(self):
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.frequencyFilter(-1)
         self.filtered = True
         self.filtered_all = True
@@ -3164,6 +3224,9 @@ class Utilities:
         """
         Chose one trace to be filtered
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "filt_trace"
         self.finish = False
         self.picked = False
@@ -3171,6 +3234,7 @@ class Utilities:
         def onPress(event):
             self.window.searchTrace(event.xdata)
             self.frequencyFilter(self.window.n_tr)
+            self.main.function = "main"
             return
         self.x_coor=[]
         self.y_coor=[]
@@ -3178,6 +3242,7 @@ class Utilities:
                     plot(self.x_coor, self.y_coor, animated=True)
         self.cidpress = self.lin.figure.canvas.mpl_connect('button_press_event',\
                                                            onPress)
+        self.main.function = "main"
 
     def ffilter(self, data, fmin, fmax, dt):
         """
@@ -3583,6 +3648,9 @@ class Utilities:
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
 # For description of v_red and nk_el, see function fk_filt
         v_red = 450.
         nk_el = 3
@@ -3649,8 +3717,11 @@ class Utilities:
         None.
 
         """
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.window.setHelp(self.window.spectrum_text)
-        self.main.function = "vfilt"
+        self.main.function = "velocity_filter"
         nk_el = 3
         xx = np.array(self.window.x)
         vt = np.zeros_like(np.transpose(self.window.v))
@@ -3667,6 +3738,7 @@ class Utilities:
             print("Velocity filter cancelled")
             self.window.drawNew(True)
             self.window.setHelp(self.window.main_text)
+            self.main.function = "main"
             return
         self.neg_flag = results[0]>-1
         if ntrace_neg > 5:
@@ -3816,6 +3888,7 @@ class Utilities:
         self.window.drawNew(True)
         self.window.setHelp(self.window.main_text)
         self.data.filtered = True
+        self.main.function = "main"
         return
 
     def v_nmo(self):
@@ -3916,6 +3989,9 @@ class Utilities:
         import copy
         import matplotlib.pyplot as plt
         import colorcet as cc
+        answer = self.main.test_function()
+        if not answer:
+            return
         try:
             import pygimli as pg
         except:
@@ -3926,7 +4002,6 @@ class Utilities:
                 QtWidgets.QMessageBox.Ok)
             return
 
-        self.main.function = "inver"
         def vel_scale(self, ncol=128, scale="specialP"):
                 if "special" in scale:
                     self.cmp = mpl.colors.LinearSegmentedColormap.from_list('velocities',\
@@ -3997,6 +4072,7 @@ class Utilities:
 
             if not okButton:
                 print("\n Inversion cancelled")
+                self.main.function="main"
                 return
 
             self.zmax = float(results[0])
@@ -4052,12 +4128,14 @@ class Utilities:
                 if self.vmin_limit==0 and self.vmax_limit==0:
                     self.mgr.invert(self.scheme, secNodes=3, paraMaxCellSize=5.0,
                                zWeight=self.zSmooth, vTop=self.vmin, vBottom=self.vmax,
-                               verbose=1, paraDepth=self.zmax, dPhi=0.01, lam=self.smooth,lambdaFactor=self.s_fact)
+                               verbose=1, paraDepth=self.zmax, dPhi=0.01,
+                               lam=self.smooth,lambdaFactor=self.s_fact, maxIter=1000)
                 else:
                     self.mgr.invert(self.scheme, secNodes=3, paraMaxCellSize=5.0,
                                zWeight=self.zSmooth, vTop=self.vmin, vBottom=self.vmax,
                                verbose=1, paraDepth=self.zmax, dPhi=0.01, lam=self.smooth,
-                               limits=[self.vmin_limit, self.vmax_limit],lambdaFactor=self.s_fact)
+                               limits=[self.vmin_limit, self.vmax_limit],
+                               lambdaFactor=self.s_fact, maxIter=1000)
             else:
                 self.mgr.invert(self.scheme, secNodes=3, paraMaxCellSize=5.0,
                            zWeight=self.zSmooth, vTop=self.vmin,\
@@ -4173,6 +4251,7 @@ class Utilities:
                                 [None,self.v_scale_min,self.v_scale_max,None,0,self.zmax_plt,\
                                 None],"Change color scale")
             if okBut == False:
+                self.main.function = "main"
                 return
             self.zmax_plt = float(res[5])
             try:
@@ -4193,6 +4272,7 @@ class Utilities:
                 self.rays_flag = False
 # If color scales are negative (default in first dialog box), they are set
 #    to the quantiles rounded to the next 100 m/s
+        self.main.function = "inver"
         ncol = 128
         if "special" in color_scale:
             lin_scale = False
@@ -4206,7 +4286,7 @@ class Utilities:
             self.v_scale_max = np.round(self.v_scale_max/100,0)*100
         if self.v_scale_max < 1600 and color_scale=="specialP":
             _ = QtWidgets.QMessageBox.warning(None,"Warning",\
-                "Maximum velocity < 1600\nColor scale changed to rainbow"+\
+                "Maximum velocity < 1600\nColor scale changed to rainbow\n"+\
                 "Once the plot is finished, you may press 'C' to change color scale",
                 QtWidgets.QMessageBox.Close)
             lin_scale = True
@@ -4263,7 +4343,7 @@ class Utilities:
                                              np.max(self.sens[:,0]))
         self.ticks_y = self.window.set_ticks(-self.zmax,0.)
 # Define annotated levels of velocity color scales
-        self.levs = np.linspace(self.v_scale_min, self.v_scale_max, 20)
+        self.levs = np.linspace(self.v_scale_min, self.v_scale_max, 20, endpoint=True)
 
 # Plot starting model
         pg.viewer.showMesh(pg.Mesh(self.mgr.paraDomain), data=self.startModel,\
@@ -4360,6 +4440,8 @@ class Utilities:
         ticks_vel = np.array([200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000,\
                       4500, 5000, 5500, 6000])
         ticks_vel = ticks_vel[ticks_vel <= self.v_scale_max]
+        if ticks_vel[-1] < self.v_scale_max-100 :
+            ticks_vel = np.array(list(ticks_vel) + [self.v_scale_max])
         self.ax_mod.set_aspect('equal', adjustable='box', anchor='W')
         divider = make_axes_locatable(self.ax_mod)
         cax = divider.append_axes("right", size="2%", pad=0.2)
@@ -4469,10 +4551,10 @@ class Utilities:
                     for vert in p.vertices:
                         fo.write(f"{vert[0]:0.3f} {vert[1]:0.3f}\n")
 # Plot evolution of chi2
-            chi_ev = np.array(self.mgr.inv.chi2History)
+            chi_ev = np.log10(np.array(self.mgr.inv.chi2History))
             nit = len(chi_ev)
             self.ax_chi.plot(np.arange(nit)+1,chi_ev)
-            self.ax_chi.set_ylabel("chi2", fontsize=self.tick_size_sec)
+            self.ax_chi.set_ylabel("log10(chi2)", fontsize=self.tick_size_sec)
             self.ax_chi.set_xlabel("iteration #", fontsize=self.tick_size_sec)
             self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "+\
                                   f"fac: {self.s_fact:0.2f}, "+\
@@ -4482,6 +4564,7 @@ class Utilities:
             self.ax_chi.set_xticks(ticks_x_chi)
             ax_xmin, ax_xmax = self.ax_chi.get_xlim()
             ax_ymin, ax_ymax = self.ax_chi.get_ylim()
+            self.ax_chi.set_ylim(0.,ax_ymax)
             xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
             ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
             txt = self.ax_chi.text(xtxt,ytxt,"F",horizontalalignment="left",\
@@ -4551,7 +4634,7 @@ class Utilities:
             self.ax_diff.set_aspect('equal', adjustable='box', anchor='C')
             self.ax_diff.set_xlabel("Receiver positions [m]",fontsize=self.tick_size_sec)
             self.ax_diff.set_ylabel("Source positions [m]",fontsize=self.tick_size_sec)
-            self.ax_diff.set_title(f"Misfit after {self.mgr.inv.inv.iter()} "+\
+            self.ax_diff.set_title(f"Misfit after {self.mgr.inv.inv.iter()+1} "+\
                               f"iterations:\nchi2={self.mgr.inv.chi2():0.2f}; "+\
                               f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms",\
                               fontsize=self.tick_size_sec+2)
@@ -4629,6 +4712,7 @@ class Utilities:
         None.
 
         """
+        self.main.function = "main"
         self.inversion(code=67)
         return
 
@@ -4890,6 +4974,9 @@ class Utilities:
         from sklearn.linear_model import LinearRegression
         from obspy.signal import filter
         from os.path import exists
+        answer = self.main.test_function()
+        if not answer:
+            return
         self.main.function = "attenuation"
         v_all = self.window.v.copy()
         x_all = self.window.x.copy()
@@ -5020,6 +5107,7 @@ class Utilities:
             mode = "w"
         with open("Q.dat",mode) as fo:
             fo.write(f"{text}\n")
+        self.main.function = "main"
 
     def pseudo(self):
         """
@@ -5034,6 +5122,9 @@ class Utilities:
         from matplotlib.patches import Rectangle
         import matplotlib.colors as colors
         from matplotlib.gridspec import GridSpec
+        answer = self.main.test_function()
+        if not answer:
+            return
         
         # Define input parameters
         # Folder where to find picks and geometry files
@@ -5234,7 +5325,7 @@ class Utilities:
         ax2.set_xlabel("midpoint position [m]",fontsize=14)
         ax2.set_ylabel("offset/3 [m]",fontsize=14)
         ax2.tick_params(labelsize=14)
-        cb2 = self.fig_ps.colorbar(sm2, ticks=[0.2,0.5,1.,2.,5.], format="%.1f")
+        cb2 = self.fig_ps.colorbar(sm2, ax=ax2, ticks=[0.2,0.5,1.,2.,5.], format="%.1f")
         cb2.set_label(label = "log10(local slowness [ms/m])", size=14)
         cb2.ax.tick_params(labelsize=14)
         ax_xmin, ax_xmax = ax2.get_xlim()

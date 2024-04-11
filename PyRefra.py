@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Tue Dec 05, 2023
+last modified on Apr 11, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
+         hermann.zeyen@universite-paris-saclay.fr
 
 Before running the program the first time, change the folders around line 95:
     sys_path is the path to the python scripts
@@ -37,18 +38,19 @@ Contains the following classes:
     Main
         With the following functions:
             __init__
-            eventFilter
-            fileOpen
-            Handler
+            test_function
+            event_filter
+            file_open
+            handler
             dialog
-            closeApp
+            close_app
 
     Dialog
         With the following functions:
             __init__
             checked
-            on_YesButton_clicked
-            on_CancelButton_clicked
+            on_yes_button_clicked
+            on_cancel_button_clicked
 
     Seg2_Slide
         With the following functions:
@@ -59,51 +61,57 @@ Contains the following classes:
 
 import sys
 import os
-
-#The next two lines may have to be modified:
-#  sys_path is the folder where all python program files are located
-#  dir0 is the folder where the data are located
-
-# Example of paths for programs and data on HZ desktop
-sys_path = r"E:/Sources_2010/Python_programs"
-dir0 = r"E:/Seg2Dat/Rouvres1"
-
-# Example of paths for LIONEL
-#sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
-#dir0 = r"C:/Users/marsj/Desktop/Leo/Line2"
-
-#Example of paths for Linux
-# sys_path = r"/home/zeyen/src/Python"
-# dir0 = r"/home/zeyen/Seismics/Fontaines_salees/2021-10-17_Profil5"
-
-if sys_path not in sys.path:
-    sys.path.append(sys_path)
-
-import numpy as np
+from signal import signal, SIGINT
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QSlider, QLabel, QRadioButton, QButtonGroup)
-from signal import signal, SIGINT
+from PyQt5.QtGui import QWindow
+import numpy as np
+
+#The next two lines may have to be modified:
+#  SYS_PATH is the folder where all python program files are located
+#  DIR0 is the folder where the data are located
+
+# Example of paths for programs and data on HZ desktop
+SYS_PATH = r"E:/Sources_2010/Python_programs"
+DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#DIR0 = r"E:/Seg2Dat/L3DD_2024"
+
+# Example of paths for LIONEL
+#sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
+#DIR0 = r"C:/Users/marsj/Desktop/Leo/Line2"
+
+#Example of paths for Linux
+# sys_path = r"/home/zeyen/src/Python"
+# DIR0 = r"/home/zeyen/Seismics/Fontaines_salees/2021-10-17_Profil5"
+
+if SYS_PATH not in sys.path:
+    sys.path.append(SYS_PATH)
 
 import refraData as rD
 import refraPlot as rP
 
+
 class Main(QtWidgets.QWidget):
+    """
+    Main class for PyRefra
+    
+    """
     def __init__(self, dir0 = None):
         super(Main, self).__init__()
 
         self.function = "main"
         try:
             os.chdir(dir0)
-            self.dir0 = dir0
+            self.dir0 = DIR0
             self.dir_flag = True
-            self.sys_path = sys_path
+            self.sys_path = SYS_PATH
         except:
             self.dir0 = None
-            self.sys_path = sys_path
+            self.sys_path = SYS_PATH
 
 # Input data
-        self.fileOpen()
+        self.file_open()
 # Initialize main frame widget
         self.window = rP.Window(self, self.files, self.data, self.traces, self.geo)
         if len(self.geo.types) > 1:
@@ -120,7 +128,7 @@ class Main(QtWidgets.QWidget):
 
 # Define actions for Menu buttons
 # Actions for Menu File
-        self.window.openFile.triggered.connect(self.fileOpen) # In PyRefra.py
+        self.window.openFile.triggered.connect(self.file_open) # In PyRefra.py
         self.window.Save_SEGY.triggered.connect(self.data.saveSEGY) # In refraData.py
         self.window.Save_SU.triggered.connect(self.data.saveSU) # In refraData.py
         self.window.Save_SEG2.triggered.connect(self.data.saveSEG2) # In refraData.py
@@ -128,9 +136,9 @@ class Main(QtWidgets.QWidget):
         self.window.Save_ASCII.triggered.connect(self.data.saveASCII) # In refraData.py
         self.window.Save_headers.triggered.connect(self.data.saveHeader) # In refraData.py
         self.window.Save_plot.triggered.connect(self.window.savePlot) # In refraPlot.py
-        self.window.quitAction.triggered.connect(self.closeApp) # In PyRefra.py
+        self.window.quitAction.triggered.connect(self.close_app) # In PyRefra.py
 # Actions for menu Display
-        self.window.originalDataScreen.triggered.connect(self.window.originalScreen) # In refraPlot.py
+        self.window.originalDataScreen.triggered.connect(self.window.originalScreen) # refraPlot.py
         self.window.originalDataAll.triggered.connect(self.window.original) # In refraPlot.py
         self.window.shotGather.triggered.connect(self.window.plotSG) # In refraPlot.py
         self.window.fileGather.triggered.connect(self.window.plotFG) # refraPlot.py
@@ -168,7 +176,7 @@ class Main(QtWidgets.QWidget):
         self.window.Uncertainty_change.triggered.connect(self.window.uncertainty) # In refraPlot.py
         self.window.erasePicks.triggered.connect(self.window.erase_Picks) # In refraPlot.py
         self.window.plotAllPicks.triggered.connect(self.window.plotPickSection) # In refraPlot.py
-        self.window.PlotCalculatedTimes.triggered.connect(self.window.plotCalcPicks) # In refraPlot.py
+        self.window.PlotCalculatedTimes.triggered.connect(self.window.plotCalcPicks) # refraPlot.py
         if self.traces.calc_picks:
             self.window.PlotCalculatedTimes.setEnabled(True)
         self.window.StorePicks.triggered.connect(self.traces.storePicks) # In refraData.py
@@ -186,13 +194,56 @@ class Main(QtWidgets.QWidget):
 
         self.window.fig_dict = {} #Prepare dictionary for data sets to be plotted
 
-        self.window.mplfigs.itemClicked.connect(self.window.changeFig) # Allow for changing of data set to be plotted
+# Allow for changing of data set to be plotted
+        self.window.mplfigs.itemClicked.connect(self.window.changeFig)
         # self.window.Envelopes.setEnabled(True)
 
 # Intercept CTL-C to exit in a controlled way
-        signal(SIGINT, self.Handler)
+        signal(SIGINT, self.handler)
 # Plot data of first shot point
         self.window.plotSG()
+        
+    def test_function(self):
+        """
+        Test whether a call is made from Main or from within another function.
+        The test is done on the value of self.function, which should be "main".
+        If the call comes from a function that has not been correctly finished,
+        the program may return to tha function to finish it correctly or reset
+        the value of self.function to "main" and leave the calling function in 
+        an uncontrolled way.
+        
+        If calling function is a picking function, it is not allowed to leave
+        the function in an uncontrolled way, since this will dammage pick arrays.
+
+        Returns
+        -------
+        bool
+            True if call is done from Main or if self.function is reset to "main",
+            False else.
+
+        """
+        if self.function == "inver":
+            self.function = "main"
+            return True
+        if not self.function=="main":
+            if "pick" in self.function:
+                answer = QtWidgets.QMessageBox.warning(None,"Warning",\
+                     f"You did not finish the action {self.function}\n"+\
+                     "Close and finish function correctly\n",\
+                    QtWidgets.QMessageBox.Close,\
+                    QtWidgets.QMessageBox.Close)
+            else:
+                answer = QtWidgets.QMessageBox.warning(None,"Warning",\
+                     f"You did not finish the action {self.function}\n"+\
+                     "Close and finish function correctly or\n"+\
+                     "Ignore and leave function uncontrolled\n",\
+                    QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Close,\
+                    QtWidgets.QMessageBox.Close)
+            if answer == QtWidgets.QMessageBox.Close:
+                return False
+            else:
+                self.function = "main"
+        return True
 
     def eventFilter(self, obj, event):
         """
@@ -212,7 +263,6 @@ class Main(QtWidgets.QWidget):
         None.
 
         """
-        from PyQt5.QtGui import QWindow
         if (event.type() == QtCore.QEvent.KeyRelease and obj is self.window):
 # In main function, only "+" and "-" keys have a meaning, changing amplitude
             if self.function == "main":
@@ -259,7 +309,7 @@ class Main(QtWidgets.QWidget):
 #       Without modifier by 1 sample
                         self.window.movePick(-1)
 # in pickMove function, the keyboard arrows are checkes with possible SHFT and CTRL
-            elif self.function == "uncertainty":
+            elif self.function == "change_uncertainty":
                 if event.key() == 16777234:
 #     If Left arrow is pressed, choose next trace to the left
                     self.window.shiftPickTrace(-1)
@@ -301,13 +351,13 @@ class Main(QtWidgets.QWidget):
 #       accepted.
 # This works as long as only one key is pressed (so, do not press SHFT+C), just "c"
         elif event.type() == QtCore.QEvent.KeyRelease and self.function == "inver":
-            if type(obj) is QWindow:
+            if isinstance(obj, QWindow):
 #                if event.key() == 67 or event.key() == 16777248:
                 if event.key() == 67:
                     self.utilities.invCol()
         return QtWidgets.QWidget.eventFilter(self, obj, event)
 
-    def fileOpen(self):
+    def file_open(self):
         """
         Gets the name of all data files to be treated, opens them dans stores
         the data in list st (one Stream per data file in class Data),
@@ -343,13 +393,13 @@ class Main(QtWidgets.QWidget):
                 print(f"Profile direction in file PyRefra incorrect: *{self.dir_start}*")
         else:
             print("File PyRefra.config not found")
-            results, okButton = self.dialog(\
+            results, ok_button = self.dialog(\
                     ["General title (name of profile...)",\
                      "Geographic direction of profile start",\
                      self.direction_start],
                     ["e","l","b"],\
                     [self.dir0,None,None],"PyRefra configuration")
-            if okButton:
+            if ok_button:
                 self.title = results[0]
                 self.dir_start = self.direction_start[int(results[2])]
                 self.dir_end = self.direction_end[int(results[2])]
@@ -373,8 +423,9 @@ class Main(QtWidgets.QWidget):
         self.data.readData(self.files)
         self.traces = rD.Traces(self, self.data, self.geo)
         print("")
+        self.function = "main"
 
-    def Handler(self,signal_received,frame):
+    def handler(self,signal_received,frame):
         """
         Handles CTRL-C key stroke
 
@@ -429,14 +480,14 @@ class Main(QtWidgets.QWidget):
     		active button (counting starts at 0). For checkboxes, the returned
     		value is -1 if the box was not checked and the position at which
     		the box was checked (starting at 0) if it has been checked
-        Dbutton: bool
+        dbutton: bool
             If True, "Apply" button has been pressed to finish dialog, if False
             "Cancel" button has been pressed.
 
         """
-        D = Dialog(self, labels, types, values, title)
-        D.Dfinish = False
-        while (D.Dfinish != True):
+        d = Dialog(self, labels, types, values, title)
+        d.dfinish = False
+        while not d.dfinish:
             QtCore.QCoreApplication.processEvents()
 
         results = []
@@ -445,27 +496,27 @@ class Main(QtWidgets.QWidget):
         if l > 0:
             for it,t in enumerate(types):
                 if t.lower() == "e":
-                    results.append(D.dlines[iline].text())
+                    results.append(d.dlines[iline].text())
                     iline += 1
                 elif t.lower() == "r":
                     results.append(None)
                     for i in range(len(labels[it])):
                         iline += 1
-                        if D.rbtn[it][i].isChecked():
+                        if d.rbtn[it][i].isChecked():
                             results[-1] = i
 #                            break
                 elif t.lower() == 'c':
-                    results.append(D.ck_order[it]-1)
+                    results.append(d.ck_order[it]-1)
                     iline += 1
                 elif t.lower() == "b":
-                    results.append(D.combo[it].currentIndex())
+                    results.append(d.combo[it].currentIndex())
                     iline += 1
                 else:
                     results.append(None)
                     iline += 1
-        return results, D.Dbutton
+        return results, d.dbutton
 
-    def closeApp(self):
+    def close_app(self):
         """
         Finishes application:
             Stores picks into file pick.dat
@@ -474,7 +525,9 @@ class Main(QtWidgets.QWidget):
             Deletes unneeded folder if tomography was calculated
             Closes window
         """
-        import os
+        answer = self.test_function()
+        if not answer:
+            return
         choice = QtWidgets.QMessageBox.question(None, "Confirm", "Are you sure?",
                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         if choice == QtWidgets.QMessageBox.Yes:
@@ -512,8 +565,7 @@ class Main(QtWidgets.QWidget):
             self.window.close()
             QtWidgets.QApplication.quit()
             return True
-        else:
-            pass
+        return False
 
 
 class Dialog(QtWidgets.QWidget):
@@ -555,11 +607,11 @@ class Dialog(QtWidgets.QWidget):
         self.labels = labels
         self.ck_order = np.zeros(nlab, dtype = int)
         self.n_checked = 0
-        self.Dfinish = False
-        self.Dbutton = False
+        self.dfinish = False
+        self.dbutton = False
         self.dlabels = []
         self.dlines = []
-        self.ckState = []
+        self.ck_state = []
         self.ckb = []
         self.rbtn = []
         self.btngroup = []
@@ -567,46 +619,46 @@ class Dialog(QtWidgets.QWidget):
         if parent.function == "False_Colour":
             self.label = QtWidgets.QLabel("Check up to 3 items; chose red item")
         for i in range(nlab):
-            self.ckState.append(False)
-        self.YesBtn = QtWidgets.QPushButton('Ok',self)
-        self.YesBtn.move(10,20*(nlab+3))
-        self.CancelBtn = QtWidgets.QPushButton('Cancel',self)
-        self.CancelBtn.move(150,20*(nlab+3))
-        self.mainLayout = QtWidgets.QGridLayout()
-        self.setLayout(self.mainLayout)
+            self.ck_state.append(False)
+        self.yes_btn = QtWidgets.QPushButton('Ok',self)
+        self.yes_btn.move(10,20*(nlab+3))
+        self.cancel_btn = QtWidgets.QPushButton('Cancel',self)
+        self.cancel_btn.move(150,20*(nlab+3))
+        self.main_layout = QtWidgets.QGridLayout()
+        self.setLayout(self.main_layout)
         il_add = 0
         if parent.function == "False_Colour":
-            self.mainLayout.addWidget(self.label, 0, 0, 1, 2)
+            self.main_layout.addWidget(self.label, 0, 0, 1, 2)
             il_add = 1
         ilin = 0
-        for i in range(len(labels)):
+        for i,lab in enumerate(labels):
             il = ilin + il_add
             if types[i].lower() == 'l':
                 if values[i]:
                     if values[i].lower() == 'b':
-                        self.dlabels.append(QtWidgets.QLabel("<b>"+labels[i]+"</b>"))
+                        self.dlabels.append(QtWidgets.QLabel("<b>"+lab+"</b>"))
                     elif values[i].lower() == 'i':
-                        self.dlabels.append(QtWidgets.QLabel("<i>"+labels[i]+"</i>"))
+                        self.dlabels.append(QtWidgets.QLabel("<i>"+lab+"</i>"))
                     else:
-                        self.dlabels.append(QtWidgets.QLabel(labels[i]))
+                        self.dlabels.append(QtWidgets.QLabel(lab))
                 else:
-                    self.dlabels.append(QtWidgets.QLabel(labels[i]))
+                    self.dlabels.append(QtWidgets.QLabel(lab))
                 self.dlines.append(None)
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
                 self.combo.append(None)
-                self.mainLayout.addWidget(self.dlabels[ilin], il, 0, 1, 2)
+                self.main_layout.addWidget(self.dlabels[ilin], il, 0, 1, 2)
                 ilin += 1
             elif types[i].lower() == 'e':
-                self.dlabels.append(QtWidgets.QLabel(labels[i]))
+                self.dlabels.append(QtWidgets.QLabel(lab))
                 self.dlines.append(QtWidgets.QLineEdit())
                 self.ckb.append(None)
                 self.rbtn.append(None)
                 self.btngroup.append(None)
                 self.combo.append(None)
-                self.mainLayout.addWidget(self.dlabels[ilin], il, 0, 1, 1)
-                self.mainLayout.addWidget(self.dlines[ilin], il, 1, 1, 1)
+                self.main_layout.addWidget(self.dlabels[ilin], il, 0, 1, 1)
+                self.main_layout.addWidget(self.dlines[ilin], il, 1, 1, 1)
                 try:
                     s = str(values[i])
                     self.dlines[-1].setText(s)
@@ -619,14 +671,14 @@ class Dialog(QtWidgets.QWidget):
                 self.rbtn.append([])
                 self.btngroup.append(QButtonGroup())
                 rck = int(values[i])-1
-                if rck<0 or rck>=len(labels[i]):
+                if rck<0 or rck>=len(lab):
                     rck = 0
-                for ir,l in enumerate(labels[i]):
+                for ir,l in enumerate(lab):
                     self.dlabels.append(None)
                     self.dlines.append(None)
                     self.rbtn[i].append(QRadioButton(l))
                     self.btngroup[-1].addButton(self.rbtn[i][-1])
-                    self.mainLayout.addWidget(self.rbtn[i][-1], il, 0, 1, 2)
+                    self.main_layout.addWidget(self.rbtn[i][-1], il, 0, 1, 2)
                     if ir == rck:
                         self.rbtn[i][-1].setChecked(True)
                     else:
@@ -640,8 +692,8 @@ class Dialog(QtWidgets.QWidget):
                 self.btngroup.append(None)
                 self.combo.append(None)
                 self.ckb.append(QtWidgets.QCheckBox(self))
-                self.ckb[i].setText(self.labels[i])
-                self.mainLayout.addWidget(self.ckb[i], il, 0, 1, 2)
+                self.ckb[i].setText(lab)
+                self.main_layout.addWidget(self.ckb[i], il, 0, 1, 2)
                 self.ckb[i].stateChanged.connect(self.checked)
                 ilin += 1
             elif types[i].lower() == 'b':
@@ -651,18 +703,18 @@ class Dialog(QtWidgets.QWidget):
                 self.rbtn.append(None)
                 self.btngroup.append(None)
                 self.combo.append(QtWidgets.QComboBox())
-                for il,l in enumerate(labels[i]):
+                for il,l in enumerate(lab):
                     self.combo[i].addItem(l)
                 ilin += 1
-                self.mainLayout.addWidget(self.combo[i], ilin, 0, 1, 1)
+                self.main_layout.addWidget(self.combo[i], ilin, 0, 1, 1)
                 il_add += 1
         ilin += 2
         il = ilin + il_add
-        self.mainLayout.addWidget(self.YesBtn, il, 0)
-        self.mainLayout.addWidget(self.CancelBtn, il, 1)
-        self.YesBtn.setDefault(True)
-        self.YesBtn.clicked.connect(self.on_YesButton_clicked)
-        self.CancelBtn.clicked.connect(self.on_CancelButton_clicked)
+        self.main_layout.addWidget(self.yes_btn, il, 0)
+        self.main_layout.addWidget(self.cancel_btn, il, 1)
+        self.yes_btn.setDefault(True)
+        self.yes_btn.clicked.connect(self.on_yes_button_clicked)
+        self.cancel_btn.clicked.connect(self.on_cancel_button_clicked)
 
         self.setWindowTitle(title)
         self.show()
@@ -671,15 +723,15 @@ class Dialog(QtWidgets.QWidget):
         """
         Actions executed if a check box has changed its state.
         if a box has been checked, the function searches the one which was
-        checked using self.ckState as indicator (this variable contains the
+        checked using self.ck_state as indicator (this variable contains the
         state of all check boxes before the click) Its click-order is stored
-        and self.ckState is changed. In addition, if the calling function is
+        and self.ck_state is changed. In addition, if the calling function is
         "False_Color", the explanation text is changed and the color to be
         used for the following clicked item is indicated. If in this case
         the third box is clicked, a message appears that no other box can be
         checked unless one is unchecked. If nevertheless a fourth box is
         checked, the corresponding box is automatically unchecked.
-        If a box is unchecked, this is stored in self.ckState and the colors
+        If a box is unchecked, this is stored in self.ck_state and the colors
         indicated are changed if necessary and if function is "False_Color".
 
         Parameters
@@ -696,22 +748,21 @@ class Dialog(QtWidgets.QWidget):
 # If a nex box is checked, search the one which has been checked
         if checked == Qt.Checked:
 # If alread 3 boxes were checked, undo the checking
-            if self.parent.function == "False_Colour":
-                if self.n_checked >= 3:
-                    for j in range(len(self.ck_order)):
-                        if self.ck_order[j] == 0:
-                            self.ckb[j].setChecked(False)
-                            self.ckState[j] = False
-                    return
+            if self.parent.function == "False_Colour" and self.n_checked >= 3:
+                for j, co in enumerate(self.ck_order):
+                    if co == 0:
+                        self.ckb[j].setChecked(False)
+                        self.ck_state[j] = False
+                return
 # Else do necessary changes
             for i,ck in enumerate(self.ckb):
 # If self.ckb has None value, the corresponding entry is not a checkbox
                 if not ck:
                     continue
-# If self.ckb.checkState is checked after click, set ckState to True and do
+# If self.ckb.checkState is checked after click, set ck_state to True and do
 #    changes
                 if ck.checkState()==Qt.Checked:
-                    self.ckState[i] = True
+                    self.ck_state[i] = True
 # If checkbox nr i was not checked, increase the number of checked boxes
 #    (n_checked) and store the order of checkin in self.ck_order
                     if self.ck_order[i] == 0:
@@ -734,23 +785,23 @@ class Dialog(QtWidgets.QWidget):
                             self.ckb[i].setText(f"{self.labels[i]} ("+\
                                                 f"{self.ck_order[i]})")
                         break
-# If self.ckb.checkState is still unchecked, set ckState to Falsee
+# If self.ckb.checkState is still unchecked, set ck_state to Falsee
                 else:
-                    self.ckState[i] = False
+                    self.ck_state[i] = False
 # If click has unchecked a checkbox, do necessary changes
         else:
             for i,ck in enumerate(self.ckb):
 # If self.ckb has None value, the corresponding entry is not a checkbox
                 if not ck:
                     continue
-# If self.ckb.checkState is still checked, set ckState to True
+# If self.ckb.checkState is still checked, set ck_state to True
                 if ck.checkState()==Qt.Checked:
-                    self.ckState[i] = True
-# If checkbox is no longer checked but it was (self?ckState), the unchecked box
+                    self.ck_state[i] = True
+# If checkbox is no longer checked but it was (self.ck_state), the unchecked box
 #    is found
                 else:
-                    if self.ckState[i] == True:
-                        self.ckState[i] = False
+                    if self.ck_state[i]:
+                        self.ck_state[i] = False
                         n = self.ck_order[i]
 # reset ck_order to 0 (indicating also unchecked box)
                         self.ck_order[i] = 0
@@ -759,12 +810,12 @@ class Dialog(QtWidgets.QWidget):
 # For all boxes that were checked later than the unchecked one, reduce their
 #    checking order by 1 and, if function is False_Color, indicate the new
 #    color uses for plotting
-                        for j in range(len(self.ck_order)):
-                            if self.ck_order[j] > n:
-                                self.ck_order[j] -= 1
+                        for j, co in enumerate(self.ck_order):
+                            if co > n:
+                                co -= 1
                                 if self.parent.function == "False_Colour":
                                     self.ckb[j].setText(self.labels[j]+\
-                                                   cols[self.ck_order[j]-1])
+                                                   cols[co-1])
                                 else:
                                     self.ckb[j].setText(f"{self.labels[j]} ("+\
                                                        f"{self.ck_order[j]})")
@@ -775,20 +826,26 @@ class Dialog(QtWidgets.QWidget):
                         break
         self.show()
 
-    def on_YesButton_clicked(self):
+    def on_yes_button_clicked(self):
+        """
+        Finish Dialogue pressing acceptation button
+        """
         n_checked = 0
         for ck in self.ckb:
             if not ck:
                 continue
             if ck.checkState() == Qt.Checked:
                 n_checked += 1
-        self.Dfinish = True
-        self.Dbutton = True
+        self.dfinish = True
+        self.dbutton = True
         self.close()
 
-    def on_CancelButton_clicked(self):
-        self.Dfinish = True
-        self.Dbutton = False
+    def on_cancel_button_clicked(self):
+        """
+        Finish Dialogue pressing cancel button
+        """
+        self.dfinish = True
+        self.dbutton = False
         self.close()
 
 
@@ -815,7 +872,8 @@ class Seg2_Slide(QtWidgets.QSlider):
         self.main = parent
         self.fig = self.main.window.fig_plotted
         self.figure = self.main.window.figs[self.fig]
-        self.background = self.figure.canvas.copy_from_bbox(self.figure.bbox) # copy background picture
+# copy background picture
+        self.background = self.figure.canvas.copy_from_bbox(self.figure.bbox)
         self.ax = self.main.window.axes[self.fig]
         self.setMouseTracking(True)
         self.position = pos_ini
@@ -866,6 +924,14 @@ class Seg2_Slide(QtWidgets.QSlider):
         self.sld.sliderReleased.connect(self.released)
 
     def updateLabel(self):
+        """
+        Rewrite label written along the velocity line
+
+        Returns
+        -------
+        None.
+
+        """
         self.label.setText(str(self.sld.value()))
         self.position = self.sld.value()
         y1 = self.xmax*abs(self.position)
@@ -893,10 +959,30 @@ class Seg2_Slide(QtWidgets.QSlider):
         self.canvas.blit(self.axl.bbox)
 
     def released(self):
+        """
+        Close slider when mouse button released
+        """
         self.sld.setVisible(False)
 
 
 def my_exception_hook(exctype, value, tracebk):
+    """
+    Test to capture CTLR-C, but does not work...
+
+    Parameters
+    ----------
+    exctype : TYPE
+        DESCRIPTION.
+    value : TYPE
+        DESCRIPTION.
+    tracebk : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
     print(exctype, value, tracebk)
     sys._excepthook(exctype, value, tracebk)
     sys.exit(1)
@@ -907,10 +993,9 @@ if __name__ == "__main__":
         app = QtWidgets.QApplication(sys.argv)
         sys._excepthook = sys.excepthook
         sys.excepthook = my_exception_hook
-        main = Main(dir0)
+        main = Main(DIR0)
         main.window.showMaximized()
         sys.exit(app.exec_())
     except:
 #        sys.exit()
         pass
-

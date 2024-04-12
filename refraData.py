@@ -3336,7 +3336,7 @@ class Utilities:
                                        self.fmax, self.main.data.dt)
                     self.data.st[fnr][tnr].data = np.float32(dat)
                     if t in self.main.window.actual_traces:
-                        iit = np.where(self.main.window.actual_traces==np.int64(t))[0][0]
+                        iit = np.where(self.main.window.actual_traces==int(t))[0][0]
                         if self.traces.amplitudes[t] > 0:
                             self.main.window.v[iit,:] = dat
                         elif self.traces.amplitudes[t] < 0:
@@ -4785,8 +4785,8 @@ class Utilities:
         zmin = np.floor(np.min(z))-bound
         zmax = np.ceil(np.max(z))+bound_s
         print(f"zmin: {zmin:0.3f}, zmax: {zmax:0.3f}")
-        nx = np.int((xmax-xmin)/dx+1)
-        nz = np.int((zmax-zmin)/dx+1)
+        nx = int((xmax-xmin)/dx+1)
+        nz = int((zmax-zmin)/dx+1)
         ix = proc_x*idx
         iz = proc_z*idz
         if nx%ix != 0:

@@ -134,7 +134,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.nt_mx = self.data.nsamp
         self.time_plt_min = self.data.t0
         self.time_plt_max = self.data.t0+self.data.dt*(self.nt_mx-1)
-        self.nt_0 = np.int(-self.data.t0/self.data.dt)
+        self.nt_0 = int(-self.data.t0/self.data.dt)
         self.dxmax = self.traces.off_max*1
         self.dxmin = self.traces.off_min*1
         self.rxmax = self.traces.off_max*1
@@ -814,9 +814,9 @@ class Window(QMainWindow, Ui_MainWindow):
         mute_half = np.float(results[1])/1000.
         mute = 2*mute_half
         sin_width = np.float(results[2])/1000.
-        nmute = np.int(mute/self.data.dt)
-        nsin = np.int(sin_width/self.data.dt)
-        nfac = np.int(nmute+2*nsin)
+        nmute = int(mute/self.data.dt)
+        nsin = int(sin_width/self.data.dt)
+        nfac = int(nmute+2*nsin)
         factor = np.zeros(nfac)
         factor[0:nsin] = (np.cos(0.5*np.pi/nsin*np.arange(nsin)))**2
         factor[nfac-1:nfac-nsin-1:-1] = factor[0:nsin]
@@ -825,7 +825,7 @@ class Window(QMainWindow, Ui_MainWindow):
             nt = self.traces.trace[i]
             tair = np.abs(self.traces.offset[i])/air_speed
             tini = tair - mute_half
-            nini = np.int((tini-self.data.t0)/self.data.dt-nsin)
+            nini = int((tini-self.data.t0)/self.data.dt-nsin)
             nend = nini+nfac
             nini_fac = 0
             nend_fac = nfac
@@ -902,7 +902,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # First find time where the line crosses the trace and the sample number
                 nt_cut = yline[i0]+(self.x[j]-xline[i0])/(xline[i1]-xline[i0])*\
                     (yline[i1]-yline[i0])
-                ncut = np.int((nt_cut-self.data.t0)/self.data.dt)
+                ncut = int((nt_cut-self.data.t0)/self.data.dt)
 # Find the sample after and including the line cut position which has a (relative)
 # minimum amplitude
                 test = False
@@ -3434,11 +3434,11 @@ class Window(QMainWindow, Ui_MainWindow):
     # The position of the relations for maxima is shifted by half
     #   the distance between this maximum relation and the next relative minimum
     #   (i.e., in principle, a quarter of a wavelength)
-        pos = np.int(max_pos[nmx_pos]-(min_pos[nmx_pos+iadd_pos]-max_pos[nmx_pos])/2)
+        pos = int(max_pos[nmx_pos]-(min_pos[nmx_pos+iadd_pos]-max_pos[nmx_pos])/2)
     # The position of the relations for minima is shifted by half the
     #   distance between this maximum relation and the next relative maximum
     #   (i.e., in principle, a quarter of a wavelength)
-        neg = np.int(min_pos[nmx_neg]-(max_pos[nmx_neg+iadd_neg]-min_pos[nmx_neg])/2)
+        neg = int(min_pos[nmx_neg]-(max_pos[nmx_neg+iadd_neg]-min_pos[nmx_neg])/2)
         tpos = pos*self.data.dt+self.data.t0
         tneg = neg*self.data.dt+self.data.t0
     # Now check which of the two pick positions to choose:
@@ -3450,7 +3450,7 @@ class Window(QMainWindow, Ui_MainWindow):
         if tneg<tpos and dsums_neg[nmx_neg]>dsums_pos[nmx_pos]:
             tpk = tneg
             npk1 = neg
-            npk2 = np.int(min_pos[nmx_neg])
+            npk2 = int(min_pos[nmx_neg])
     # Check wether there is a zero crossing or near zero crossing between
     #   the shifted position of the minima pick and the corresponding minimum.
     #   If one is found, this will be the final pick position.
@@ -3556,9 +3556,9 @@ class Window(QMainWindow, Ui_MainWindow):
             t_pick = np.empty(ntrac)
             t_pick.fill(np.nan)
             a_pick = np.zeros(ntrac)
-            n_end = np.zeros(ntrac,dtype=np.int)
-            n_len =  np.int(sig_len/self.data.dt)
-            nt0 = np.int(-self.data.t0/self.data.dt)
+            n_end = np.zeros(ntrac,dtype=int)
+            n_len =  int(sig_len/self.data.dt)
+            nt0 = int(-self.data.t0/self.data.dt)
             if visible_flag:
                 n1 = self.tr[0]
                 n2 = self.tr[-1]+1
@@ -3571,7 +3571,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 data = self.v[i,:]
                 if np.std(self.v[i,:])>0:
                     if self.v_max_trigger>0:
-                        n_start = np.int((np.abs(self.x[self.indices[i]])/\
+                        n_start = int((np.abs(self.x[self.indices[i]])/\
                                 self.v_max_trigger-self.data.t0)/self.data.dt)
                     else:
                         n_start = nt0
@@ -3603,12 +3603,12 @@ class Window(QMainWindow, Ui_MainWindow):
                             for k in range(nmx_pos):
                                 if k>nmn_pos-2:
                                     break
-                                dpos = np.int((min_pos[k+1]-max_pos[k])/2)
+                                dpos = int((min_pos[k+1]-max_pos[k])/2)
                         else:
                             for k in range(1,nmx_pos):
                                 if k>nmn_pos-1:
                                     break
-                                dpos = np.int((min_pos[k]-max_pos[k])/2)
+                                dpos = int((min_pos[k]-max_pos[k])/2)
                         mxp = max_pos-dpos
                         k = np.argmin(np.abs(mxp-nt_reg))
                         nt_pik = mxp[k]

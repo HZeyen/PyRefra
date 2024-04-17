@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Apr 11, 2024
+last modified on Apr 17, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -3336,7 +3336,7 @@ class Utilities:
                                        self.fmax, self.main.data.dt)
                     self.data.st[fnr][tnr].data = np.float32(dat)
                     if t in self.main.window.actual_traces:
-                        iit = np.where(self.main.window.actual_traces==int(t))[0][0]
+                        iit = np.where(np.array(self.main.window.actual_traces)==int(t))[0][0]
                         if self.traces.amplitudes[t] > 0:
                             self.main.window.v[iit,:] = dat
                         elif self.traces.amplitudes[t] < 0:
@@ -4437,8 +4437,11 @@ class Utilities:
         dtk = round(self.zmax_plt/6.,0)
         ticks_y_mod = self.window.set_ticks(-self.zmax_plt,0.,dtick=dtk)
 # Plot color bar
-        ticks_vel = np.array([200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000,\
-                      4500, 5000, 5500, 6000])
+        if self.v_scale_max > 2000:
+            ticks_vel = np.array([200, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000,\
+                          4500, 5000, 5500, 6000])
+        else:
+            ticks_vel = np.array([200, 500, 750, 1000, 1250, 1500, 1750, 2000])            
         ticks_vel = ticks_vel[ticks_vel <= self.v_scale_max]
         if ticks_vel[-1] < self.v_scale_max-100 :
             ticks_vel = np.array(list(ticks_vel) + [self.v_scale_max])

@@ -19,17 +19,14 @@
 5. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
 This opens a command window. Then type the following commands:
     1. `conda config --add channels gimli --add channels conda-forge`
+    2. `conda install pygimli obspy statsmodels scikit-learn colorcet`
+    3. `conda update --all`
+   
+   Sometimes conda blocks while installing. In this case, try to use 
+   
     2. `conda install mamba`
-    3. `conda install obspy`
-    4. `conda update --all`
-    5. `mamba create -n pg python=3.9 pygimli mamba spyder obspy statsmodels scikit-learn colorcet`
-   
-   This step creates a new “environment” (a new copy of Python) called “pg”. This is necessary since pygimli in its actual version (Feb. 2024) runs only under Python version <=3.9. If you prefer, you may choose another name than "pg". In this case replace pg in what follows by the name you chose. 
-   
-    6. `conda activate pg`
-    7. `mamba update --all`
-
-    Steps v. and vii. may also be done with conda, in which case you do not need step 2, but I had quite bad experiences with conda blocking while trying to install pygimli.
+    3. `mamba install pygimli obspy statsmodels scikit-learn colorcet`
+    4. `mamba update --all`
 
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
         
@@ -41,7 +38,7 @@ This opens a command window. Then type the following commands:
         + Open file PyRefra.py (File -> open…)
         + In the Spyder tool bar click Run -> Configuration per file -> Execute in an external system terminal
 
-Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda. There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/envs/pg/Lib (Linux: ~/anaconda3/envs/pg/lib/python3.9). I will call this folder “ENV”. Site-packages are installed in “ENV/site-packages”
+Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda. There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/Lib (Linux: ~/anaconda3/lib/python3.9). I will call this folder “ENV”. Site-packages are installed in “ENV/site-packages”
 
 You may simply copy the folders pygimli and obspy into the conda site-packages folder. The other option, if you do not want to copy-paste the provided folders, is to modify the following files:
 

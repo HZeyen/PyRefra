@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Apr 11, 2024
+last modified on Apr 24, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
          hermann.zeyen@universite-paris-saclay.fr
@@ -76,6 +76,7 @@ import numpy as np
 SYS_PATH = r"E:/Sources_2010/Python_programs"
 DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
 #DIR0 = r"E:/Seg2Dat/L3DD_2024"
+#DIR0 = r"E:/Seg2Dat/Campus_haut"
 
 # Example of paths for LIONEL
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
@@ -309,7 +310,7 @@ class Main(QtWidgets.QWidget):
 #       Without modifier by 1 sample
                         self.window.movePick(-1)
 # in pickMove function, the keyboard arrows are checkes with possible SHFT and CTRL
-            elif self.function == "change_uncertainty":
+            elif self.function == "change_pick_uncertainty":
                 if event.key() == 16777234:
 #     If Left arrow is pressed, choose next trace to the left
                     self.window.shiftPickTrace(-1)
@@ -997,5 +998,4 @@ if __name__ == "__main__":
         main.window.showMaximized()
         sys.exit(app.exec_())
     except:
-#        sys.exit()
-        pass
+       raise

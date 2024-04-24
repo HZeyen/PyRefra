@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Apr 11, 2024
+last modified on Apr 24, 2024
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -86,38 +86,116 @@ Contains the following functions:
     animateLine
 """
 
+import copy
+from datetime import datetime,date
 import numpy as np
-from matplotlib.figure import Figure
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.uic import loadUiType
 from PyQt5.QtWidgets import QVBoxLayout, QWidget
-import copy
 from matplotlib.backends.backend_qt5agg import(
         FigureCanvasQTAgg as FigureCanvas,
         NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import scipy.signal
+import scipy.stats
+from scipy.optimize import minimize
+from obspy.signal import trigger
+
 Ui_MainWindow, QMainWindow = loadUiType("refraWindow.ui")
 
 class Window(QMainWindow, Ui_MainWindow):
+    """
+    Class contains methods for plotting, zooming and picking
+    """
     def __init__(self, main, files, data, traces, geom):
         super(Window, self).__init__()
-        self.setupUi(self) #Set up main window based on file window.ui created with QT Designer
+#Set up main window based on file window.ui created with QT Designer
+        self.setupUi(self)
+# main points to class Main (file PyRefra.py)
         self.main = main
+# files points to class Files (file refraData.py)
         self.files = files
+# data points to class Data (file refraData.py)
         self.data = data
+# traces points to class Traces (file refraData.py)
         self.traces = traces
+# geom points to class Geometry (file refraData.py)
         self.geom = geom
+# Title of main window
         self.setWindowTitle("Data window")
+# Get program icon
         self.setWindowIcon(QtGui.QIcon(main.sys_path+"/PyRefra_Logo.png"))
-        self.fig = Figure() #create a first figure in central widget
+# create a first figure in central widget
+        self.fig = Figure()
         self.addMPL(self.fig)
+# In case data are 3-component, plot initially all three components
         self.plotComponent = "All"
+# Initialize vertical slider as invisible (used in refraData.Utilities.FK_filt)
         self.verticalSlider.setVisible(False)
+# Figs contains a list of all plots (all gathers)
         self.figs=[]
         self.figs.append(self.fig)
+# fig_plotted is the number of the figure actually on the screen (figs[fig_plotted])
         self.fig_plotted = 0
+# out of the following 4 variables only fig_plotted_D is used. For bookkeeping of
+#     the figure plotted for the different gathers
+        self.fig_plotted_S = None
+        self.fig_plotted_F = None
+        self.fig_plotted_R = None
+        self.fig_plotted_D = None
+# list of axes for the actual gathers
+        self.axes = None
+# axis actually visible on the screen
+        self.actual_axis = None
+# list of traces actually on the screen
+        self.actual_traces = []
+# number of traces on the screen
+        self.actual_number_traces = 0
+# Shot number displayed on the screen
+        self.actual_shot = 0
+# Receiver numbers on the screen
+        self.actual_receivers = []
+# Distance for the distance gather actually on the screen
+        self.actual_dist= 0.
+# placeholder fo progressbar used for possibly slow processes
+        self.progressBar = None
+        self.line = None
+        self.ax = None
+        self.axl = None
+        self.plot_names = []
+        self.receivers = []
+        self.x = []
+        self.x_ori = []
+        self.tr = []
+        self.n_tr = 0
+        self.itrace = 0
+        self.stdev = []
+        self.v_norm = []
+        self.indices = []
+        self.distances = []
+        self.sh_plot =[]
+        self.p_s = 0
+        self.p_r = 0
         self.amp_plt = 1
+        self.ipk = 0
         self.gain = "tnorm"
+# Flags for the actually used gain
+        self.trace_norm = True
+        self.time_gain = False
+        self.dist_gain = False
         self.phase_plot = False
+        self.agc_window = 0.1
+        self.n_agc_win = 0
+# Flag indication end of treatment
+        self.finish = False
+# Flag for the existence of measured picks
+        self.picked = False
+# Flags for the actually displayed gather type (file, shot, receiver, distance)
+        self.fg_flag = False
+        self.sg_flag = True
+        self.rg_flag = False
+        self.dg_flag = False
         if len(self.geom.types) > 0:
             self.phaseAngles.setEnabled(True)
         self.general_sign = self.data.general_sign
@@ -125,8 +203,43 @@ class Window(QMainWindow, Ui_MainWindow):
         self.i_zooms = -1
         self.zooms = []
         self.v_set = False
-        self.v_min_trigger = 100 # not yet used! all potential triggers for Sta-Lta later then t = offset/v_min_trigger are ignored
-        self.v_max_trigger = 2000 # all potential triggers for Sta-Lta earlier then t = offset/v_max_trigger are ignored
+        self.end = False
+        self.x_coor = []
+        self.y_coor = []
+        self.coor_x = []
+        self.coor_y = []
+        self.x_c = []
+        self.y_c = []
+        self.x_pk = []
+        self.t_pk = []
+        self.i_pk = []
+        self.i_tr = []
+        self.x_pk_help = []
+        self.t_pk_help = []
+        self.i_tr_help = []
+        self.lin = None
+        self. line_click = None
+        self.cidpress = None
+        self.cidmotion = None
+        self.cidrelease = None
+        self.back = None
+        self.background = None
+        self.released = False
+        self.start = [0, 0]
+        self.side = 1
+        self.x_zoom_min = 0.
+        self.x_zoom_max = 0.
+        self.t_zoom_min = 0.
+        self.t_zoom_max = 0.
+        self.d_time = 0.
+        self.press = 0
+        self.keys_held = set()
+# Next line not yet used!
+# All potential triggers for Sta-Lta later then t = offset/v_min_trigger are ignored
+        self.v_min_trigger = 100
+# all potential triggers for Sta-Lta earlier then t = offset/v_max_trigger are ignored
+        self.v_max_trigger = 2000
+        self.v = []
         self.w_anim = None
         self.w_picks = None
 # Set initial zoom limits such that all data may be plotted on the screen
@@ -142,6 +255,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.sxmax = self.traces.off_max*1
         self.sxmin = self.traces.off_min*1
         self.shift = 0.1
+#        self.canvas = None
         self.time = self.data.t0 + self.data.dt*np.arange(self.data.nsamp)
         self.addZoom(self.sxmin, self.sxmax, 0, self.nt_mx-1)
 # Set texts printed at bottom of sceen as help for different actions
@@ -222,10 +336,12 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         Remove widget from actual Figure
         """
-        self.mplvl.removeWidget(self.canvas)
-        self.canvas.close()
-        self.mplvl.removeWidget(self.toolbar)
-        self.toolbar.close()
+        if self.canvas:
+            self.mplvl.removeWidget(self.canvas)
+            self.canvas.close()
+        if self.toolbar:
+            self.mplvl.removeWidget(self.toolbar)
+            self.toolbar.close()
 
     def addFig(self, name, fig):
         """
@@ -299,7 +415,8 @@ class Window(QMainWindow, Ui_MainWindow):
         else:
             self.zooms[self.i_zooms][0] = self.traces.off_min
             self.zooms[self.i_zooms][1] = self.traces.off_max
-        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted]) # Plot picks if available
+# Plot picks if available
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         self.setHelp(self.main_text) # plot help line for self module
         self.v_set = True
         self.main.function = "main"
@@ -326,7 +443,6 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        from datetime import datetime,date
         answer = self.main.test_function()
         if not answer:
             return
@@ -377,7 +493,7 @@ class Window(QMainWindow, Ui_MainWindow):
         n = len(labels)
         results, okButton = self.main.dialog(\
                           [labels], ["r"], [n],"Coose geophone component")
-        if okButton == False:
+        if okButton is False:
             print("No component chosen")
             return
         self.plotComponent = labels[int(results[0])]
@@ -421,7 +537,7 @@ class Window(QMainWindow, Ui_MainWindow):
         for t in self.actual_traces:
             nf = self.traces.file[t]
             nt = self.traces.trace[t]
-            self.data.st[nf][nt].data = self.data.st_ori[nf][nt].data
+            self.data.st[nf][nt].data = np.copy(self.data.st_ori[nf][nt].data)
         self.v_set = False
         self.drawNew(True)
         self.v_set = True
@@ -435,13 +551,18 @@ class Window(QMainWindow, Ui_MainWindow):
             plot_flag (Boolean): If True plot seismograms
                                  if False only plot frame
         """
-        self.rmMPL() # remove actual window
-        self.figs[self.fig_plotted].clear() # remove actual Figure
-        self.figs[self.fig_plotted] = Figure() # create new Figure
-        self.axes[self.fig_plotted] = self.figs[self.fig_plotted].add_subplot() #add axes to Figure
+# remove actual window
+        self.rmMPL()
+# remove actual Figure
+        self.figs[self.fig_plotted].clear()
+# create new Figure
+        self.figs[self.fig_plotted] = Figure()
+#add axes to Figure
+        self.axes[self.fig_plotted] = self.figs[self.fig_plotted].add_subplot()
         self.addMPL(self.figs[self.fig_plotted]) #Add Figure to central widget
         if plot_flag:
-# Plot record section, depending on which type of plot is wanted (shot section, record section, distance section)
+# Plot record section, depending on which type of plot is wanted
+#     (shot section, record section, distance section)
             if self.dg_flag:
                 self.plotDistance(self.axes[self.fig_plotted],\
                                   self.distances[self.fig_plotted])
@@ -461,7 +582,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 if self.PlotCalculatedTimes.isChecked():
                     self.plotCalcPicks()
 
-            self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted]) # Plot picks if available
+# Plot picks if available
+            self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
         self.main.function = "main"
 
     def setHelp(self,text):
@@ -529,7 +651,7 @@ class Window(QMainWindow, Ui_MainWindow):
         results, okButton = self.main.dialog(\
                                     ["Exponent for time gain"],["e"],["2"],\
                                     "Time gain")
-        if okButton == False:
+        if okButton is False:
             print("Time gain cancelled")
         else:
             self.time_gain = float(results[0])
@@ -556,7 +678,7 @@ class Window(QMainWindow, Ui_MainWindow):
         results, okButton = self.main.dialog(\
                                             ["Exponent for distance gain"],\
                                              ["e"],["2"],"Distance gain")
-        if okButton == False:
+        if okButton is False:
             print("Distance gain cancelled")
         else:
             self.dist_gain = float(results[0])
@@ -583,7 +705,7 @@ class Window(QMainWindow, Ui_MainWindow):
         results, okButton = self.main.dialog(\
                                             ["AGC window length [ms]"],\
                                             ["e"],["100"],"AGC gain")
-        if okButton == False:
+        if okButton is False:
             print("Distance gain cancelled")
         else:
             self.agc_window = float(results[0])*0.001
@@ -600,7 +722,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.Agc.setChecked(True)
             self.drawNew(True)
             self.setHelp(self.main_text) # Change help text to self module
-    
+
     def agcCalc(self,data,n_agc_win):
         """
         Calculate AGC gain for one trace
@@ -627,8 +749,16 @@ class Window(QMainWindow, Ui_MainWindow):
             if m > 0:
                 data[j] = data[j]/m
         return data
-    
+
     def phasePlot(self):
+        """
+        Toggles flag for plotting phase angles for multi-component data
+
+        Returns
+        -------
+        None.
+
+        """
         answer = self.main.test_function()
         if not answer:
             return
@@ -646,7 +776,6 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        import scipy.signal
         traces = np.array(self.actual_traces)[self.tr]
         shots = self.traces.shot[traces]
         receivers = self.traces.receiver[traces]
@@ -778,8 +907,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.drawNew(True)
                 self.setHelp(self.main_text) # Change help text to self module
                 self.main.function = "main"
-        self.x_coor=[]
-        self.y_coor=[]
+        self.x_coor = []
+        self.y_coor = []
         self.lin, = self.axes[self.fig_plotted].plot(self.x_coor, self.y_coor,\
                                                      animated=True)
         self.cidpress = self.lin.figure.canvas.mpl_connect('button_press_event',\
@@ -807,7 +936,7 @@ class Window(QMainWindow, Ui_MainWindow):
                                      "Mute-time on each side [ms]",\
                                      "Width sin**2 taper [ms]"],\
                                     ["e","e","e"],[340,10,3],"Mute air wave")
-        if okButton == False:
+        if okButton is False:
             print("Air mute cancelled")
             return
         air_speed = np.float(results[0])
@@ -842,12 +971,28 @@ class Window(QMainWindow, Ui_MainWindow):
         self.main.function = "main"
 
     def muteBefore(self):
+        """
+        Mute data at times smaller than a line drawn interactively
+
+        Returns
+        -------
+        None.
+
+        """
         answer = self.main.test_function()
         if not answer:
             return
         self.muteTime(-1)
 
     def muteAfter(self):
+        """
+        Mute data at times larger than a line drawn interactively
+
+        Returns
+        -------
+        None.
+
+        """
         answer = self.main.test_function()
         if not answer:
             return
@@ -893,8 +1038,7 @@ class Window(QMainWindow, Ui_MainWindow):
             for j in npos:
                 if self.x[j]>xline[i1]:
                     break
-                else:
-                    nt.append(j)
+                nt.append(j)
 # ntreat contains the numbers of all traces found within the segment
             ntreat = np.array(nt,dtype='int')
             for j in ntreat:
@@ -907,7 +1051,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # minimum amplitude
                 test = False
                 k = ncut
-                while test==False:
+                while test is False:
                     if np.abs(self.v[j,k])<=np.abs(self.v[j,k-1]):
                         if np.abs(self.v[j,k])<=np.abs(self.v[j,k+1]):
                             test = True
@@ -918,7 +1062,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # minimum amplitude
                 test = False
                 k = ncut-1
-                while test==False:
+                while test is False:
                     if np.abs(self.v[j,k])<=np.abs(self.v[j,k-1]):
                         if np.abs(self.v[j,k])<=np.abs(self.v[j,k+1]):
                             test = True
@@ -965,7 +1109,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 print("trace ", self.n_tr, " changed sign")
                 self.setHelp(self.trace_sign_text) # Rewrite help text
                 self.picked = True
-                self.axes[self.fig_plotted].plot(self.x[self.n_tr],self.data.time[self.nt_mn+5],"*r")
+                self.axes[self.fig_plotted].plot(self.x[self.n_tr],\
+                                                 self.data.time[self.nt_mn+5],"*r")
                 self.canvas.draw()
             elif event.button == 3:
                 print("finish trace_sign")
@@ -998,11 +1143,49 @@ class Window(QMainWindow, Ui_MainWindow):
         self.main.function = "main"
 
     def addZoom(self, xmin, xmax, nt_min, nt_max):
+        """
+        add a new zoom to the list of zooms
+
+        Parameters
+        ----------
+        xmin : float
+            Minimum offset to be plotted.
+        xmax : float
+            Maximum offset to be plotted.
+        nt_min : int
+            First sample to be plotted.
+        nt_max : int
+            Last sample to be plotted.
+
+        Returns
+        -------
+        None.
+
+        """
         self.n_zooms += 1
         self.i_zooms += 1
         self.zooms.append([xmin, xmax, nt_min, nt_max])
 
     def changeZoom(self, i, xmin, xmax, nt_min, nt_max):
+        """
+        change to another existing zoom
+
+        Parameters
+        ----------
+        xmin : float
+            Minimum offset to be plotted.
+        xmax : float
+            Maximum offset to be plotted.
+        nt_min : int
+            First sample to be plotted.
+        nt_max : int
+            Last sample to be plotted.
+
+        Returns
+        -------
+        None.
+
+        """
         self.i_zooms = i
         self.zooms[i][:] =[xmin, xmax, nt_min, nt_max]
 
@@ -1015,7 +1198,7 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         answer = self.main.test_function()
         if not answer:
-            return
+            return None
 
         self.main.function = "zoom"
         zm = False
@@ -1055,19 +1238,26 @@ class Window(QMainWindow, Ui_MainWindow):
             return zm
         if xma-xmi < 2*self.geom.dx_geo:
             print("\nX axis too much zoomed. Zoom not executed")
-            self.setHelp(self.main_text) # Change help text to self module
+# Change help text to self module
+            self.setHelp(self.main_text)
             self.drawNew(True)
-            self.setHelp(self.main_text) # Change help text to self module
+# Change help text to self module
+            self.setHelp(self.main_text)
             return zm
         self.time_plt_min = tmi # Define start time of zoomed plot
         self.time_plt_max = tma # Define end time of zoomed plot
-        self.nt_mn = max(int((self.time_plt_min-self.data.t0)/self.data.dt),0) # Define start sample of zoomed plot
+# Define start sample of zoomed plot
+        self.nt_mn = max(int((self.time_plt_min-self.data.t0)/self.data.dt),0)
+# Define end sample of zoomed plot
         self.nt_mx = min(int((self.time_plt_max-self.data.t0)/self.data.dt),\
-                         max(self.traces.nsample_trace)) # Define end sample of zoomed plot
-        self.rmMPL() # remove actual window
-        self.figs[self.fig_plotted].clear() # Remove actual Figure
+                         max(self.traces.nsample_trace))
+# remove actual window
+        self.rmMPL()
+# Remove actual Figure
+        self.figs[self.fig_plotted].clear()
         self.figs[self.fig_plotted] = Figure() # create new Figure
-        self.axes[self.fig_plotted] = self.figs[self.fig_plotted].add_subplot(111) #add axes to Figure
+#add axes to Figure
+        self.axes[self.fig_plotted] = self.figs[self.fig_plotted].add_subplot(111)
         self.addMPL(self.figs[self.fig_plotted]) #Add Figure to central widget
 # Add zoom limits to list of existing zooms to be used by "zoom_out"
 #     actual values depend on type of sections to be plotted
@@ -1116,8 +1306,10 @@ class Window(QMainWindow, Ui_MainWindow):
             self.plotShot(self.axes[self.fig_plotted],self.fig_plotted)
             if self.PlotCalculatedTimes.isChecked():
                 self.plotCalcPicks()
-        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted]) # Plot picks if available
-        self.setHelp(self.main_text) # Change help text to self module
+# Plot picks if available
+        self.picksPlot(self.figs[self.fig_plotted], self.axes[self.fig_plotted])
+# Change help text to self module
+        self.setHelp(self.main_text)
         self.main.function = "main"
         zm = True
         return zm
@@ -1128,7 +1320,7 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         answer = self.main.test_function()
         if not answer:
-            return
+            return False
 
         if self.i_zooms == 0:
             print("No zoom out possible, already at initial zoom")
@@ -1143,6 +1335,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.zooms[0][1] = max(self.x)+1
         self.drawNew(True) # draw data section with actual zoom paramters
         self.setHelp(self.main_text) # Change help text to self module
+        return True
 
     def zoomIn(self):
         """
@@ -1150,7 +1343,7 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         answer = self.main.test_function()
         if not answer:
-            return
+            return False
 
         if self.i_zooms == self.n_zooms:
             print("No tighter zoom available, use Z to define new zoom")
@@ -1162,6 +1355,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.time_plt_max = self.data.t0+self.nt_mx*self.data.dt
         self.drawNew(True) # draw data section with actual zoom paramters
         self.setHelp(self.main_text) # Change help text to self module
+        return True
 
     def zoomIni(self):
         """
@@ -1182,7 +1376,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setHelp(self.main_text) # Change help text to self module
 
     def seismogram(self,ax,time,x_pos,data,nt_min=0,nt_max=0,traces=None,text_x="Distance [m]",
-             text_y="Time [s]",text_t="",amp=0.667,fill=False,trace_norm=True):
+             text_y="Time [s]",text_t="",amp=0.667,fill=False):
         """
         plots a seismogram section
 
@@ -1199,7 +1393,6 @@ class Window(QMainWindow, Ui_MainWindow):
         text_y (string = "Time [s]"): Text to be written on y-axis
         amp (=0.667): Amplitude of maximum value of a trace in units of x-axis
         fill (bool = False): Fill positive part of traces
-        trace_norm (bool = True): Normalize each trace. If False, global normalization
         """
         try:
             self.actual_axis = ax
@@ -1214,7 +1407,7 @@ class Window(QMainWindow, Ui_MainWindow):
             nsamp = len(t)
             if nt_max == 0:
                 nt_max = nsamp
-            if np.array(traces).any() == None or len(traces) == 0:
+            if np.array(traces).any() is None or len(traces) == 0:
                 traces = np.arange(ntrace,dtype='int')
             else:
                 traces = np.array(traces,dtype='int')
@@ -1280,10 +1473,8 @@ class Window(QMainWindow, Ui_MainWindow):
             ax.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_end,\
                              horizontalalignment="right",\
                              verticalalignment="bottom", fontsize=18)
-            return None
         except:
             print("Error in seismogram")
-            return None
 
     def plotRG(self):
         """
@@ -1313,17 +1504,17 @@ class Window(QMainWindow, Ui_MainWindow):
         self.receivers = np.sort(np.array(list(self.traces.rec_pt_dict.keys()),\
                          dtype = int))
 # Loop over all found receivers
-        for i in range(len(self.receivers)):
+        for i,r in enumerate(self.receivers):
             self.figs.append(Figure())
             self.axes.append(self.figs[-1].subplots())
             if i==0:
 # plot data of the first receiver to the screen
                 self.zooms[self.i_zooms][0] = self.traces.off_min
                 self.zooms[self.i_zooms][1] = self.traces.off_max
-                self.plotReceiver(self.axes[-1],self.receivers[0])
+                self.plotReceiver(self.axes[-1],r)
 # Add the figure to the list of figures in the right-side tool bar
-            self.addFig(f"Receiver {self.receivers[i]+1}", self.figs[-1])
-            self.plot_names.append(f"Receiver {self.receivers[i]+1}")
+            self.addFig(f"Receiver {r+1}", self.figs[-1])
+            self.plot_names.append(f"Receiver {r+1}")
 # Erase actual plot in central widget and plot the new one
         self.rmMPL()
         self.addMPL(self.figs[0])
@@ -1336,6 +1527,9 @@ class Window(QMainWindow, Ui_MainWindow):
         self.main.function = "main"
 
     def plotReceiver(self,ax,irec):
+        """
+        plot receiver gather irec into axis ax
+        """
         self.time = self.data.t0+np.arange(int(self.data.nsamp))*self.data.dt
         self.x = []
         self.x_ori = []
@@ -1344,7 +1538,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # Search traces having been recorded by receiver irec
         ntraces = len(np.where(self.traces.receiver == irec)[0])
         self.traces.plotted[:] = False
-        if self.v_set != True:
+        if self.v_set is False:
             self.v = np.zeros((ntraces,self.data.nsamp))
         self.v_norm = np.zeros((ntraces,self.data.nsamp))
         self.actual_traces = []
@@ -1353,8 +1547,7 @@ class Window(QMainWindow, Ui_MainWindow):
         j = -1
         for i,isht in enumerate(self.traces.rec_pt_dict[irec]["shot"]):
             j += 1
-            if self.traces.component[irec] != self.plotComponent and \
-                self.plotComponent != "All":
+            if self.plotComponent not in (self.traces.component[irec], "All"):
                 j -= 1
                 continue
             ifile = self.traces.rec_pt_dict[irec]["file"][i]
@@ -1374,7 +1567,7 @@ class Window(QMainWindow, Ui_MainWindow):
             self.actual_number_traces += 1
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
-            if self.v_set != True:
+            if self.v_set is False:
                 self.v[j,:] = \
                     self.data.st[ifile][itrace].data*\
                     self.traces.amplitudes[ntr]
@@ -1452,7 +1645,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.progressBar.show()
         self.progressBar.setValue(0)
 # Loop over all found offsets
-        for i in range(len(self.distances)):
+        for i,d in enumerate(self.distances):
 # prepare a figure for each offset
             self.figs.append(Figure())
             self.axes.append(self.figs[-1].subplots())
@@ -1460,10 +1653,10 @@ class Window(QMainWindow, Ui_MainWindow):
 # plot the smallest found offset to the screen
                 self.zooms[self.i_zooms][0] = np.min(self.traces.xcdp)
                 self.zooms[self.i_zooms][1] = np.max(self.traces.xcdp)
-                self.plotDistance(self.axes[-1],self.distances[i])
+                self.plotDistance(self.axes[-1],d)
 # Add the figure to the list of figures in the right-side tool bar
-            self.addFig(f"Distance {self.distances[i]}", self.figs[-1])
-            self.plot_names.append(f"Distance {self.distances[i]}")
+            self.addFig(f"Distance {d}", self.figs[-1])
+            self.plot_names.append(f"Distance {d}")
 # Advance the progress bar
             completed = int((i+1)/len(self.distances)*100)
             self.progressBar.setValue(completed)
@@ -1517,8 +1710,7 @@ class Window(QMainWindow, Ui_MainWindow):
         j = -1
         for i in range(nrecplt):
             j += 1
-            if self.traces.component[traces[i]] != self.plotComponent and \
-                self.plotComponent != "All":
+            if self.plotComponent not in (self.traces.component[traces[i]], "All"):
                 j -= 1
                 continue
             self.x.append(xx[i])
@@ -1538,7 +1730,7 @@ class Window(QMainWindow, Ui_MainWindow):
             if (self.x[-1] >= self.zooms[self.i_zooms][0]-self.shift and\
                 self.x[-1] <= self.zooms[self.i_zooms][1]+self.shift)\
                 or self.i_zooms == 0:
-                    self.tr.append(j)
+                self.tr.append(j)
         self.x = np.array(self.x)
         self.x_ori = np.array(self.x_ori)
         n_traces = len(self.x)
@@ -1547,13 +1739,13 @@ class Window(QMainWindow, Ui_MainWindow):
         ns = self.data.nsamp
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
-        if self.v_set != True:
+        if self.v_set is False:
             self.v = np.zeros((nrecplt,ns))
         self.v_norm = np.zeros((nrecplt,ns))
         for i in range(nrecplt):
             ifile = self.traces.file[traces[i]]
             itrace = self.traces.trace[traces[i]]
-            if self.v_set != True:
+            if self.v_set is False:
                 self.v[i,:] = self.data.st[ifile][itrace].data*\
                               self.traces.amplitudes[traces[i]]
                 if self.nt_0>0:
@@ -1664,7 +1856,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.traces.plotted[:] = False
         self.actual_number_traces = 0
         self.stdev = []
-        if self.v_set != True:
+        if self.v_set is False:
             self.v = np.zeros((ntraces,ns))
         self.v_norm = np.zeros((ntraces,ns))
         self.actual_shot = sh
@@ -1675,8 +1867,7 @@ class Window(QMainWindow, Ui_MainWindow):
             ifile = self.traces.sht_pt_dict[sh]["file"][i]
             irec = self.traces.sht_pt_dict[sh]["receiver"][i]
             ntr = self.traces.sht_rec_dict[(sh,irec)]
-            if self.traces.component[ntr] != self.plotComponent and \
-                self.plotComponent != "All":
+            if self.plotComponent not in (self.traces.component[ntr], "All"):
                 j -= 1
                 continue
             self.actual_traces.append(ntr)
@@ -1693,7 +1884,7 @@ class Window(QMainWindow, Ui_MainWindow):
                     self.x[-2] -= self.shift
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
-            if self.v_set != True:
+            if self.v_set is False:
                 self.v[j,:] = self.data.st[ifile][nt].data*\
                               self.traces.amplitudes[ntr]
                 if self.nt_0>0:
@@ -1803,6 +1994,9 @@ class Window(QMainWindow, Ui_MainWindow):
         self.main.function = "main"
 
     def plotFile(self,ax,isht):
+        """
+        Plot data of file isht into axis ax
+        """
         self.x = []
         self.x_ori = []
         self.tr = []
@@ -1815,7 +2009,7 @@ class Window(QMainWindow, Ui_MainWindow):
         nsamp = len(self.data.st[isht][0].data)
         sht = int(self.data.st[isht][0].stats.seg2['SOURCE_STATION_NUMBER'])
 
-        if self.v_set != True:
+        if self.v_set is False:
             self.v = np.zeros((ntr,nsamp))
         self.v_norm = np.zeros((ntr,nsamp))
         self.actual_shot = self.files.numbers[isht]
@@ -1823,8 +2017,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # Loop over all traces of the file
         for i,t in enumerate(self.files.file_dict[isht]["traces"]):
             j += 1
-            if self.traces.component[t] != self.plotComponent and \
-                self.plotComponent != "All":
+            if self.plotComponent not in (self.traces.component[t], "All"):
                 j -= 1
                 continue
             self.actual_traces.append(t)
@@ -1841,7 +2034,7 @@ class Window(QMainWindow, Ui_MainWindow):
                     self.x[-2] -= self.shift
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
-            if self.v_set != True:
+            if self.v_set is False:
                 self.v[j,:] = self.data.st[isht][i].data*\
                               self.traces.amplitudes[t]
                 if self.nt_0>0:
@@ -1956,7 +2149,6 @@ class Window(QMainWindow, Ui_MainWindow):
         self.zooms[self.i_zooms][1] = zm1
         self.drawNew(True) # draw data section with actual zoom paramters
         self.setHelp(self.main_text) # Change help text to self module
-        return True
 
     def picksPlot(self, fig, ax, col="r"):
         """
@@ -2014,7 +2206,7 @@ class Window(QMainWindow, Ui_MainWindow):
         """
         t = self.traces.pick_times[ntr][j]
 # Picks outside the actual time zoom are not plotted
-        if  t >= self.time_plt_min and t <= self.time_plt_max:
+        if  self.time_plt_min <= t <= self.time_plt_max:
             x_c = []
             x_c.append(self.x[i]-0.3)
             x_c.append(self.x[i]+0.3)
@@ -2149,7 +2341,6 @@ class Window(QMainWindow, Ui_MainWindow):
                 print("\nNo calculated travel times available")
             else:
                 print(f"\nProblems plotting {l} calculated travel times")
-            pass
 
     def searchTrace(self, x):
         """
@@ -2224,12 +2415,16 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        global figure,r_flag
         answer = self.main.test_function()
         if not answer:
             return
         self.setHelp(self.pick_move_text)
         self.main.function = "pick_move"
+        self.end = False
+        self.coor_x = []
+        self.coor_y = []
+        figure = self.figs[self.fig_plotted]
+
         def onPress(event):
 # If left mouse button has been clicked, search nearest pick
             if event.button == 1:
@@ -2269,10 +2464,6 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.picksPlot(self.figs[self.fig_plotted],\
                                self.axes[self.fig_plotted])
                 self.end = True
-        self.end = False
-        self.coor_x = []
-        self.coor_y = []
-        figure = self.figs[self.fig_plotted]
 
 # Plot lines in positive and negative direction corresponding to air wave arrivals
         xx = np.arange(self.x_zoom_min,self.x_zoom_max)
@@ -2300,7 +2491,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.lin, = self.axes[self.fig_plotted].plot(self.coor_x, self.coor_y, animated=True)
         self.cidpress = self.lin.figure.canvas.mpl_connect('button_press_event',\
                             onPress)
-        while (self.end != True):
+        while self.end is False:
             QtCore.QCoreApplication.processEvents()
         self.setHelp(self.main_text)
         self.traces.storePicks()
@@ -2331,6 +2522,7 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        figure = self.figs[self.fig_plotted]
         figure.canvas.restore_region(self.back)
         ds = sign*self.data.dt
         self.y_c[0] += ds
@@ -2355,12 +2547,16 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        global figure,r_flag
         answer = self.main.test_function()
         if not answer:
             return
         self.setHelp(self.uncertainty_text)
         self.main.function = "change_pick_uncertainty"
+        self.end = False
+        self.coor_x = []
+        self.coor_y = []
+        figure = self.figs[self.fig_plotted]
+
         def onPress(event):
 # If left öouse button has been clicked, search nearest pick
             if event.button == 1:
@@ -2391,15 +2587,12 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.picksPlot(self.figs[self.fig_plotted],\
                                self.axes[self.fig_plotted])
                 self.end = True
-        self.end = False
-        self.coor_x = []
-        self.coor_y = []
-        figure = self.figs[self.fig_plotted]
+
         self.lin, = self.axes[self.fig_plotted].plot(self.coor_x, self.coor_y,\
                                                      animated=True)
         self.cidpress = self.lin.figure.canvas.mpl_connect('button_press_event',\
                                                            onPress)
-        while (self.end != True):
+        while self.end is False:
             QtCore.QCoreApplication.processEvents()
         self.setHelp(self.main_text)
         self.traces.storePicks()
@@ -2430,6 +2623,7 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
+        figure = self.figs[self.fig_plotted]
         figure.canvas.restore_region(self.back)
         ds = sign*self.data.dt
         self.y_c[0] += ds
@@ -2456,7 +2650,7 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        global figure, r_flag
+        figure = self.figs[self.fig_plotted]
         self.d_time = 0
         self.keys_held = set()
         self.pickPlot(self.n_tr, self.itrace, self.ipk, "r")
@@ -2464,8 +2658,7 @@ class Window(QMainWindow, Ui_MainWindow):
         while True:
             self.n_tr += int(direction)
 # Avoid going left of first trace
-            if self.n_tr < 0:
-                self.n_tr = 0
+            self.n_tr = max(self.n_tr,0)
 # Avoid going right of last trace
             if self.n_tr == len(self.stdev):
                 self.n_tr = len(self.stdev)-1
@@ -2537,7 +2730,6 @@ class Window(QMainWindow, Ui_MainWindow):
         corresponding to a trace on the screen, the arrays do not contain any
         value for this trace.
         """
-        import numpy as np
         x_pk_near = []
         t_pk_near = []
         i_tr_near = []
@@ -2631,7 +2823,6 @@ class Window(QMainWindow, Ui_MainWindow):
 
         Click right mouse button to finish manual picking
         """
-        global figure
         answer = self.main.test_function()
         if not answer:
             return
@@ -2643,13 +2834,19 @@ class Window(QMainWindow, Ui_MainWindow):
             umin = 4.*self.data.dt
         else:
             umin = 2.*self.data.dt
+        self.end = False
+        figure = self.figs[self.fig_plotted]
+        xpk = []
+        tpk = []
+        npi = 0
+
         def onPress(event):
-            global figure, tpk, npi
+            nonlocal tpk, npi
             if event.button == 1:
                 modifiers = QtWidgets.QApplication.keyboardModifiers()
                 if modifiers == QtCore.Qt.ShiftModifier:
                     print("Shift modifier")
-                    for i,itr in enumerate(self.i_pk):
+                    for i,_ in enumerate(self.i_pk):
                         self.searchTrace(self.x_pk[i])
                         trace = self.itrace
                         sht = self.p_s
@@ -2770,10 +2967,6 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.traces.storePicks()
                 self.end = True
 
-        self.end = False
-        figure = self.figs[self.fig_plotted]
-        xpk=[]
-        tpk=[]
 # Plot lines in positive and negative direction corresponding to air wave arrivals
         xx = np.arange(self.x_zoom_min,self.x_zoom_max)
         tt = np.abs(xx)/345.
@@ -2818,7 +3011,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.lin, = self.axes[self.fig_plotted].plot(xpk, tpk, animated=True)
         self.cidpress = self.lin.figure.canvas.mpl_connect('button_press_event',\
                                                 onPress)
-        while (self.end != True):
+        while self.end is False:
             QtCore.QCoreApplication.processEvents()
             self.Tomography.setEnabled(True)
         self.PlotPicks.setEnabled(True)
@@ -2930,14 +3123,13 @@ class Window(QMainWindow, Ui_MainWindow):
         if not answer:
             return
         self.main.function = "corr_pick"
-        global figure,r_flag
         self.setHelp(self.cpick_text)
+        figure = self.figs[self.fig_plotted]
 
         def onPress(event):
             """
             Come here if a mouse button has been pressed
             """
-            global figure, r_flag
             self.d_time = 0
 # Set some default values explained further up in the explanation of the function
             off_lim = 4
@@ -2979,7 +3171,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # between the pick and this first maximum is taken as halfwidth of the
 # maximum to be searched (the full width corresponds thus approximately to
 # half a wavelenght of the signal)
-                mapo,mava,mip,miva = \
+                mapo,_,_,_ = \
                     self.main.utilities.min_max(self.v[trace_ref,n_pick_ref:],\
                                                 half_width=10)
 # half_width is distance of next maximum from pickes position in number of samples
@@ -3026,9 +3218,9 @@ class Window(QMainWindow, Ui_MainWindow):
                             n_act = int((self.t_pk_help[nt_help[0]]-self.data.t0)\
                                         /self.data.dt)
                             help_flag = True
-                        elif off_a > off0_a and off_a<off_lim:
+                        elif off0_a < off_a < off_lim:
                             n_act += int(dt_pick/self.data.dt)
-                        elif off_a < off0_a and off_a<off_lim:
+                        elif off_a < off0_a and off_a < off_lim:
                             n_act -= int(dt_pick/self.data.dt)
                         off0 = off
                         n_sam1 =int(max(0,n_act-nd))
@@ -3045,7 +3237,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         n_disp = int(len(cor)/2)
                         if help_flag:
 # If nearby picks exist, search maximum nearest to that time
-                            max_pos,max_val,min_pos,min_val = \
+                            max_pos,_,_,_ = \
                                 self.main.utilities.min_max(cor,\
                                           half_width=half_width)
                             if len(max_pos) > 0:
@@ -3099,7 +3291,7 @@ class Window(QMainWindow, Ui_MainWindow):
                             n_act = int((self.t_pk_help[nt_help[0]]-self.data.t0)\
                                         /self.data.dt)
                             help_flag = True
-                        elif off_a > off0_a and off_a<off_lim:
+                        elif off0_a < off_a < off_lim:
                             n_act += int(dt_pick/self.dt)
                         elif off_a < off0_a and off_a<off_lim:
                             n_act -= int(dt_pick/self.data.dt)
@@ -3118,7 +3310,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         n_disp = int(len(cor)/2)
                         if help_flag:
 # If nearby picks exist, search maximum nearest to that time
-                            max_pos,max_val,min_pos,min_val = \
+                            max_pos,_,_,_ = \
                                 self.main.utilities.min_max(cor,\
                                           half_width=half_width)
                             if len(max_pos > 0):
@@ -3133,7 +3325,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         dm += self.findNearest2ndDerivative(self.v[i,:],\
                                     nt_ref+dm, int(half_width/2), 20)
 #                                    nt_ref+dm, int(0.003/self.data.dt), 20)
-                            
+
                         n_act = n_pick_ref+dm
                         self.traces.pick_times[trace].\
                             append(time_ref+dm*self.data.dt)
@@ -3149,15 +3341,13 @@ class Window(QMainWindow, Ui_MainWindow):
                 print("\nCorrelation picking cancelled")
                 self.setHelp(self.main_text)
                 self.main.function = "main"
-                return False
-                
+                return
 
 # Start function
 
 # Search picks done earlier in nearby gathers an plot a line connecting them
         self.x_pk_help,self.t_pk_help,self.i_tr_help = self.searchNearPicks()
 # Plot found picks as dotted green line
-        figure = self.figs[self.fig_plotted]
         x1 = self.x_pk_help[self.x_pk_help >= self.x_zoom_min]
         t1 = self.t_pk_help[self.x_pk_help >= self.x_zoom_min]
         x_pk = x1[x1 <= self.x_zoom_max]
@@ -3178,7 +3368,7 @@ class Window(QMainWindow, Ui_MainWindow):
                                                             onPress)
 
 # Wait for mouse event
-        while (self.end != True):
+        while self.end is False:
             QtCore.QCoreApplication.processEvents()
 
 # Redraw record section with new picks
@@ -3205,7 +3395,6 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        import obspy.signal.trigger as trigger
 
         answer = self.main.test_function()
         if not answer:
@@ -3221,7 +3410,7 @@ class Window(QMainWindow, Ui_MainWindow):
                                               "Sta-Lta parameter input")
         trig = []
 
-        if okButton == False:
+        if okButton is False:
             print("Picking cancelled")
         else:
             S_time = float(results[0])/1000
@@ -3541,121 +3730,123 @@ class Window(QMainWindow, Ui_MainWindow):
                                          [5,3,15,50,self.v_max_trigger],\
                                          "Amp_Pick parameter input")
 
-        if okButton == False:
+        if okButton is False:
             self.main.function = "main"
             return
+        half_width = int(results[0])
+        nlines = int(results[1])
+        dist1 = float(results[2])
+        sig_len = float(results[3])
+        sig_len /= 1000
+        self.v_max_trigger = float(results[4])
+        visible_flag = False
+        ntrac = self.actual_number_traces
+        t_pick = np.empty(ntrac)
+        t_pick.fill(np.nan)
+        a_pick = np.zeros(ntrac)
+        n_end = np.zeros(ntrac,dtype=int)
+        n_len =  int(sig_len/self.data.dt)
+        nt0 = int(-self.data.t0/self.data.dt)
+        if visible_flag:
+            n1 = self.tr[0]
+            n2 = self.tr[-1]+1
         else:
-            half_width = int(results[0])
-            nlines = int(results[1])
-            dist1 = float(results[2])
-            sig_len = float(results[3])
-            sig_len /= 1000
-            self.v_max_trigger = float(results[4])
-            visible_flag = False
-            ntrac = self.actual_number_traces
-            t_pick = np.empty(ntrac)
-            t_pick.fill(np.nan)
-            a_pick = np.zeros(ntrac)
-            n_end = np.zeros(ntrac,dtype=int)
-            n_len =  int(sig_len/self.data.dt)
-            nt0 = int(-self.data.t0/self.data.dt)
-            if visible_flag:
-                n1 = self.tr[0]
-                n2 = self.tr[-1]+1
-            else:
-                n1 = 0
-                n2 = ntrac
-            for j in range(n1,n2):
-                i = j
-                itry = 0
-                data = self.v[i,:]
-                if np.std(self.v[i,:])>0:
-                    if self.v_max_trigger>0:
-                        n_start = int((np.abs(self.x[self.indices[i]])/\
-                                self.v_max_trigger-self.data.t0)/self.data.dt)
-                    else:
-                        n_start = nt0
-                    n_end[j] = n_start+n_len
-                    ne = n_end[j]
-                    dne = n_end[j]-n_start
-                    while np.isnan(t_pick[j]):
-                        itry += 1
-                        t_pick[j],a_pick[j] = self.ampPick(data,n_start,ne,\
-                            half_width=half_width)
-                        ne = min(ne+dne,len(data))
-            for iter in range(2):
-                x = np.array(self.x)[self.indices]
-                best_off,best_slope,best_intercept,x_regres,y_regres,\
-                    y_points_regres,r2,medians_pos =\
-                    self.bestLines(x,t_pick,nlines,dist1,1)
-                dist = 1.5*np.nanstd(y_points_regres-t_pick)
-                for i in range(ntrac):
-                    if i<n1 or i > n2:
-                        continue
-                    if np.abs(t_pick[i]-y_points_regres[i])>dist:
-                        nt_reg = int((y_points_regres[i]-self.data.t0)/self.data.dt)
-                        max_pos,max_val,min_pos,min_val = \
-                        self.main.utilities.min_max(data[:n_end[i]],5)
-                        nmx_pos = len(max_pos)
-                        nmn_pos = len(min_pos)
-                        dpos = np.zeros(nmx_pos)
-                        if max_pos[0]>min_pos[0]:
-                            for k in range(nmx_pos):
-                                if k>nmn_pos-2:
-                                    break
-                                dpos = int((min_pos[k+1]-max_pos[k])/2)
-                        else:
-                            for k in range(1,nmx_pos):
-                                if k>nmn_pos-1:
-                                    break
-                                dpos = int((min_pos[k]-max_pos[k])/2)
-                        mxp = max_pos-dpos
-                        k = np.argmin(np.abs(mxp-nt_reg))
-                        nt_pik = mxp[k]
-                        for kk in range(max_pos[k],mxp[k],-1):
-                            if data[kk]<max_val[k]/100 or data[kk]*max_val[k]<0:
-                                nt_pik = kk
+            n1 = 0
+            n2 = ntrac
+        for j in range(n1,n2):
+            i = j
+            itry = 0
+            data = self.v[i,:]
+            if np.std(self.v[i,:])>0:
+                if self.v_max_trigger>0:
+                    n_start = int((np.abs(self.x[self.indices[i]])/\
+                            self.v_max_trigger-self.data.t0)/self.data.dt)
+                else:
+                    n_start = nt0
+                n_end[j] = n_start+n_len
+                ne = n_end[j]
+                dne = n_end[j]-n_start
+                while np.isnan(t_pick[j]):
+                    itry += 1
+                    t_pick[j],a_pick[j] = self.ampPick(data,n_start,ne,\
+                        half_width=half_width)
+                    ne = min(ne+dne,len(data))
+        for _ in range(2):
+            x = np.array(self.x)[self.indices]
+            _,_,_,_,_,y_points_regres,_,_ = self.bestLines(x,t_pick,nlines,dist1,1)
+            dist = 1.5*np.nanstd(y_points_regres-t_pick)
+            for i in range(ntrac):
+                if i<n1 or i > n2:
+                    continue
+                if np.abs(t_pick[i]-y_points_regres[i])>dist:
+                    nt_reg = int((y_points_regres[i]-self.data.t0)/self.data.dt)
+                    max_pos,max_val,min_pos,_ = \
+                    self.main.utilities.min_max(data[:n_end[i]],5)
+                    nmx_pos = len(max_pos)
+                    nmn_pos = len(min_pos)
+                    dpos = np.zeros(nmx_pos)
+                    if max_pos[0]>min_pos[0]:
+                        for k in range(nmx_pos):
+                            if k>nmn_pos-2:
                                 break
-                        t_pick[i] = nt_pik*self.data.dt+self.data.t0
-                        a_pick[i] = data[nt_pik]
-            if self.main.utilities.filtered:
-                unc = 4*self.data.dt
-            else:
-                unc = 2*self.data.dt
-            for j in range(ntrac):
-                if j<n1 or j > n2:
-                    continue
-                if np.isnan(t_pick[j]):
-                    continue
-                i = j
-                trace = self.actual_traces[i]
-                self.traces.npick[trace] += 1
-                self.traces.pick_times[trace].append(t_pick[j])
-                self.traces.pick_times_max[trace].append(t_pick[j]+unc)
-                self.traces.pick_times_min[trace].append(t_pick[j]-unc)
-            self.background = figure.canvas.copy_from_bbox(figure.bbox)
-            self.picksPlot(self.figs[self.fig_plotted],\
-                           self.axes[self.fig_plotted])
-            self.Tomography.setEnabled(True)
-            self.PlotPicks.setEnabled(True)
-            self.MovePicks.setEnabled(True)
-            self.traces.storePicks()
+                            dpos = int((min_pos[k+1]-max_pos[k])/2)
+                    else:
+                        for k in range(1,nmx_pos):
+                            if k>nmn_pos-1:
+                                break
+                            dpos = int((min_pos[k]-max_pos[k])/2)
+                    mxp = max_pos-dpos
+                    k = np.argmin(np.abs(mxp-nt_reg))
+                    nt_pik = mxp[k]
+                    for kk in range(max_pos[k],mxp[k],-1):
+                        if data[kk]<max_val[k]/100 or data[kk]*max_val[k]<0:
+                            nt_pik = kk
+                            break
+                    t_pick[i] = nt_pik*self.data.dt+self.data.t0
+                    a_pick[i] = data[nt_pik]
+        if self.main.utilities.filtered:
+            unc = 4*self.data.dt
+        else:
+            unc = 2*self.data.dt
+        for j in range(ntrac):
+            if j<n1 or j > n2:
+                continue
+            if np.isnan(t_pick[j]):
+                continue
+            i = j
+            trace = self.actual_traces[i]
+            self.traces.npick[trace] += 1
+            self.traces.pick_times[trace].append(t_pick[j])
+            self.traces.pick_times_max[trace].append(t_pick[j]+unc)
+            self.traces.pick_times_min[trace].append(t_pick[j]-unc)
+        self.background = figure.canvas.copy_from_bbox(figure.bbox)
+        self.picksPlot(self.figs[self.fig_plotted],\
+                       self.axes[self.fig_plotted])
+        self.Tomography.setEnabled(True)
+        self.PlotPicks.setEnabled(True)
+        self.MovePicks.setEnabled(True)
+        self.traces.storePicks()
 
     def followRect(self):
         """
         Pull rectangle across plot
         """
-        global figure
+# set actual figure (simply shorter variable name)
+        figure = self.figs[self.fig_plotted]
+
         def onPress(event):
-            global figure
-            if event.button == 1: # when left mouse botton is pressed initialize rectangle
-                if len(self.coor_x) == 0: # in the beginning store clicked point as first corner of rectangle
+# when left mouse botton is pressed initialize rectangle
+            if event.button == 1:
+# in the beginning store clicked point as first corner of rectangle
+                if len(self.coor_x) == 0:
                     self.coor_x.append(event.xdata)
                     self.coor_y.append(event.ydata)
-                    self.background = figure.canvas.copy_from_bbox(figure.bbox) # store background figure
+# store background figure
+                    self.background = figure.canvas.copy_from_bbox(figure.bbox)
                     self.coor_x.append(event.xdata)
                     self.coor_y.append(event.ydata)
-                self.canvas = self.line.figure.canvas #define canvas and new axes
+#define canvas and new axes
+                self.canvas = self.line.figure.canvas
                 self.axl = self.line.axes
                 self.line.set_data(self.coor_x,self.coor_y)
                 self.axl.draw_artist(self.line) # Draw point
@@ -3665,23 +3856,25 @@ class Window(QMainWindow, Ui_MainWindow):
                     ('button_release_event', onRelease) # set action on mouse release
 
         def onRelease(event):
-            global figure
             self.line.figure.canvas.mpl_disconnect(self.cidpress) # free actions
             self.line.figure.canvas.mpl_disconnect(self.cidmotion)
             self.line.figure.canvas.mpl_disconnect(self.cidrelease)
             self.line.set_animated(False)
             if len(self.coor_x) > 0:
-                figure.canvas.restore_region(self.background) # plot background image without rectangle
+# plot background image without rectangle
+                figure.canvas.restore_region(self.background)
             self.background = None # remove stored background
             self.released = True # ste flag to finish module
 
         def onMotion(event):
-            global figure
-            self.coor_x[-1] = event.xdata # replace last coordinate point by actual mouse position
+# replace last coordinate point by actual mouse position
+            self.coor_x[-1] = event.xdata
             self.coor_y[-1] = event.ydata
+# set x and y coordiantes of rectangle plot
             line_coor_x = [self.coor_x[0], self.coor_x[1], self.coor_x[1],
-                           self.coor_x[0], self.coor_x[0]] # set x and y coordiantes of rectangle plot
-            line_coor_y = [self.coor_y[0], self.coor_y[0], self.coor_y[1], self.coor_y[1], self.coor_y[0]]
+                           self.coor_x[0], self.coor_x[0]]
+            line_coor_y = [self.coor_y[0], self.coor_y[0], self.coor_y[1],\
+                           self.coor_y[1], self.coor_y[0]]
             self.line.set_data(line_coor_x, line_coor_y)
             self.canvas = self.line.figure.canvas
             self.axl = self.line.axes # define new axes values
@@ -3692,13 +3885,13 @@ class Window(QMainWindow, Ui_MainWindow):
         self.released = False # initialize flags and coordinate vector
         self.coor_x = []
         self.coor_y = []
-        figure = self.figs[self.fig_plotted] # set actual figure (simply shorter variable name)
         self.line, = self.axes[self.fig_plotted].plot(self.coor_x, self.coor_y,\
                                animated=True) # define line value
         self.cidpress = self.line.figure.canvas.mpl_connect\
             ('button_press_event', onPress) # set action on mouse press
-        while (self.released != True):
-            QtCore.QCoreApplication.processEvents() # cycle event detection as long as released flag is not set
+        while self.released is False:
+# cycle event detection as long as released flag is not set
+            QtCore.QCoreApplication.processEvents()
 
     def followLine(self, release_flag = False, nleft=1, nright=1):
         """
@@ -3711,13 +3904,13 @@ class Window(QMainWindow, Ui_MainWindow):
                 nright (int): if 0 start line for positive direction at origin
                              if not, start line at the position of first click
         """
-        global figure,r_flag
+        figure = self.figs[self.fig_plotted] # set figure (simply shorter variable name)
+
         def onPress(event):
-            global figure, r_flag
             self.line_click = False
             if event.button == 1: # left mouse button is pressed
-                if event.xdata==None or event.ydata==None:
-                    return False
+                if event.xdata is None or event.ydata is None:
+                    return
                 if len(self.coor_x) == 0:
                     if (event.xdata<0 and nleft==0) or\
                        (event.xdata>=0 and nright==0):
@@ -3733,7 +3926,8 @@ class Window(QMainWindow, Ui_MainWindow):
                     else:
                         self.side = 1
                     self.background = figure.canvas.copy_from_bbox(figure.bbox)
-                self.coor_x.append(event.xdata) # set starting point initially also as end point
+# set starting point initially also as end point
+                self.coor_x.append(event.xdata)
                 self.coor_y.append(event.ydata)
                 self.canvas = self.line.figure.canvas
                 self.axl = self.line.axes
@@ -3756,11 +3950,9 @@ class Window(QMainWindow, Ui_MainWindow):
                     figure.canvas.restore_region(self.background)
                 self.background = None
                 self.released = True
-                return True
 
         def onRelease(event):
 # If line finishes when button is released do this here
-            global figure
             self.line.figure.canvas.mpl_disconnect(self.cidpress)
             self.line.figure.canvas.mpl_disconnect(self.cidmotion)
             self.line.figure.canvas.mpl_disconnect(self.cidrelease)
@@ -3772,12 +3964,11 @@ class Window(QMainWindow, Ui_MainWindow):
             return False
 
         def onMotion(event):
-            global figure
-            if event.xdata==None or event.ydata==None:
+            if event.xdata is None or event.ydata is None:
                 return False
             if self.main.function == "P_model":
-                if (self.side<0 and event.xdata>0) or\
-                   (self.side>0 and event.xdata<0):
+                if (self.side < 0 < event.xdata) or\
+                   (event.xdata < 0 < self.side):
                     event.xdata = 0.
             self.coor_x[-1] = event.xdata # set second point of line as actual mouse position
             self.coor_y[-1] = event.ydata
@@ -3810,18 +4001,18 @@ class Window(QMainWindow, Ui_MainWindow):
             figure.canvas.restore_region(self.background)
             self.axl.draw_artist(self.line)
             self.canvas.blit(self.axl.bbox)
+            return True
 
-        r_flag = release_flag # set flags and initialize coordinates
+#        r_flag = release_flag # set flags and initialize coordinates
         self.released = False
         self.start = []
         self.coor_x = []
         self.coor_y = []
-        figure = self.figs[self.fig_plotted] # set figure (simply shorter variable name)
         self.line, = self.axes[self.fig_plotted].plot(self.coor_x, self.coor_y,\
                                                       animated=True)
         self.cidpress = self.line.figure.canvas.mpl_connect\
                                 ('button_press_event', onPress)
-        while (self.released != True): # as long as release flag is not set listen to events
+        while self.released is False: # as long as release flag is not set listen to events
             QtCore.QCoreApplication.processEvents()
 
 
@@ -3877,7 +4068,6 @@ class Window(QMainWindow, Ui_MainWindow):
 
         """
 
-        import scipy.stats
 # check best regression lines crossing the obtained picks
     #   The direct wave and i_refra_max refractions are fitted
         if Lnorm<1 or Lnorm>2:
@@ -3922,7 +4112,7 @@ class Window(QMainWindow, Ui_MainWindow):
             if x_unique[n_off] <= max_off:
                 i_off_test = n_off
             while x_off[i]==x_unique[n_off]:
-                if np.isnan(y_test[i]) == False:
+                if np.isnan(y_test[i]) is False:
                     xpk.append(x_off[i])
                     ypk.append(y_test[i])
                     i_tr.append(i)
@@ -3946,7 +4136,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 if Lnorm==1:
                     slope1 = self.L1_regres(xpk,ypk,[slope1])
             else:
-                slope1,intercept1,r1,p1,stderror1 = scipy.stats.linregress(xpk,ypk)
+                slope1,intercept1,_,_,_ = scipy.stats.linregress(xpk,ypk)
                 if Lnorm==1:
                     par = self.L1_regres(xpk,ypk,[slope1,intercept1])
                     slope1 = par[0]
@@ -3968,7 +4158,7 @@ class Window(QMainWindow, Ui_MainWindow):
                                                     ypk[0:npts[i]+1],[slope1])
                     intercept1 =0.
                 else:
-                    slope1,intercept1,r1,p1,stderror1 = \
+                    slope1,intercept1,_,_,_ = \
                         scipy.stats.linregress(xpk[0:npts[i]+1],ypk[0:npts[i]+1])
                     if Lnorm==1:
                         par = self.L1_regres(xpk[npts[i+1]:ne],ypk[npts[i+1]:ne],\
@@ -3976,7 +4166,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         slope1 = par[0]
                         intercept1 = par[1]
     # slope2 corresponds to the slope of the refacted wave for picks i+1 until 15
-                slope2,intercept2,r2,p2,stderror2 = \
+                slope2,intercept2,_,_,_ = \
                     scipy.stats.linregress(xpk[npts[i+1]:ne],ypk[npts[i+1]:ne])
                 if Lnorm==1:
                     par = self.L1_regres(xpk[npts[i+1]:ne],ypk[npts[i+1]:ne],\
@@ -3990,7 +4180,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 diff = np.abs(ypk[:ne]-yy[:ne])
                 sig = np.sqrt(np.dot(diff,diff)/len(diff))
     # If misfit is smallest, save parameters
-                if sig<sig_best and ((slope1>0 and slope2>0 and slope2<slope1\
+                if sig<sig_best and ((0 < slope2 < slope1\
                     and intercept2>0) or not refra):
                     i_best = i
                     s1_best = slope1
@@ -4021,12 +4211,14 @@ class Window(QMainWindow, Ui_MainWindow):
                     n1 = npts[best_i[i_slope]]+1
                     for n_off in range(best_i[i_slope]+3,n_unique-3):
                         n2 = npts[n_off]+1
-                        slope1,intercept1,r1,p1,stderror1 = scipy.stats.linregress(xpk[n1:n2],ypk[n1:n2])
+                        slope1,intercept1,_,_,_ =\
+                               scipy.stats.linregress(xpk[n1:n2],ypk[n1:n2])
                         if Lnorm==1:
                             par = self.L1_regres(xpk[n1:n2],ypk[n1:n2],[slope1,intercept1])
                             slope1 = par[0]
                             intercept1 = par[1]
-                        slope2,intercept2,r2,p2,stderror2 = scipy.stats.linregress(xpk[n2:],ypk[n2:])
+                        slope2,intercept2,r2,_,_ =\
+                               scipy.stats.linregress(xpk[n2:],ypk[n2:])
                         if Lnorm==1:
                             par = self.L1_regres(xpk[n2:],ypk[n2:],[slope1,intercept1])
                             slope2 = par[0]
@@ -4035,7 +4227,7 @@ class Window(QMainWindow, Ui_MainWindow):
                         yy[n2:] = slope2*xpk[n2:]+intercept2
                         diff = np.abs(ypk[n1:]-yy[n1:])
                         sig = np.sqrt(np.dot(diff,diff)/len(diff))
-                        if sig < sig_best and ((slope1>0 and slope2>0 and slope2<slope1\
+                        if sig < sig_best and ((0 < slope2 < slope1\
                             and intercept1>0 and intercept2>0) or not refra):
                             i_best = n_off
                             s1_best = slope1
@@ -4109,8 +4301,6 @@ class Window(QMainWindow, Ui_MainWindow):
             if len(par_ini)==2, param contains [slope,intercept]
 
         """
-        import numpy as np
-        from scipy.optimize import minimize
 
         def cost_function(params,X,y):
             return np.sum(np.abs(y -X.dot(params)))
@@ -4140,7 +4330,6 @@ class Window(QMainWindow, Ui_MainWindow):
         None.
 
         """
-        import matplotlib.pyplot as plt
         answer = self.main.test_function()
         if not answer:
             return
@@ -4173,9 +4362,9 @@ class Window(QMainWindow, Ui_MainWindow):
         line = ax.plot(self.x,vt[0,:])[0]
         fig.canvas.draw()
         fig.canvas.flush_events()
-        for i in range(len(t)):
+        for i,tt in enumerate(t):
             line.set_ydata(vt[i,:])
-            ax.set_title(f"Time {t[i]*1000:0.2f}ms", fontsize=20)
+            ax.set_title(f"Time {tt*1000:0.2f}ms", fontsize=20)
             fig.canvas.draw()
             fig.canvas.flush_events()
         plt.ioff()
@@ -4197,5 +4386,3 @@ class newWindow(QWidget):
         self.canvas.draw()
         self.toolbar = NavigationToolbar(self.canvas,self)
         self.layout.addWidget(self.toolbar)
-
-

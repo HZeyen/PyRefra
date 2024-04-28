@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Apr 24, 2024
+last modified on Apr 28, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -317,9 +317,7 @@ class Data():
             List of file names to be read
 
         """
-# check for file and receiver corrections
         ntr0 = 0
-#        ntr = -1
 # Read data file
         for nf,ff in enumerate(files.names):
             try:
@@ -426,10 +424,7 @@ class Data():
                                 print(f"     File {ifile}: shot point corrected, "+\
                                       f"set to nr {nsht}")
                 files.file_dict[nf]['traces'] = np.arange(len(self.st[-1]))+ntr0
-                ntr0 = files.file_dict[nf]['traces'][-1]
-            #     for i in range(len(self.st[-1])):
-            #         ntr += 1
-            #         files.file_dict[nf]['traces'].append(ntr)
+                ntr0 = files.file_dict[nf]['traces'][-1]+1
             except ValueError:
                 sys.exit()
             except Exception as exc:
@@ -1448,7 +1443,7 @@ class Geometry():
 
         Returns
         -------
-        d: Dictionary with position number and coordinates, for receivers also
+        d: Dictionary with position number and coordinates; for receivers also
             component
 
         """
@@ -4311,7 +4306,7 @@ class Utilities:
         For nicer plots, modify numbering format in drawDataMatrix
         The function is found in file
         Environment_path/Lib/site-packages/pygimli/viewer/mpl
-        For me, Environment path is C:/Users/Hermann/anaconda37/envs/pg
+        For me, Environment path is C:/Users/Hermann/anaconda3/
         There go to lines 458 and 462 starting with
         ax.set_xticklabels and
         ax.set_yticklabels
@@ -4738,16 +4733,19 @@ class Utilities:
         txt.set_bbox(dict(facecolor="white"))
         print("Rays plotted")
 # Interpolate coverage like final model
-        self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
+#ò        self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
+        self.triang = tri.Triangulation(self.mesh_coor[:,0],self.mesh_coor[:,1])
         isbad = np.isclose(self.cover, 0.)
         self.mask=np.all(np.where(isbad[self.triang.triangles], True, False), axis=1)
         self.triang.set_mask(self.mask)
 # Plot final model
-        gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
+        # gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
+        #                            levels=self.levels, colors=cols)
+        gci0 = self.ax_mod.tricontourf(self.triang,self.endModel,extend='both',\
                                    levels=self.levels, colors=cols)
 # self.scheme contains all shot and receiver coordinates as well as measured
 #    travel times, obtained at the beginning of the function from file picks.sgt
-        y = pg.z(self.scheme)
+        y = pg.y(self.scheme)
 # If there is topography present (not all receivers/shots at z=0), calculate the
 #    outline of the model (z positions of shots and receivers and the two corners
 #    of the base of the model) and define this outline as clipping path

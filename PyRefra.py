@@ -74,9 +74,10 @@ import numpy as np
 
 # Example of paths for programs and data on HZ desktop
 SYS_PATH = r"E:/Sources_2010/Python_programs"
-DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+#DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
 #DIR0 = r"E:/Seg2Dat/L3DD_2024"
 #DIR0 = r"E:/Seg2Dat/Campus_haut"
+DIR0 = r"E:/Seg2Dat/Rochechouart/Rochechouart_2020"
 
 # Example of paths for LIONEL
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"

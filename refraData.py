@@ -3439,7 +3439,7 @@ class Utilities:
                     self.high_cut_flag = False
                 print(f"Low-cut  frequency: {int(self.fmin)}\n"+\
                       f"High-cut frequency: {int(self.fmax)}")
-                return
+                return True
         ndat = np.size(self.window.v[0,:])
         tr_spec = self.window.actual_traces[tr1:tr2]
         F = np.zeros(ndat,dtype=np.complex128)
@@ -4519,7 +4519,6 @@ class Utilities:
                 del mesh_x,mesh_y,mesh_v
                 self.endModel = self.endModel_all[self.cover > 0.]
             except:
-#                self.cover = self.mgr.coverage()/self.mgr.paraDomain.cellSize()
                 self.cover = self.mgr.coverage()/self.mgr.mesh.cellSizes().array()
                 cov_true = self.cover[self.cover > 0.]
                 mesh_x = self.mesh_coor_all[:,0]
@@ -4734,15 +4733,13 @@ class Utilities:
         print("Rays plotted")
 # Interpolate coverage like final model
 #ò        self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
-        self.triang = tri.Triangulation(self.mesh_coor[:,0],self.mesh_coor[:,1])
+        self.triang = tri.Triangulation(self.mesh_coor_all[:,0],self.mesh_coor_all[:,1])
         isbad = np.isclose(self.cover, 0.)
         self.mask=np.all(np.where(isbad[self.triang.triangles], True, False), axis=1)
         self.triang.set_mask(self.mask)
 # Plot final model
-        # gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
-        #                            levels=self.levels, colors=cols)
-        gci0 = self.ax_mod.tricontourf(self.triang,self.endModel,extend='both',\
-                                   levels=self.levels, colors=cols)
+        gci0 = self.ax_mod.tricontourf(self.triang,self.endModel_all,extend='both',\
+                                    levels=self.levels, colors=cols)
 # self.scheme contains all shot and receiver coordinates as well as measured
 #    travel times, obtained at the beginning of the function from file picks.sgt
         y = pg.y(self.scheme)
@@ -4788,9 +4785,9 @@ class Utilities:
         cax = divider.append_axes("right", size="2%", pad=0.2)
         cax2 = divider.append_axes("top", size="2%", pad="10%")
         cb = plt.colorbar(gci0, cmap=cmp, cax=cax,\
-                         format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
-                         orientation='vertical',aspect=25, shrink=0.9,\
-                         extend='both')
+                          format='%.0f',label="Velocity [m/s]", ticks=ticks_vel,\
+                          orientation='vertical',aspect=25, shrink=0.9,\
+                          extend='both')
 
         cb.ax.tick_params(labelsize=14)
         if self.rays_flag:
@@ -4808,20 +4805,20 @@ class Utilities:
         self.ax_mod.tick_params(axis='both', labelsize=self.tick_size_mod)
         self.ax_mod.set_ylim(-self.zmax_plt,0)
         self.ax_mod.set_title(\
-             f"Model velocities (min:{self.min_end:0.0f}, max:{self.max_end:0.0f})",\
-             fontsize=self.tick_size_mod+2)
+              f"Model velocities (min:{self.min_end:0.0f}, max:{self.max_end:0.0f})",\
+              fontsize=self.tick_size_mod+2)
         ax_xmin, ax_xmax = self.ax_mod.get_xlim()
         ax_ymin, ax_ymax = self.ax_mod.get_ylim()
         self.ax_mod.text(ax_xmin,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_start,\
-                         horizontalalignment="left",\
-                         verticalalignment="bottom", fontsize=18)
+                          horizontalalignment="left",\
+                          verticalalignment="bottom", fontsize=18)
         self.ax_mod.text(ax_xmax,ax_ymax+(ax_ymax-ax_ymin)*0.01,self.main.dir_end,\
-                         horizontalalignment="right",\
-                         verticalalignment="bottom", fontsize=18)
+                          horizontalalignment="right",\
+                          verticalalignment="bottom", fontsize=18)
         xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
         ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
         txt = self.ax_mod.text(xtxt,ytxt,"A",horizontalalignment="left",\
-                               verticalalignment="bottom", fontsize=18)
+                                verticalalignment="bottom", fontsize=18)
         txt.set_bbox(dict(facecolor="white"))
         cax2.text(0.5,0.5,self.main.title, fontsize=24, fontweight="heavy",\
                   ha="center",va="bottom")

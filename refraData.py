@@ -553,7 +553,7 @@ class Data():
                             self.receiver_corr_flag = False
                             del self.receiver_corr_dict
                         return
-                    ir = int(nums[0])
+                    ir = int(nums[0])-1
                     self.receiver_corr_dict[ir] = {}
                     a = float(nums[1])
                     self.receiver_corr_dict[ir]["amp"] = a

@@ -390,7 +390,8 @@ class Window(QMainWindow, Ui_MainWindow):
             self.zooms[self.i_zooms][0] = -self.traces.off_max
             self.zooms[self.i_zooms][1] = -self.traces.off_min
             self.fig_plotted_R = self.fig_plotted
-            self.plotReceiver(self.axes[self.fig_plotted],self.receivers[self.fig_plotted])
+            nrec = int(text.split()[1])-1
+            self.plotReceiver(self.axes[self.fig_plotted],self.receivers[nrec])
             if self.PlotCalculatedTimes.isChecked():
                 self.plotCalcPicks()
         else:
@@ -1505,6 +1506,9 @@ class Window(QMainWindow, Ui_MainWindow):
                          dtype = int))
 # Loop over all found receivers
         for i,r in enumerate(self.receivers):
+            if i in self.data.receiver_corr_dict:
+                if self.data.receiver_corr_dict[r]["amp"] == 0.:
+                    continue
             self.figs.append(Figure())
             self.axes.append(self.figs[-1].subplots())
             if i==0:

@@ -85,6 +85,20 @@ Also at the very end, find line containing `WARNING_HEADER` and comment it out.
 
 This is not important for working of the program, but it avoids an annoyingly long warning message each time you start the program.
 
+On the other hand, in the same file, we detected a problem which appears on acquisition systems using Anglophone date coding, i.e. mm/dd/yyyy instead of the expected dd/mm/yyyy. A work-around, only to get the program reading these data as well has been programmed in lines 183-188 with a try-except construction which gives the correct date if the coding is mm/dd/yyyy and if the day of month is larger than 12, but confounds day and month for smaller days:
+
+`            try:`
+
+`                day, month, year = int(date[0]), MONTHS[date[1].lower()], \`
+
+`                    int(date[2])`
+
+`            except:`
+
+`                day, month, year = int(date[1]), MONTHS[date[0].lower()], \`
+
+`                    int(date[2])`
+
 In **obspy < v.1.4**, there is a bug in reading seg2 files. Search in file **seg2.py** the line `if key == 'NOTE':` (line 337) in the line just above, change `value = ''` by `value = b''`
 
 If the program stops after having written to the screen “folder: …” followed by “files read” without a list of files, the most probable reason is that an old obspy version had been reinstalled and you must do the above corrections again!

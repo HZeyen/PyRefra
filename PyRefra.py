@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on Apr 24, 2024
+last modified on May 04, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
          hermann.zeyen@universite-paris-saclay.fr
@@ -26,6 +26,7 @@ Needed Python packages:
     scikit-learn
     datetime
     statsmodels
+    colorcet
 
 Needed private packages:
 
@@ -75,9 +76,11 @@ import numpy as np
 # Example of paths for programs and data on HZ desktop
 SYS_PATH = r"E:/Sources_2010/Python_programs"
 #DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-#DIR0 = r"E:/Seg2Dat/L3DD_2024"
+#DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2023/Line1"
+DIR0 = r"E:/Seg2Dat/L3DD_2024"
 #DIR0 = r"E:/Seg2Dat/Campus_haut"
-DIR0 = r"E:/Seg2Dat/Rochechouart/Rochechouart_2020"
+#DIR0 = r"E:/Seg2Dat/Rochechouart/Rochechouart_2020"
+#DIR0 = r"E:/Seg2Dat/Erreurs/Jibran"
 
 # Example of paths for LIONEL
 #sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
@@ -410,7 +413,7 @@ class Main(QtWidgets.QWidget):
                     fo.write(f"{self.title}\n")
                     fo.write(self.dir_start)
                 print(f"{self.title}\n"+\
-                      "Profile direction: {self.dir_start}-{self.dir_end}")
+                      f"Profile direction: {self.dir_start}-{self.dir_end}")
             else:
                 self.title = self.dir0
                 self.dir_start = ""

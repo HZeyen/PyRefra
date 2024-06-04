@@ -124,7 +124,8 @@ class SEG2(object):
             msg = ('File indicates %d traces, but there are only %d trace '
                    'pointers.') % (number_of_traces,
                                    size_of_trace_pointer_sub_block // 4)
-            raise SEG2InvalidFileError(msg)
+            size_of_trace_pointer_sub_block = number_of_traces * 4
+#            raise SEG2InvalidFileError(msg)
 
         # Define the string and line terminators.
         (size_of_string_terminator,
@@ -180,12 +181,8 @@ class SEG2(object):
             # Split on space, dot (.), slash (/), and dash (-)
             date = list(filter(None, re.split("[, ./-]+", date)))
             hour, minute, second = int(time[0]), int(time[1]), float(time[2])
-            try:
-                day, month, year = int(date[0]), MONTHS[date[1].lower()], \
-                    int(date[2])
-            except:
-                day, month, year = int(date[1]), MONTHS[date[0].lower()], \
-                    int(date[2])                
+            day, month, year = int(date[0]), MONTHS[date[1].lower()], \
+                int(date[2])
             self.starttime = UTCDateTime(year, month, day, hour, minute,
                                          second)
         else:
@@ -366,5 +363,5 @@ def _is_seg2(filename):
 def _read_seg2(filename, **kwargs):  # @UnusedVariable
     seg2 = SEG2()
     st = seg2.read_file(filename)
-    # warnings.warn(WARNING_HEADER)
+#    warnings.warn(WARNING_HEADER)
     return st

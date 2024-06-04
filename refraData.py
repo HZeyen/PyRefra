@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on Apr 28, 2024
+last modified on June 04, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
 
@@ -72,6 +72,7 @@ Contains the following Classes:
                 vel_scale
             invCol
             prepareSOFI2D
+            prepareShaVi
             atten_amp
 
 
@@ -325,11 +326,22 @@ class Data():
                     try:
                         self.st.append(seg2._read_seg2(ff))
                         if not 'RECEIVER_STATION_NUMBER' in self.st[-1][0].stats.seg2:
-                            for tr in self.st[-1]:
-                                tr.stats.seg2['RECEIVER_STATION_NUMBER']=\
-                                    tr.stats.seg2['CHANNEL_NUMBER']
-                                tr.stats.seg2['SOURCE_STATION_NUMBER']=\
-                                    self.main.files.numbers[nf]
+                            for itr,tr in enumerate(self.st[-1]):
+                                try:
+# If trace headers do not contain the keyword "RECEIVER_STATION_NUMBER", define
+#    this value as "CHANNEL NUMBER". In this case, normally also the key word
+#    "SOURCE_STATION_NUMBER" is missing. It is defined as the file number
+                                    tr.stats.seg2['RECEIVER_STATION_NUMBER']=\
+                                        tr.stats.seg2['CHANNEL_NUMBER']
+                                    tr.stats.seg2['SOURCE_STATION_NUMBER']=\
+                                        files.numbers[nf]
+                                except:
+# If even the keyword "CHANNEL NUMBER" is missing, RECEIVER_STATION_NUMBER" is set
+#    as consecutive number of trace in the file
+                                    tr.stats.seg2['RECEIVER_STATION_NUMBER']=\
+                                        itr                                        
+                                    tr.stats.seg2['SOURCE_STATION_NUMBER']=\
+                                        files.numbers[nf]
                     except:
                         _ = QtWidgets.QMessageBox.critical(None, "Error",
                                  f"Error reading data file {ff}\n\nHas Obspy bug "+\
@@ -5013,7 +5025,7 @@ class Utilities:
             self.window.Change_colors.setEnabled(True)
 # Interpolate model on regular quadratic grid for use with Sofi2D
 
-            self.prepareSOFI2D()
+            self.prepare_FWI()
 # Move all files from folder TravelTimeManager to its base folder, the name of
 #      which is date-hour in the format YYYYMMDD-hh.mm
 # Then delete folder TravelTimeManager
@@ -5053,6 +5065,27 @@ class Utilities:
         """
         self.main.function = "main"
         self.inversion(code=67)
+
+    def prepare_FWI(self):
+        """
+        Choice of output format for different Full-waveform inversions (FWI)
+
+        Returns
+        -------
+        None.
+
+        """
+        res, okBut = self.main.dialog(\
+                            ["Save model for FWI inversion with:",\
+                            ["SOFI2D","ShaVi","None"]],\
+                            ["l","r"],[None,2],"Choose FWI format")
+        if not okBut or int(res[1]) == 2:
+            print("\nNo FWI output written\n")
+            return
+        elif int(res[1]) == 0:
+            self.prepareSofi2D()
+        else:
+            self.prepareShaVi()
 
     def prepareSOFI2D(self):
         """
@@ -5287,6 +5320,243 @@ class Utilities:
             for i,xs in enumerate(xshot):
                 fo.write(f"{xs:0.3f} {zshot[i]:0.3f} "+\
                          f"0.0 {fc:0.1f} 1.0\n")
+
+
+    def prepareShaVi(self):
+        """
+        Write final model and data to text files for
+        use with ShaVi and prepare a sample parameter file
+
+        Returns
+        -------
+        None.
+
+        """
+        def ricker_wavelet(f, size, dt=1):
+            """
+            Create a Ricker signal starting at -1/f with a total length of size
+            samples. Calculation starts at t0 = -1./f, returned as time = 0.
+
+            Parameters
+            ----------
+            f : float
+                Central frequency [Hz].
+            size : int
+                Total number of samples.
+            dt : float, optional
+                sampling step [s]. The default is 1.
+
+            Returns
+            -------
+            t : numpy float array with length size
+                time vector [s]
+            y : numpy float array with length size
+                ricker wavelet values
+
+            """
+            t0 = 1./f
+            t = np.arange(size)*dt-t0
+            y = (1.0 - 2.0*(np.pi**2)*(f**2)*(t**2)) * np.exp(-(np.pi**2)*(f**2)*(t**2))
+            return t+t0, y
+        
+        folder = "ShaVi"
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        os.chdir(folder)
+        x = self.mgr.paraDomain.cellCenters().array()[:,0]
+        v = self.mgr.model.array()
+# Get some control parameters
+        res, okBut = self.main.dialog(\
+                            ["Central frequency [Hz]",\
+                             "Use every n'th shot point",\
+                             "Reduce sampling rate by factor",\
+                             "Maximum time to be stored [s]",\
+                             "Grid spacing [m]",\
+                             "Absorbing boundary [number of cells]",\
+                             "Absorbing boundary at surface (0: free surface)",\
+                             "Nr. of processors",\
+                             "Nr. of iterations",\
+                             "Objective function:",\
+                             ["X-correlation","Norm"]],\
+                            ["e","e","e","e","e","e","e","e","e","l","r"],\
+                            [50,1,4,0.2,1,8,3,4,50,None,2],"Settings for ShaVi")
+        if not okBut:
+            print("\nShaVi output not written\n")
+            return
+# fc is the central frequency of the source signal
+# dx is the cell size, calculated following the stability criteria given in
+#    SOFI2D manual and rounded to the next lower 2.5 cm.
+        fc = float(res[0])
+        nd_shot = int(res[1])
+        nd_time = int(res[2])
+        s_inter = self.data.dt*nd_time
+# tmax is length of traces to be calculated
+        tmax = float(res[3])
+        n_time_min = abs(int(self.data.t0/self.data.dt))
+        n_time = int(tmax/self.data.dt)
+        n_time_max = n_time_min+n_time
+        time_samples = list(range(n_time_min,n_time_max+1,nd_time))
+        nt_store = len(time_samples)
+        dx = float(res[4])
+# nbound is the number of cells to be added at the left, right and lower
+# edges for wave attenuation and avoiding reflections from those boundaries
+# X coordinates of the shot and receiver points are increased by bound
+        nbound = int(res[5])
+# n_surface_bound is the number of cells to be added to the model for wave
+# attenuation at the upper surface. If it is 0, free surface is assumed. If it
+# is >0, the shot and receiver points are placed at depth n_surface_bound
+        n_surface_bound = int(res[6])
+# proc is the number of CPU processors that will be used.
+        proc = int(res[7])
+        max_iter = int(res[8])
+        object_type = int(res[10])
+        x0m = dx*(nbound+5)
+        depth_model = self.zmax_plt+x0m
+        nz_size = int(depth_model/dx)
+        x_min = x.min() - dx*(nbound+5)
+        x_max = x.max() + dx*(nbound+5)
+        nx_size = int((x_max-x_min)/dx)
+# Write data file and store shot positions into list sh_pos and receiver
+#       positions into dictionary rec_pos_dir with key = conscurive number of
+#       stored shot and as value a list of receiver positions for each shot.
+        sht_pts = list(self.traces.sht_pt_dict.keys())
+        rec_pos_dir = {}
+        sh_pos = []
+        data = np.zeros((len(time_samples),len(self.traces.sht_pt_dict[sht_pts[0]]["file"])))
+        with open("data.txt","w") as fo:
+            for i,key in enumerate(sht_pts):
+                if key%nd_shot != 0:
+                    continue
+                r = self.traces.sht_pt_dict[key]["receiver"][0]
+                tr = self.traces.sht_rec_dict[(key,r)]
+                sh_pos.append(self.traces.shot_pos[tr])
+                rec_pos_dir[i] = []
+                f_nr = []
+                tf_nr = []
+                r_nr = []
+                for k,f in enumerate(self.traces.sht_pt_dict[key]["file"]):
+                    r = self.traces.sht_pt_dict[key]["receiver"][k]
+                    tr = self.traces.sht_rec_dict[(key,r)]
+                    if np.isclose(self.traces.offset[tr],0.):
+                        continue
+                    f = self.traces.sht_pt_dict[key]["file"][k]
+                    t = self.traces.sht_pt_dict[key]["trace"][k]
+                    f_nr.append(f)
+                    tf_nr.append(t)
+                    r_nr.append(r)
+                    rec_pos_dir[i].append(self.traces.receiver_pos[tr])
+                    data[:,k] = self.data.st[f][t].data[time_samples]
+                    # for j in time_samples:
+                    #     fo.write(f"{self.data.st[f][t].data[j]:0.4e}\n")
+                index = np.argsort(np.array(r_nr))
+                for j in range(data.shape[0]):
+                    for k in index:
+                        fo.write(f"{data[j,k]:0.4e}\n")
+
+# Write sources and receivers per source into their files in terms of
+#       grid point numbers
+        with open("sources.txt","w") as fo:
+            for s in sh_pos:
+                fo.write(f"{int((s-x_min)/dx)}\n")
+        with open("receivers.txt","w") as fo:
+                for i in range(len(rec_pos_dir[0])):
+                    for key in rec_pos_dir.keys():
+                        ri = int((rec_pos_dir[key][i]-x_min)/dx)
+                        fo.write(f"{ri} ")
+                    fo.write("\n")
+
+# Write parameter file
+        with open("parameter.txt","w") as fo:
+            fo.write(f"number_sample  {nt_store}\n")
+            fo.write(f"sampling_intrvl  {s_inter:0.6f}\n")
+            fo.write(f"depth_model  {nz_size}\n")
+            fo.write(f"lateral_model  {nx_size}\n")
+            fo.write(f"grid_space  {dx:0.2f}\n")
+            fo.write(f"depth_source  {n_surface_bound}\n")
+            fo.write(f"depth_receiver  {n_surface_bound}\n")
+            fo.write(f"number_src  {len(sh_pos)}\n")
+            fo.write(f"number_rcr  {len(rec_pos_dir[0])}\n")
+            fo.write(f"processors  {proc}\n")
+            fo.write(f"max_iteration  {max_iter}\n")
+            fo.write("boundary_key  1\n")
+            fo.write(f"absorb_lay  {nbound}\n")
+            fo.write(f"obj_fun  {object_type}\n")
+            fo.write(f"upper_avoid  {n_surface_bound}\n")
+            fo.write("data_order  1\n")
+
+# Export tomography model as starting model
+        xmin = x_min
+        xmax = x_max
+        zmin = -3.*dx
+        zmax = zmin + nz_size*dx
+        print(f"zmin: {zmin:0.3f}, zmax: {zmax:0.3f}")
+        nx = nx_size
+        nz = nz_size
+
+# Define X and Z coordinates of interpolated mesh
+        xi = np.linspace(xmin,xmax,nx)
+        zi = np.linspace(zmin,zmax,nz)
+
+# Perform linear interpolation of the data given on original positions (x,z)
+# on a grid defined by (xi,zi)
+        Xi, Zi = np.meshgrid(xi, zi)
+        points = self.mgr.paraDomain.cellCenters().array()[:,:2]
+        points[:,1] *= -1.
+        index = np.isfinite(v)
+        points = points[index,:]
+        v = v[index]
+        data_p = griddata(points, v, (Xi, Zi), method='linear')
+# Fill nan's with neighbouring values
+# First fill rows
+        for i in range(data_p.shape[0]):
+            ok = np.where(np.isfinite(data_p[i,:]))[0]
+# If no valid data exist in the row, skip row
+            if len(ok) == 0: continue
+# If nans exist at the beginning of the row, fill them with the first valid
+#    value encountered in the row
+            if ok[0] > 0:
+                data_p[i,:ok[0]] = data_p[i,ok[0]]
+# If nans exist at the end of the row, fill them with the last valid
+#    value encountered in the row
+            if ok[-1] < nx_size-1:
+                data_p[i,ok[-1]+1:] = data_p[i,ok[-1]]
+# Fill intermediate nans with value of the left neighbour
+            na = np.where(np.isnan(data_p[i,:]))[0]
+            if len(na) == 0: continue
+            for j in na:
+                data_p[i,j] = data_p[i,j-1]
+# Now do the same procedure for columns
+        for i in range(data_p.shape[1]):
+            ok = np.where(np.isfinite(data_p[:,i]))[0]
+            if len(ok) == 0: continue
+            if ok[0] > 0:
+                data_p[:ok[0],i] = data_p[ok[0],i]
+            if ok[-1] < nz_size-1:
+                data_p[ok[-1]+1:,i] = data_p[ok[-1],i]
+            na = np.where(np.isnan(data_p[:,i]))[0]
+            if len(na) == 0: continue
+            for j in na:
+                data_p[j,i] = data_p[j-1,i]
+        with open("initial_model.txt","w") as fo:
+            for i in range(data_p.shape[0]):
+                for j in range(data_p.shape[1]):
+                    fo.write(f"{data_p[i,j]:0.3f} ")
+                fo.write("\n")
+        w_shavi = rP.newWindow("Shavi interpolated")
+        figsha = w_shavi.fig
+        _ = figsha.add_subplot(111)
+        plt.imshow(data_p, extent=(Xi.min()-dx/2,Xi.max()+dx/2,-Zi.max()-dx/2,-Zi.min()+dx/2))
+        plt.plot(points[:,0],-points[:,1], "k.", ms=1)
+        plt.show()
+        
+        print(f"ShaVi model: nx = {nx}, nz = {nz}, bytes = {nx*nz*4}")
+        print(f"             dx: {dx:0.3f}, dt: {s_inter:0.6f}\n")
+# Create source signal
+        times,data = ricker_wavelet(fc, len(time_samples), dt=s_inter)
+        with open("source_signal.txt","w") as fo:
+            for d in data:
+                fo.write(f"{d:0.6f}\n")
+        os.chdir("..")
 
     def atten_amp(self):
         """
@@ -5678,7 +5948,6 @@ class Utilities:
         self.w_pseudo.show()
         # Store figure into png file
         fig_ps.savefig("pseudo_section_slowness.png")
-
 
 #    atten_FFT_backup(self):
 

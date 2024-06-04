@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on Apr 24, 2024
+last modified on June 04, 2024
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -1889,8 +1889,23 @@ class Window(QMainWindow, Ui_MainWindow):
 # Copy data into array self.v
 # v_set = True means that this work has already been done earlier
             if self.v_set is False:
-                self.v[j,:] = self.data.st[ifile][nt].data*\
-                              self.traces.amplitudes[ntr]
+                try:
+                    self.v[j,:] = self.data.st[ifile][nt].data*\
+                                  self.traces.amplitudes[ntr]
+                except:
+# If there is a problem filling self.v, it is usually due to variable trace lengths
+#    between shot points. In this case, since v.shape[1] is defined as the length of
+#    the first found trace, one of two possibilities exist: If the actual trace
+#    is too long, cut it at the end; if the actual trace is shorter, fill v with
+#    zeros at the end.
+                    nv = self.v.shape[1]
+                    nd = len(self.data.st[ifile][nt].data)
+                    if nv > nd:
+                        self.v[j,:nd] = self.data.st[ifile][nt].data*\
+                                        self.traces.amplitudes[ntr]
+                    else:
+                        self.v[j,:] = self.data.st[ifile][nt].data[:nv]*\
+                                      self.traces.amplitudes[ntr]
                 if self.nt_0>0:
                     self.v[j,:] -= np.mean(self.v[j,:self.nt_0])
 # Normalize data by the standard deviation of each trace

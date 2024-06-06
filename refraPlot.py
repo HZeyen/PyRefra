@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:30:59 2019
-last modified on June 04, 2024
+last modified on June 06, 2024
 @author: Hermann Zeyen, University Paris-Saclay, France
 
 Contains the following Class:
@@ -1085,6 +1085,7 @@ class Window(QMainWindow, Ui_MainWindow):
                 nt = self.traces.trace[trace]
                 self.data.st[nf][nt].data = self.v[j,:]
 # Plot the treated record section
+        self.main.function = "main"
         self.drawNew(True)
         self.setHelp(self.main_text)
 
@@ -3845,6 +3846,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.PlotPicks.setEnabled(True)
         self.MovePicks.setEnabled(True)
         self.traces.storePicks()
+        self.main.function = "main"
 
     def followRect(self):
         """

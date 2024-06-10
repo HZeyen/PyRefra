@@ -16,4 +16,4 @@ For preparing your own dataset, [2_Data_preparation.md](./2_Data_preparation.md)
 [3_Running_PyRefra.md](./3_Running_PyRefra.md) is the main manual describing menu entries and other options.
 
 
-All these instructions are combined in a file [PyRefra.pdf](./PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the online version (.md files) is completely up to date, since it is more difficult to maintain.
+All these instructions are combined in a file [PyRefra.pdf](./doc/PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the online version (.md files) is completely up to date, since it is more difficult to maintain. A user's guide (./doc/PyRefra_guide.pdf) takes the opposite approach, explaining how to work with pyRefra.

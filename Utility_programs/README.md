@@ -1,4 +1,4 @@
-Python programs useful for preparation and post-treatment of data
+Python programs useful for preparation and post-treatment of data. For more detailed descriptions see comments within the program files.
 
 **Acquisition-scheme.py** : Plot positions of receivers and shot points and file numbers for acquisition in blocks and shifted geophones (Fig. 6 in publication)
 

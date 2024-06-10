@@ -2,7 +2,7 @@ Python programs useful for preparation and post-treatment of data. For more deta
 
 **Acquisition-scheme.py** : Plot positions of receivers and shot points and file numbers for acquisition in blocks and shifted geophones (Fig. 6 in publication)
 
-**Extract_velocities.py** : Extract one of three possibilities: the minimum depth of a given velocity along a tomography model; a vertical section; a horizontal section
+**Extract_velocities.py** : Extract one of three possibilities: the minimum depth of a given velocity along a tomography model; a vertical section; a horizontal section. Program needs library Dialog_HZ.py
 
 **picks_sgt_2_dat.py** : Translates a pick file in gimli *.sgt format to PyRefra format. Input: *.sgt file, receivers.geo and shots.geo. Output: picks.dat.
 Coordinates in teh first part of *.sgt file must be the same as those in the *.geo files.

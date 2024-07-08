@@ -13,7 +13,7 @@
 + PyRefra_Logo.png
 3. Download and install Anaconda
 
-4. Form here, the windows installation is presented, while [Linux Installations](Linux_Installation.md)  is provided as well.
+Form here, the Windows and Mac installations are presented, while [Linux Installations](Linux_Installation.md)  is provided as well.
 
 
 5. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
@@ -28,13 +28,20 @@ This opens a command window. Then type the following commands:
     3. `mamba install pygimli obspy statsmodels scikit-learn colorcet`
     4. `mamba update --all`
 
+For **MAC**, it seems that the installation must be done in an extra environment. For this do the following:
+
+    1. `conda –n pg –c gimli -c conda-forge "pygimli>=1.5.0"`
+    2. `conda activate pg`
+    3. `conda install spyder pygimli obspy statsmodels scikit-learn colorcet`
+    4. `conda update --all`
+
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
         
-6. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
-    + In the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)
+5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
+    + For **MAC**, in  the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)
     + In the main window search for the icon “Spyder” and click on “Launch”.
 
-7. Open Spyder
+6. Open Spyder
         + Open file PyRefra.py (File -> open…)
         + In the Spyder tool bar click Run -> Configuration per file -> Execute in an external system terminal
 

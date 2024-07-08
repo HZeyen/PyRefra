@@ -28,7 +28,7 @@ This opens a command window. Then type the following commands:
     3. `mamba install pygimli obspy statsmodels scikit-learn colorcet`
     4. `mamba update --all`
 
-For **MAC**, it seems that the installation must be done in an extra environment. For this do the following:
+For **$\textcolor{red}{MAC}$**, it seems that the installation must be done in an extra environment. For this do the following:
 
     1. `conda –n pg –c gimli -c conda-forge "pygimli>=1.5.0"`
     2. `conda activate pg`
@@ -38,7 +38,7 @@ For **MAC**, it seems that the installation must be done in an extra environment
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
         
 5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
-    + For **MAC**, in  the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)
+    + For **$\textcolor{red}{MAC}$**, in  the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)
     + In the main window search for the icon “Spyder” and click on “Launch”.
 
 6. Open Spyder

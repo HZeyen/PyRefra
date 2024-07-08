@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on June 04, 2024
+last modified on July 08, 2024
 
-@author: Hermann Zeyen, University Paris-Saclay, France
+@author: Hermann Zeyen <hermann.zeyen@universite-paris-saclay.fr>
+         University Paris-Saclay, France
 
 Contains the following Classes:
     Files
@@ -109,7 +110,6 @@ from scipy.interpolate import griddata
 from scipy.interpolate import LinearNDInterpolator
 from scipy.signal import hilbert,medfilt
 from sklearn.linear_model import LinearRegression
-from pygimli.physics import TravelTimeManager
 import refraPlot as rP
 
 class Files():
@@ -4071,9 +4071,10 @@ class Utilities:
         self.main.function = "velocity_filter"
         nk_el = 3
         xx = np.array(self.window.x)
-        vt = np.zeros_like(np.transpose(self.window.v))
-        for i in range(np.size(self.window.v,0)):
-            vt[:,i] = self.window.v[i,:]
+        # vt = np.zeros_like(np.transpose(self.window.v))
+        # for i in range(np.size(self.window.v,0)):
+        #     vt[:,i] = self.window.v[i,:]
+        vt = np.transpose(self.window.v)
 # Extract traces recorded in negative direction, if there are more than 5
         ntrace_neg = np.size(np.where(xx<0))
         ntrace_pos = np.size(np.where(xx>=0))
@@ -4340,6 +4341,12 @@ class Utilities:
         None.
 
         """
+        try:
+            from pygimli.physics import TravelTimeManager
+        except:
+            print("Pygimli is not installed, tomography cannot be executed.")
+            return
+
         answer = self.main.test_function()
         if not answer:
             return

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on May 04, 2024
+last modified on June 24, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
          hermann.zeyen@universite-paris-saclay.fr
@@ -75,13 +75,14 @@ import numpy as np
 
 # Example of paths for programs and data on HZ desktop
 SYS_PATH = r"E:/Sources_2010/Python_programs"
-DIR0 = r"E:/Seg2Dat/L3DD_2024"
+#DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+DIR0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
+#DIR0 = r"E:/Seg2Dat/Feroes/Eidi_21_07_23"
+#DIR0 = r"E:/Seg2Dat/Erreurs/Chidozie"
+#DIR0 = r"E:/Seg2Dat/Campus_Yvette"
+#DIR0 = r"E:/Seg2Dat/Rouvres2"
 
-# Example of paths for LIONEL
-#sys_path = r"C:/Users/marsj/Desktop/Leo/Sismique"
-#DIR0 = r"C:/Users/marsj/Desktop/Leo/Line2"
-
-#Example of paths for Linux
+# Example of paths for Linux
 # sys_path = r"/home/zeyen/src/Python"
 # DIR0 = r"/home/zeyen/Seismics/Fontaines_salees/2021-10-17_Profil5"
 
@@ -193,7 +194,7 @@ class Main(QtWidgets.QWidget):
         self.window.MuteAfter.triggered.connect(self.window.muteAfter) # In refraPlot.py
 
         self.window.fig_dict = {} #Prepare dictionary for data sets to be plotted
-
+        
 # Allow for changing of data set to be plotted
         self.window.mplfigs.itemClicked.connect(self.window.changeFig)
         # self.window.Envelopes.setEnabled(True)

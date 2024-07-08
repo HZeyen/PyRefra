@@ -2491,6 +2491,9 @@ class Window(QMainWindow, Ui_MainWindow):
         xxx = xx[tt>=self.t_zoom_min]
         ttt = tt[tt>=self.t_zoom_min]
         plt_air = True
+# Define a first pick just in case user does not choose a first one by mouse click
+#   and tries to change trace using keyboarch arrows
+        _ = self.searchPick(self.x_zoom_min,self.t_zoom_min)
         if self.dg_flag:
             dist = self.distances[self.fig_plotted_D]
             x_air = xx

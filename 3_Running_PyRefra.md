@@ -179,6 +179,27 @@ If you are not happy with the colour scale or you want to change the maximum plo
 The program offers writing output files for use in SOFI2D software (https://git.scc.kit.edu/GPIAG-Software/SOFI2D): model files for P-waves, S-waves and densities (see function prepareSOFI for more information), receivers and shots in SOFI format as well as Jason-format control file for SOFI2D. If the user does not work with SOFI2D, one should simply click on Cancel.
 To leave this plot, close the window or simply go back to the main screen. To show the plot again, press "C" again.
 
+**$\textcolor{violet}{\text{Checkerboard test}}$** (keyboard shortcut: **ALT-E**):
+In order to do the checkerboard test, picks must have been stored as “picks.sgt” file. The information in this file will be used for the measurement configuration (positions of shots and receivers, which picks exist). This file may be created by calling “Tomography” or through option “Picking -> Store Gimli format”.
+
+First, a checkerboard model is created. The dialog box asks for the following information:
+
+- Maximum depth of model (for the moment, only horizontal surface at z=0 is allowed)
+- Horizontal size of blocks [m] (by default 1/5 of horizontal line length is proposed)
+- Vertical size of blocks [m] (by default 1/15 of horizontal line length is proposed)
+ -Starting position X: The first block may start at the beginning of the line, but it may also start e.g. with a half-block. The value given is in % of horizontal block size. Example: Block size is defined as 10m. If Starting position X is set to 20, the first block has a size of 2m, followed by 10m blocks and the last block goes until the end of the line.
+- Starting position Z: Similar to Starting position X, only for vertical positioning of blocks
+- Initial velocity at surface, initial velocity at bottom, both in [m/s]: These values define the background model. Different velocities allow defining a vertical velocity gradient.
+- Velocity difference: The checkerboard velocities are defined by local differences with respect to the background model. These differences may be defined relative or absolute. If the given value (let’s call it diff) is smaller than 1, relative differences are supposed, i.e. v1 = v_background*(1-diff) and v2 = v_background*(1+diff). If diff is larger than 1, it is supposed to indicate an absolute difference, i.e. v1 = v_background-diff and v2 = v_background+diff
+- Noise level: Noise level to be added to the calculated times in [s].
+
+The program then calculates the synthetic model and the travel times for the combinations shot/receiver found in picks.sgt.
+
+Then a second dialog box appears where certain inversion parameters may be set as for the tomography option (see there for explanations.
+
+Finally, a window opens showing at the left top the synthetic model, at the left bottom the result of the inversion and at the right synthetic travel times as crosses and travel times resulting from the inverted model as continuous lines.
+
+
 **$\textcolor{violet}{\text{Envelopes}}$** (keyboard shortcut: **E**):
 Tool calculates and shows Envelope of all traces. For the moment, only the plot is shown. Option exists only for testing purposes, therefore this option is inactive, but may be activated in one of two ways: by editing the file refraWindow.ui, e.g., using QtDesigner, or, by uncommenting the line “self.window.Envelopes.setEnabled(True)” near the end of the __init__ of class Main (file PyRefra.py). The results for all traces of the treated shot point are stored in file envNNNNN.asc (NNNNN is the shot point number) the contents of which should be self-explaining.
 

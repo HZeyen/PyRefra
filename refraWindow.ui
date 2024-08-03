@@ -115,6 +115,7 @@
     <addaction name="PModel"/>
     <addaction name="SModel"/>
     <addaction name="Tomography"/>
+    <addaction name="Checker"/>
     <addaction name="Envelopes"/>
     <addaction name="TauP"/>
     <addaction name="falseCol"/>
@@ -747,6 +748,22 @@
    </property>
    <property name="shortcut">
     <string>Alt+S</string>
+   </property>
+  </action>
+  <action name="SVD">
+   <property name="text">
+    <string>Singular value decomposition filter</string>
+   </property>
+  </action>
+  <action name="Checker">
+   <property name="text">
+    <string>Checkerboard test</string>
+   </property>
+   <property name="toolTip">
+    <string>Create checkerboard model and calculate traveling times</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+T</string>
    </property>
   </action>
  </widget>

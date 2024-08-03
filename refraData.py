@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Dec  8 18:51:50 2019
-last modified on July 08, 2024
+last modified on August 03, 2024
 
 @author: Hermann Zeyen <hermann.zeyen@universite-paris-saclay.fr>
          University Paris-Saclay, France
@@ -75,7 +75,7 @@ Contains the following Classes:
             prepareSOFI2D
             prepareShaVi
             atten_amp
-
+            checkerboard
 
 """
 
@@ -4343,8 +4343,11 @@ class Utilities:
         """
         try:
             from pygimli.physics import TravelTimeManager
-        except:
-            print("Pygimli is not installed, tomography cannot be executed.")
+        except ModuleNotFoundError:
+            _ = QtWidgets.QMessageBox.warning(None,"Warning",\
+                 "Pygimli is not installed.\n "+\
+                 "Tomography cannot be executed.\n",\
+                QtWidgets.QMessageBox.Close, QtWidgets.QMessageBox.Close)
             return
 
         answer = self.main.test_function()
@@ -5997,3 +6000,227 @@ class Utilities:
 #         self.ax_r2.set_xlabel("Frequency [Hz]")
 #         self.ax_r2.set_ylabel("R2 coefficient")
 #         self.window.setHelp(self.window.attenuation_text)
+
+    def checkerboard(self):
+        """
+        Checkerboard test
+        Function uses Pygimly for forward calculation.
+        
+        User creates first a synthetic checkerboard model with or without a
+        background vertical velocity gradient. Checkerboard velocity variations
+        may be given in percent of the background velocity or as absolute
+        difference with respect to background velocity
+        
+        Returns
+        -------
+        None.
+
+        """
+        try:
+            from pygimli.physics import TravelTimeManager
+        except ModuleNotFoundError:
+            _ = QtWidgets.QMessageBox.warning(None,"Warning",\
+                 "Pygimli is not installed.\n "+\
+                 "Tomography cannot be executed.\n",\
+                QtWidgets.QMessageBox.Close, QtWidgets.QMessageBox.Close)
+            return
+
+        answer = self.main.test_function()
+        if not answer:
+            return
+        try:
+            import pygimli as pg
+            import pygimli.meshtools as mt
+            import pygimli.physics.traveltime as tt
+        except:
+            _ = QtWidgets.QMessageBox.warning(None,"Warning",\
+                 "PyGimli is not installed\n"+\
+                 "Tomography connot be executed\n",\
+                QtWidgets.QMessageBox.Ok,\
+                QtWidgets.QMessageBox.Ok)
+            return
+# check whether file "picks.sgt" exists
+        try:
+            scheme = pg.load("picks.sgt", verbose=True)
+            positions = np.array(scheme.sensorPositions())
+        except:
+            _ = QtWidgets.QMessageBox.warning(None,'Warning',\
+                 'File "picks.sgt" does not exist\n'+\
+                 'Execute "Picking -> save Gimli format" and come back\n',\
+                QtWidgets.QMessageBox.Ok,\
+                QtWidgets.QMessageBox.Ok)
+            return
+# Call dialog window for input of a number of inversion control parameters
+        self.zmax_check = np.round((positions[:,0].max()-positions[:,0].min())*0.333)
+        self.xmin_check = positions[:,0].min()
+        self.xmax_check = positions[:,0].max()
+        results, okButton = self.main.dialog(\
+                ["Maximum depth (m, positive down)",
+                 "Horizontal size of blocks [m]",
+                 "Vertical size of blocks [m]",
+                 "Starting position X [% block size]",
+                 "Starting position Z [% block size]",
+                 "Initial velocity at surface [m/s]",
+                 "Initial velocity at bottom [m/s]",
+                 "Velocity difference",
+                 "Noise level [s]"],
+                ["e","e","e","e","e","e","e","e","e"],
+                [self.zmax_check,(self.xmax_check-self.xmin_check)/5.,
+                 self.zmax_check/5.,0.,0.,self.vmin,self.vmax,0.1,0.001],
+                 "Checkerboard parameters")
+
+        if not okButton:
+            print("\n Checkerboard test cancelled")
+            self.main.function="main"
+            return
+        self.zmax_check = float(results[0])
+        self.hsize_check = float(results[1])
+        self.vsize_check = float(results[2])
+        self.startx_check = float(results[3])/100.*self.hsize_check
+        self.startz_check = float(results[4])/100.*self.vsize_check
+        self.v_surf_check = float(results[5])
+        self.v_bott_check = float(results[6])
+        self.v_grad = (self.v_bott_check-self.v_surf_check)/self.zmax_check
+        self.diff = float(results[7])
+        self.noise = float(results[8])
+
+# Initialize PyGimli TravelTime Manager
+        self.mgr_check = TravelTimeManager()
+# Calculate edge positions of checkerboard fields
+        if self.startx_check > 0:
+            xck = [self.xmin]
+        else:
+            xck = []
+        xck += list(np.arange(self.xmin_check+self.startx_check, self.xmax_check,
+                              self.hsize_check))
+        if xck[-1] < self.xmax_check:
+            xck += [self.xmax_check]
+        xck = np.array(xck)
+        if self.startz_check > 0:
+            zck = [0.]
+        else:
+            zck = []
+        zck += list(np.arange(self.startz_check, self.zmax_check,self.vsize_check))
+        if zck[-1] < self.zmax_check:
+            zck += [self.zmax_check]
+        zck = -np.array(zck)
+        layers = []
+        for iz,z1 in enumerate(zck[:-1]):
+            z2 = zck[iz+1]
+            for ix,x1 in enumerate(xck[:-1]):
+                x2 = xck[ix+1]
+                m = (iz+ix)%2 + 1
+                layers.append(mt.createPolygon([[x1,z1],[x2,z1],[x2,z2],[x1,z2]],\
+                                                isClosed=True, marker=m, area=m))
+        geom = layers[0]
+        for l in layers[1:]:
+            geom += l
+        self.mesh_check = mt.createMesh(geom, Quality=34.3, area=2, smooth=[1,10])
+        vel = []
+        vp = np.array(self.mesh_check.cellMarkers())
+        for node in self.mesh_check.nodes():
+            vel.append(self.v_surf_check-node.y()*self.v_grad)
+        self.v_check = pg.meshtools.nodeDataToCellData(self.mesh_check,np.array(vel))
+        if self.diff < 1:
+            for i,vv in enumerate(vp):
+                if vv == 1:
+                    self.v_check[i] *= 1.-self.diff
+                else:
+                    self.v_check[i] *= 1.+self.diff
+        else:
+            for i,vv in enumerate(vp):
+                if vv == 1:
+                    self.v_check[i] -= self.diff
+                else:
+                    self.v_check[i] += self.diff
+        data = tt.simulate(slowness=1.0/self.v_check, scheme=scheme, mesh=self.mesh_check,
+                           verbose=True, noiseAbs=self.noise, seed=1137, secNodes=5)
+        self.w_check = rP.newWindow("Checkerboard results")
+        self.figck = self.w_check.fig
+        plt.tight_layout()
+        self.gs = GridSpec(15, 15, figure=self.figck)
+# Axis for forward model
+        self.ax_forward = self.figck.add_subplot(self.gs[:6, :6])
+        self.ax_inverse = self.figck.add_subplot(self.gs[8:, :6])
+        self.ax_times = self.figck.add_subplot(self.gs[:, 8:])
+        pg.viewer.show(self.mesh_check, self.v_check, colorBar=True, logScale=True,
+                label='Synthetic model [m/s]', ax = self.ax_forward,
+                xlabel="Distance [m]", ylabel="depth [m]", showBoundary=True)
+        # pg.viewer.mpl.drawSensors(self.ax_times, scheme.sensors(), diam=1.0,
+        #                           facecolor='white', edgecolor='black')
+
+        results, okButton = self.main.dialog(\
+                ["Initial smoothing parameter (<0: optimize)",
+                 "Smoothing reduction per iteration",
+                 "Smoothing in z direction (0..1):",
+                 "Maximum iterations (0 = automatic)",
+                 "Initial velocity at surface [m/s]",
+                 "Initial velocity at bottom [m/s]",
+                 "Minimum allowed velocity [m/s]",
+                 "Maximum allowed velocity [m/s]",],
+                ["e","e","e","e","e","e","e","e"],
+                [self.smooth,self.s_fact,self.zSmooth,self.maxiter,
+                 self.vmin,self.vmax,self.vmin_limit,self.vmax_limit],\
+                 "Inversion parameters for checkerboard")
+
+        smooth = float(results[0])
+        if self.smooth <0:
+            opt_flag=True
+            smooth *= -1.
+        else:
+            opt_flag = False
+        s_fact = float(results[1])
+        zSmooth = float(results[2])
+        maxiter = int(results[3])
+        vini_surf = float(results[4])
+        vini_bott = float(results[5])
+        min_vel =  float(results[6])
+        max_vel =  float(results[7])
+        mgr = tt.TravelTimeManager(data)
+        mgr.data["t"] = abs(mgr.data["t"])
+        if self.noise == 0.:
+            mgr.data["err"] = 0.001 
+        if opt_flag:
+            self.mgr.inv.inv.setOptimizeLambda(True)
+# Do tomography inversion. If maxiter == 0, stop iterationautomatically if
+#    chi2<1 of if error does not decrease by more than 1% (dPhi=0.01)
+#    if maxiter>0 stop iterations latest after maxiter iterations (but earlier if
+#    one of the other conditions is fulfilled)
+        if maxiter < 1:
+            if min_vel==0 and max_vel==0:
+                vest = mgr.invert(data=data, secNodes=3, paraMaxCellSize=5.0,
+                            zWeight=zSmooth, vTop=vini_surf, vBottom=vini_bott,
+                            verbose=1, paraDepth=self.zmax_check, dPhi=0.01,
+                            lam=smooth,lambdaFactor=s_fact, maxIter=1000)
+            else:
+                vest = mgr.invert(data=data, secNodes=3, paraMaxCellSize=5.0,
+                            zWeight=zSmooth, vTop=vini_surf, vBottom=vini_bott,
+                            verbose=1, paraDepth=self.zmax_check, dPhi=0.01,
+                            lam=smooth, limits=[min_vel, max_vel],
+                            lambdaFactor=s_fact, maxIter=1000, robustData=True,
+                            blockyModel=True)
+        else:
+            vest = mgr.invert(data=data, secNodes=3, paraMaxCellSize=15.0,
+                        zWeight=zSmooth, vTop=vini_surf, vBottom=vini_bott,\
+                        maxIter=self.maxiter, verbose=1, paraDepth=self.zmax_check,
+                        dPhi=0.01, lam=smooth, limits=[min_vel, max_vel],
+                        lambdaFactor=s_fact)
+
+        # vest = mgr.invert(data=data, secNodes=3, paraMaxCellSize=5.,maxIter=10,
+        #                   verbose=True, paraDepth=self.zmax_check,zWeight=0.)
+        # vest = mgr.invert(data=data, secNodes=3, paraMaxCellSize=5.,maxIter=10,
+        #                   verbose=True, paraDepth=self.zmax_check,zWeight=0.)
+        #np.testing.assert_array_less(mgr.inv.inv.chi2(), 0.8)
+        mgr.showResult(cMin=min(vest), cMax=max(vest), logScale=True,
+                label='Inverse model [m/s]', ax = self.ax_inverse, xlabel="Distance [m]",
+                ylabel="depth [m]", showBoundary=True)
+        for iz,z1 in enumerate(zck[:-1]):
+            z2 = zck[iz+1]
+            for ix,x1 in enumerate(xck[:-1]):
+                x2 = xck[ix+1]
+                m = (iz+ix)%2 + 1
+                self.ax_inverse.plot([x1,x2,x2,x1,x1],[z1,z1,z2,z2,z1],"k")
+        # ax2, _ = pg.show(geom, ax=self.ax_inverse, fillRegion=False, regionMarker=False)
+        # rays = mgr.drawRayPaths(ax=self.ax_inverse, color="k", lw=0.3, alpha=0.5)
+        mgr.showFit(firstPicks=True, ax=self.ax_times)
+        self.w_check.show()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov  1 15:33:26 2019
-last modified on June 24, 2024
+last modified on August 03, 2024
 
 @author: Hermann Zeyen, University Paris-Saclay, France
          hermann.zeyen@universite-paris-saclay.fr
@@ -76,10 +76,10 @@ import numpy as np
 # Example of paths for programs and data on HZ desktop
 SYS_PATH = r"E:/Sources_2010/Python_programs"
 #DIR0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-DIR0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
+#DIR0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
 #DIR0 = r"E:/Seg2Dat/Feroes/Eidi_21_07_23"
 #DIR0 = r"E:/Seg2Dat/Erreurs/Chidozie"
-#DIR0 = r"E:/Seg2Dat/Campus_Yvette"
+DIR0 = r"E:/Seg2Dat/Campus_haut"
 #DIR0 = r"E:/Seg2Dat/Rouvres2"
 
 # Example of paths for Linux
@@ -159,6 +159,7 @@ class Main(QtWidgets.QWidget):
         self.window.PModel.triggered.connect(self.utilities.pModel) # In refraData.py
         self.window.SModel.triggered.connect(self.utilities.sModel) # In refraData.py
         self.window.Tomography.triggered.connect(self.utilities.inversion) # In refraData.py
+        self.window.Checker.triggered.connect(self.utilities.checkerboard) # In refraData.py
         self.window.Envelopes.triggered.connect(self.utilities.envel) # In refraData.py
         self.window.TauP.triggered.connect(self.utilities.tauP) # In refraData.py
         self.window.falseCol.triggered.connect(self.utilities.falseColour) # In refraData.py

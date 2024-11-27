@@ -4,53 +4,39 @@
 
     It is strongly recommended to use a mouse. The program needs the central mouse button (or wheel). If you are working with a touchpad, configure it such that it simulates the central mouse button. The simplest is certainly to configure a three-finger-touch as central button. For this, under Windows press the WINDOWS-Key+I. On the screen that appears, click on “Périfériques” (the English version may be "Devices"). There, on the left-side panel, search “Pavé tactile” ("Touch Pad" in English?). Scroll down until you see the image with three fingers. Below this image, under “Appuis”, change to “Button central de la souris” ("Central mouse button"?).
 
-2. Download/clone the repository where the minimum required files are : 
-
-+ PyRefra.py (the main program)
-+ refraData.py
-+ refraPlot.py
-+ refraWindow.ui
-+ PyRefra_Logo.png
-3. Download and install Anaconda
+2. Download and install Anaconda
 
 Form here, the Windows and Mac installations are presented, while [Linux Installations](Linux_Installation.md)  is provided as well.
 
 
-5. Push the Windows key and search Anaconda3. There, choose (**RIGHT CLICK ON IT**) Anaconda Prompt and execute (if possible) as administrator. 
+3. Push the Windows key and search Anaconda3. There, choose **Anaconda Prompt**. 
 This opens a command window. Then type the following commands:
     1. `conda config --add channels gimli --add channels conda-forge`
-    2. `conda install pygimli obspy statsmodels scikit-learn colorcet`
-    3. `conda update --all`
+    2. `conda create -n pg pygimli`
+    3. `pip install pyrefra`
    
-   Sometimes conda blocks while installing. In this case, try to use 
-   
-    2. `conda install mamba`
-    3. `mamba install pygimli obspy statsmodels scikit-learn colorcet`
-    4. `mamba update --all`
+For **$\textcolor{red}{MAC}$**, it seems that one must give the minimum pygimli version:
 
-For **$\textcolor{red}{MAC}$**, it seems that the installation must be done in an extra environment. For this do the following:
-
-    1. `conda –n pg –c gimli -c conda-forge "pygimli>=1.5.0"`
+    1. `conda –n pg –c gimli -c conda-forge "pygimli>=1.5.3"`
     2. `conda activate pg`
-    3. `conda install spyder pygimli obspy statsmodels scikit-learn colorcet`
+    3. `pip install pyrefra`
+Always after the installation, you may execute
     4. `conda update --all`
 
    **If it is impossible to install pyGimli, you may continue without it, but the tomography option will not be available.**
-        
-5. Open Anaconda Navigator (Windows key -> Anadconda3 -> Anaconda Navigator)
-    + For **$\textcolor{red}{MAC}$**, in  the upper tool bar, change “Applications on” from “base” or “anaconda” to “pg” (you will have to do this each time you open Anaconda!)
-    + In the main window search for the icon “Spyder” and click on “Launch”.
 
-6. Open Spyder
-        + Open file PyRefra.py (File -> open…)
-        + In the Spyder tool bar click Run -> Configuration per file -> Execute in an external system terminal
+Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda.
 
-Then you may **modify a few things in some packages** for nicer plots or to avoid warnings. The corresponding modified files may be found on this github site within a folder with the same path structure as in the **pygimli** and **obspy** site-packages in Anaconda. There, for Windows, the pg environment is installed at C:/Users/your_name/anaconda3/Lib (Linux: ~/anaconda3/lib/python3.9). I will call this folder “ENV”. Site-packages are installed in “ENV/site-packages”
+To find the place where all packages are installed, write from within the Anadconda Powershell prompt:
+
+`python -c "import sysconfig; print(sysconfig.get_path('purelib'))"`
+
+This gives on my Windows installation: C:\Users\Hermann\anaconda3\envs\pg\Lib\site-packages. I will call this folder “ENV” in what follows.
 
 You may simply copy the folders pygimli and obspy into the conda site-packages folder. The other option, if you do not want to copy-paste the provided folders, is to modify the following files:
 
 For nicer plots in **PyGimli**, modify numbering format in drawDataMatrix
-The function is found in file **ENV/site-packages/pygimli/viewer/mpl/dataview.py**
+The function is found in file **ENV/pygimli/viewer/mpl/dataview.py**
 
 There, search lines starting with
 
@@ -64,15 +50,15 @@ and change the rounding to 0 ciphers instead of the default 2 ciphers:
 
 In addition, it is interesting, though not absolutely necessary to add the following code to **pgimly** which allows summing up the number of rays and ray lengths having crossed each cell during all iterations and in this way plotting the final model avoiding the areas where no ray at all passed during any of the iteration steps:
 
-File **ENV/site-packages/pygimli/frameworks/inversion.py**
+File **ENV/pygimli/frameworks/inversion.py**
 
-After line 546 (containing `startModel = self.startModel`) add:
+After line 648 (containing `startModel = self.startModel`) add:
 
 `self.cov_sum = np.zeros(len(self.fop.startModel()))`
 
 `self.cell_rays = []`
 
-After line 628 (starting with `self.modelHistory.append`) add:
+After line 708 (starting with `self.modelHistory.append`) add:
 
 `self.cov_sum += self.fop.jacobian().transMult(np.ones(self.fop.jacobian().rows()))`
 
@@ -84,7 +70,7 @@ After line 628 (starting with `self.modelHistory.append`) add:
     
 `    self.cell_rays[-1].append(n)`
 
-In **obspy**, you may find file **seg2.py** (usually in ENV/site-packages/obspy/io/seg2/seg2.py)
+In **obspy**, you may find file **seg2.py** (usually in **ENV/obspy/io/seg2/seg2.py**)
 
 There find line `if 'DELAY' in header['seg2']:` and comment out the whole "if" block. (a comment in python is the “#” character at the beginning of a line)
 
@@ -100,7 +86,7 @@ On the other hand, in the same file, we detected a problem which appears on acqu
 
 `                    int(date[2])`
 
-`            except:`
+`            except KeyError:`
 
 `                day, month, year = int(date[1]), MONTHS[date[0].lower()], \`
 
@@ -112,4 +98,4 @@ If the program stops after having written to the screen “folder: …” follow
 
 This issue has been fixed within obspy (28/12/2022, bug fix #3178) but the corrected version is only installed for Python >=3.9.
 
-If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by simply `except:`
+If under Linux, you get this error message: `AttributeError: 'numpy.int64' object has no attribute 'split'`, go to file **ENV/site-packages/obspy/util/misc.py**, near line 217 and replace `except TypeError:` by `except (AttributeError, TypeError):`

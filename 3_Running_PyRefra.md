@@ -1,8 +1,6 @@
-# Running PyRefra
+# Running pyrefra
 
-To start **PyRefra.py**, the best is to open it in Spyder and click on the green arrow or press F5.
-
-Before running the program, $\textcolor{red}{\text{you must define the path to the python files}}$ and may want to set manually the path to your data folder. For this go to **approximately line 70**. There, you will see a line starting with `sys_path = r”…”`. Replace the existing path by the path of the python files. In the following line, starting with `self.dir0 = r”…”`, replace the existing path by the path to the data files. This second path is not necessary, since you may choose it interactively, but if you work for a longer time on the same data set, it avoids searching on each program start your data on the disk.
+To start **pyrefra.py**, open the Anaconda Powershell console, change folder to the one where your data files are located (not absolutely necessary, but simplifies work) and simply type `pyrefra` followed by `ENTER`.
 
 If file PyRefra.config does not exist in the data folder, the program will first ask for the title and direction (see above). If this file is found the information will be used. If the file content must be changed, do it in a text editor or erase the file and restart the program.
 

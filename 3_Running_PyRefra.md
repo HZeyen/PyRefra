@@ -1,6 +1,10 @@
 # Running pyrefra
 
-To start **pyrefra.py**, open the Anaconda Powershell console, change folder to the one where your data files are located (not absolutely necessary, but simplifies work) and simply type `pyrefra` followed by `ENTER`.
+To start **pyrefra.py**, open the Anaconda Powershell console, change folder to the one where your data files are located (not absolutely necessary, but simplifies work), type
+
+`conda activate pg`
+
+and then simply type `pyrefra` followed by `ENTER`.
 
 If file PyRefra.config does not exist in the data folder, the program will first ask for the title and direction (see above). If this file is found the information will be used. If the file content must be changed, do it in a text editor or erase the file and restart the program.
 

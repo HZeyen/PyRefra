@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyrefra"
+dynamic = ["version"]
+requires-python = ">=3.10, <3.12.0"
+
+description = "Data treatment for refraction seismic data"
+authors = [{ name = "Hermann ZEYEN", email = "hermann.zeyen@universite-paris-saclay.fr" }]
+
+dependencies = [
+	"pygimli",
+    "scikit-learn",
+    "numpy",
+    "matplotlib>3.6",
+	"obspy",
+	"statsmodels",
+	"colorcet",
+	"PyQt5",
+]
+
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Topic :: Software Development',
+    'Topic :: Scientific/Engineering',
+    'Typing :: Typed',
+    'Operating System :: Microsoft :: Windows',
+    'Operating System :: POSIX',
+    'Operating System :: Unix',
+    'Operating System :: MacOS',
+]
+
+[project.scripts]
+pyrefra = "pyrefra.__main__:execute_script"
+
+[project.urls]
+Repository = "https://github.com/HZeyen/PyRefra"
+
+[project.optional-dependencies]
+gui = ["PyQt5"]
+
+[tool.setuptools]
+packages = ["pyrefra", "pyrefra.data", "pyrefra.plotting", "pyrefra.utilities"]
+include-package-data = false
+
+[tool.setuptools.package-data]
+"*" = ["*.ui", "*.py", "*.png"]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyrefra.version.__version__" }

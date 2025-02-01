@@ -1,0 +1,772 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1500</width>
+    <height>913</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QSlider" name="verticalSlider">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="mplwindow" native="true">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <layout class="QVBoxLayout" name="mplvl"/>
+     </widget>
+    </item>
+    <item>
+     <widget class="QListWidget" name="mplfigs">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>200</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="focusPolicy">
+       <enum>Qt::NoFocus</enum>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1500</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="openFile"/>
+    <addaction name="separator"/>
+    <addaction name="Save_SEGY"/>
+    <addaction name="Save_SU"/>
+    <addaction name="Save_SEG2"/>
+    <addaction name="Save_Bin"/>
+    <addaction name="Save_ASCII"/>
+    <addaction name="Save_headers"/>
+    <addaction name="separator"/>
+    <addaction name="Save_plot"/>
+    <addaction name="separator"/>
+    <addaction name="quitAction"/>
+    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="plotMenu">
+    <property name="title">
+     <string>Display</string>
+    </property>
+    <addaction name="originalDataScreen"/>
+    <addaction name="originalDataAll"/>
+    <addaction name="separator"/>
+    <addaction name="shotGather"/>
+    <addaction name="fileGather"/>
+    <addaction name="receiverGather"/>
+    <addaction name="distanceGather"/>
+    <addaction name="component"/>
+    <addaction name="phaseAngles"/>
+    <addaction name="separator"/>
+    <addaction name="zoom"/>
+    <addaction name="zoom_Out"/>
+    <addaction name="zoom_In"/>
+    <addaction name="zoom_Initial"/>
+    <addaction name="separator"/>
+    <addaction name="t_Norm"/>
+    <addaction name="t_Gain"/>
+    <addaction name="d_Gain"/>
+    <addaction name="Agc"/>
+   </widget>
+   <widget class="QMenu" name="Utilities">
+    <property name="title">
+     <string>Utilities</string>
+    </property>
+    <addaction name="PModel"/>
+    <addaction name="SModel"/>
+    <addaction name="Tomography"/>
+    <addaction name="Checker"/>
+    <addaction name="Envelopes"/>
+    <addaction name="TauP"/>
+    <addaction name="falseCol"/>
+    <addaction name="separator"/>
+    <addaction name="TraceSign"/>
+    <addaction name="ChangeSign"/>
+    <addaction name="Change_colors"/>
+    <addaction name="Animation"/>
+    <addaction name="Attenuation"/>
+    <addaction name="Pseudo_velocity"/>
+   </widget>
+   <widget class="QMenu" name="Picking">
+    <property name="title">
+     <string>Picking</string>
+    </property>
+    <addaction name="ManualPicks"/>
+    <addaction name="AmpPicks"/>
+    <addaction name="StaLta"/>
+    <addaction name="CorrelationPicks"/>
+    <addaction name="separator"/>
+    <addaction name="MovePicks"/>
+    <addaction name="Uncertainty_change"/>
+    <addaction name="erasePicks"/>
+    <addaction name="separator"/>
+    <addaction name="plotAllPicks"/>
+    <addaction name="PlotCalculatedTimes"/>
+    <addaction name="StorePicks"/>
+    <addaction name="StoreGimli"/>
+   </widget>
+   <widget class="QMenu" name="Filter">
+    <property name="title">
+     <string>Filter</string>
+    </property>
+    <addaction name="FrequencyFilter"/>
+    <addaction name="FiltTrace"/>
+    <addaction name="Air_wave_fk"/>
+    <addaction name="Vel_filter"/>
+   </widget>
+   <widget class="QMenu" name="menuMute">
+    <property name="title">
+     <string>Mute</string>
+    </property>
+    <addaction name="MuteTrace"/>
+    <addaction name="MuteAir"/>
+    <addaction name="MuteBefore"/>
+    <addaction name="MuteAfter"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="plotMenu"/>
+   <addaction name="Utilities"/>
+   <addaction name="Picking"/>
+   <addaction name="Filter"/>
+   <addaction name="menuMute"/>
+  </widget>
+  <action name="actionPlot">
+   <property name="text">
+    <string>Display</string>
+   </property>
+  </action>
+  <action name="shotGather">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Shot gather</string>
+   </property>
+   <property name="shortcut">
+    <string>S</string>
+   </property>
+  </action>
+  <action name="openFile">
+   <property name="text">
+    <string>Choose data files</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="quitAction">
+   <property name="text">
+    <string>Quit</string>
+   </property>
+   <property name="toolTip">
+    <string>Quit app</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="receiverGather">
+   <property name="text">
+    <string>Receiver gather</string>
+   </property>
+   <property name="shortcut">
+    <string>R</string>
+   </property>
+  </action>
+  <action name="distanceGather">
+   <property name="text">
+    <string>Distance gather</string>
+   </property>
+   <property name="shortcut">
+    <string>D</string>
+   </property>
+  </action>
+  <action name="zoom">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Zoom</string>
+   </property>
+   <property name="shortcut">
+    <string>Z</string>
+   </property>
+  </action>
+  <action name="zoom_Out">
+   <property name="text">
+    <string>Zoom out</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Z</string>
+   </property>
+  </action>
+  <action name="zoom_Initial">
+   <property name="text">
+    <string>Zoom initial</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+Z</string>
+   </property>
+  </action>
+  <action name="TauP">
+   <property name="text">
+    <string>Tau_P</string>
+   </property>
+   <property name="statusTip">
+    <string/>
+   </property>
+   <property name="shortcut">
+    <string>Shift+T</string>
+   </property>
+  </action>
+  <action name="PModel">
+   <property name="text">
+    <string>P_Model</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+P</string>
+   </property>
+  </action>
+  <action name="StaLta">
+   <property name="text">
+    <string>STA_LTA</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+P</string>
+   </property>
+  </action>
+  <action name="PlotPicks">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Plot Picks</string>
+   </property>
+  </action>
+  <action name="MovePicks">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Move Picks</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+M</string>
+   </property>
+  </action>
+  <action name="ManualPicks">
+   <property name="text">
+    <string>Manual picks</string>
+   </property>
+   <property name="shortcut">
+    <string>M</string>
+   </property>
+  </action>
+  <action name="FrequencyFilter">
+   <property name="text">
+    <string>Frequency</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="originalDataAll">
+   <property name="text">
+    <string>Original data all shots</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+O</string>
+   </property>
+  </action>
+  <action name="erasePicks">
+   <property name="text">
+    <string>Erase all picks</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+E</string>
+   </property>
+  </action>
+  <action name="TraceSign">
+   <property name="text">
+    <string>Change trace sign</string>
+   </property>
+   <property name="toolTip">
+    <string>change sign of 1 trace</string>
+   </property>
+   <property name="shortcut">
+    <string>I</string>
+   </property>
+  </action>
+  <action name="ChangeSign">
+   <property name="text">
+    <string>Change sign</string>
+   </property>
+   <property name="toolTip">
+    <string>change sign of all traces</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+I</string>
+   </property>
+  </action>
+  <action name="Save_SEGY">
+   <property name="text">
+    <string>Save SEGY</string>
+   </property>
+   <property name="toolTip">
+    <string>Save actual data to SEGY</string>
+   </property>
+   <property name="shortcut">
+    <string>Y</string>
+   </property>
+  </action>
+  <action name="CorrelationPicks">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Correlation picks</string>
+   </property>
+   <property name="toolTip">
+    <string>picking by cross correlation</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+C</string>
+   </property>
+  </action>
+  <action name="AmpPicks">
+   <property name="text">
+    <string>Amplitude picks</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="MuteTrace">
+   <property name="text">
+    <string>Mute/recover trace</string>
+   </property>
+   <property name="toolTip">
+    <string>Click near trace to be muted or recovered</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="PlotCalculatedTimes">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Plot calculated times </string>
+   </property>
+   <property name="toolTip">
+    <string>Plot calculated travel times</string>
+   </property>
+  </action>
+  <action name="StorePicks">
+   <property name="text">
+    <string>Store picks</string>
+   </property>
+   <property name="toolTip">
+    <string>Store Picks in file picks.dat</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="MuteAir">
+   <property name="text">
+    <string>Mute air wave</string>
+   </property>
+   <property name="shortcut">
+    <string>A</string>
+   </property>
+  </action>
+  <action name="Air_wave_fk">
+   <property name="text">
+    <string>Air_wave fk</string>
+   </property>
+   <property name="toolTip">
+    <string>Eliminate air waves by fk-filter</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+A</string>
+   </property>
+  </action>
+  <action name="MuteBefore">
+   <property name="text">
+    <string>Mute before line</string>
+   </property>
+   <property name="toolTip">
+    <string>Mute before line drawn</string>
+   </property>
+   <property name="shortcut">
+    <string>L</string>
+   </property>
+  </action>
+  <action name="Vel_filter">
+   <property name="text">
+    <string>Velocity filter</string>
+   </property>
+   <property name="toolTip">
+    <string>Velocity filter</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+V</string>
+   </property>
+  </action>
+  <action name="Save_Bin">
+   <property name="text">
+    <string>Save_Binary</string>
+   </property>
+   <property name="toolTip">
+    <string>Save just binary data of all files</string>
+   </property>
+   <property name="shortcut">
+    <string>B</string>
+   </property>
+  </action>
+  <action name="Save_SU">
+   <property name="text">
+    <string>Save SU</string>
+   </property>
+   <property name="toolTip">
+    <string>Save actual data to SEGY</string>
+   </property>
+   <property name="shortcut">
+    <string>U</string>
+   </property>
+  </action>
+  <action name="t_Gain">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Time gain</string>
+   </property>
+  </action>
+  <action name="d_Gain">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Distance gain</string>
+   </property>
+  </action>
+  <action name="Agc">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>AGC</string>
+   </property>
+  </action>
+  <action name="t_Norm">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Trace normalize</string>
+   </property>
+  </action>
+  <action name="MuteAfter">
+   <property name="text">
+    <string>Mute after line</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+L</string>
+   </property>
+  </action>
+  <action name="FiltTrace">
+   <property name="text">
+    <string>Frequency filter single trace</string>
+   </property>
+  </action>
+  <action name="fileGather">
+   <property name="text">
+    <string>Plot data of one file</string>
+   </property>
+   <property name="shortcut">
+    <string>F</string>
+   </property>
+  </action>
+  <action name="Save_ASCII">
+   <property name="text">
+    <string>Save_ASCII</string>
+   </property>
+  </action>
+  <action name="Tomography">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Tomography</string>
+   </property>
+   <property name="toolTip">
+    <string>Tomography with Pygimli</string>
+   </property>
+   <property name="shortcut">
+    <string>T</string>
+   </property>
+  </action>
+  <action name="StoreGimli">
+   <property name="text">
+    <string>Store Gimli format</string>
+   </property>
+   <property name="toolTip">
+    <string>Store Picks in Gimli format (file pics.sgt)</string>
+   </property>
+  </action>
+  <action name="Modelled_arrivals">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Plot modelled arrivals</string>
+   </property>
+   <property name="toolTip">
+    <string>Plot modelled arrival times on seismograms</string>
+   </property>
+  </action>
+  <action name="Save_plot">
+   <property name="text">
+    <string>Save Plot</string>
+   </property>
+   <property name="iconText">
+    <string>Save Plot</string>
+   </property>
+   <property name="shortcut">
+    <string>P</string>
+   </property>
+  </action>
+  <action name="Envelopes">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Envelopes</string>
+   </property>
+   <property name="shortcut">
+    <string>E</string>
+   </property>
+  </action>
+  <action name="Change_colors">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Change colors tomo</string>
+   </property>
+   <property name="toolTip">
+    <string>Change color scale and depth limit after tomography</string>
+   </property>
+   <property name="shortcut">
+    <string>C</string>
+   </property>
+  </action>
+  <action name="Uncertainty_change">
+   <property name="text">
+    <string>Uncertainty change</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+U</string>
+   </property>
+  </action>
+  <action name="zoom_In">
+   <property name="text">
+    <string>Zoom in</string>
+   </property>
+   <property name="toolTip">
+    <string>zoom into next higher zoom</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+Z</string>
+   </property>
+  </action>
+  <action name="originalDataScreen">
+   <property name="text">
+    <string>Original data this screen</string>
+   </property>
+   <property name="shortcut">
+    <string>O</string>
+   </property>
+  </action>
+  <action name="falseCol">
+   <property name="text">
+    <string>False colour</string>
+   </property>
+   <property name="toolTip">
+    <string>False colour plot of different indicators</string>
+   </property>
+   <property name="shortcut">
+    <string>Shift+F</string>
+   </property>
+  </action>
+  <action name="Animation">
+   <property name="text">
+    <string>Wave animation</string>
+   </property>
+   <property name="shortcut">
+    <string>W</string>
+   </property>
+  </action>
+  <action name="Save_SEG2">
+   <property name="text">
+    <string>Save SEG2</string>
+   </property>
+   <property name="statusTip">
+    <string>Sae file(s) in SEG2 Format</string>
+   </property>
+   <property name="shortcut">
+    <string>2</string>
+   </property>
+  </action>
+  <action name="Attenuation">
+   <property name="text">
+    <string>Attenuation</string>
+   </property>
+   <property name="shortcut">
+    <string>Q</string>
+   </property>
+  </action>
+  <action name="plotAllPicks">
+   <property name="text">
+    <string>Plot all picks</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
+   </property>
+  </action>
+  <action name="Save_headers">
+   <property name="text">
+    <string>Save headers</string>
+   </property>
+   <property name="toolTip">
+    <string>Save headers of each data file to ASCII file</string>
+   </property>
+   <property name="shortcut">
+    <string>H</string>
+   </property>
+  </action>
+  <action name="component">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Choose component</string>
+   </property>
+   <property name="toolTip">
+    <string>Choose geophone component to be plotted</string>
+   </property>
+   <property name="shortcut">
+    <string>G</string>
+   </property>
+  </action>
+  <action name="Pseudo_velocity">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Pseudo-velocities</string>
+   </property>
+   <property name="toolTip">
+    <string>Plot pseudo-velocity profile</string>
+   </property>
+   <property name="shortcut">
+    <string>V</string>
+   </property>
+  </action>
+  <action name="phaseAngles">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Phase-angles</string>
+   </property>
+   <property name="toolTip">
+    <string>Phase-angles for 2C or 3C data</string>
+   </property>
+  </action>
+  <action name="SModel">
+   <property name="text">
+    <string>S-model</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+S</string>
+   </property>
+  </action>
+  <action name="SVD">
+   <property name="text">
+    <string>Singular value decomposition filter</string>
+   </property>
+  </action>
+  <action name="Checker">
+   <property name="text">
+    <string>Checkerboard test</string>
+   </property>
+   <property name="toolTip">
+    <string>Create checkerboard model and calculate traveling times</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+T</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

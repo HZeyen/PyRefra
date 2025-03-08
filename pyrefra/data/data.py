@@ -799,8 +799,10 @@ class Data():
         results, okButton = self.main.dialog(
             ["Output folder", "\nData to be stored:",
              ["Only this shot", "All shots"], "Store by:",
-             [" file", " shot"]], ["e", "l", "r", "l", "r"],
-            [folder, None, "2", None, "1"], "Save SEG2 format")
+             [" file", " shot"], "Data choice:",
+             ["all data", "after time break"]],
+            ["e", "l", "r", "l", "r", "l", "r"],
+            [folder, None, "2", None, "1", None, "1"], "Save SEG2 format")
 
         if okButton is False:
             print("SEG2 saving cancelled")
@@ -821,6 +823,13 @@ class Data():
 
         single_shot_flag = int(results[2]) == 0
         file_flag = int(results[4]) == 0
+        zero_flag = int(results[6]) == 1
+        if zero_flag:
+            n0 = -int(self.time[0]/self.dt)
+            nsamp = self.nsamp-n0
+        else:
+            n0 = 0
+            nsamp = self.nsamp
 # If only the data gather actually on the sceen should be saved and a shot
 #    gather is plotted, save this shot gather independent of the value given
 #    for file_flag. If it is a file gather, save as file gather. For receiver
@@ -839,6 +848,10 @@ class Data():
                     stream.append(self.st[ifile][irec])
                     if i == 0:
                         stream.stats = self.st[ifile].stats
+                    if zero_flag:
+                        stream[-1].data = np.copy(stream[-1].data[n0:])
+                        stream[-1].stats.npts = nsamp
+                        stream[-1].stats.seg2["DELAY"] = 0.
             elif self.main.window.fg_flag:
                 file_flag = True
                 ifile = self.main.window.actual_shot-1
@@ -859,6 +872,11 @@ class Data():
             if file_flag:
                 for i, stream in enumerate(self.st):
                     file = os.path.join(folder, f"file_{i+1:0>5}.seg2")
+                    for tr in stream:
+                        if zero_flag:
+                            tr.data = np.copy(tr.data[n0:])
+                            tr.stats.npts = nsamp
+                            tr.stats.seg2["DELAY"] = 0.
                     self.seg2_write(stream, file)
 # Write all shot gathers to seg2 format
             else:
@@ -868,10 +886,14 @@ class Data():
                     for i in range(len(self.main.traces.
                                        sht_pt_dict[sh]["trace"])):
                         ifile = self.main.traces.sht_pt_dict[sh]["file"][i]
-                        irec = self.main.traces.sht_pt_dict[sh]["receiver"][i]
+                        irec = self.main.traces.sht_pt_dict[sh]["trace"][i]
                         stream.append(self.st[ifile][irec])
                         if i == 0:
                             stream.stats = self.st[ifile].stats
+                        if zero_flag:
+                            stream[-1].data = np.copy(stream[-1].data[n0:])
+                            stream[-1].stats.npts = nsamp
+                            stream[-1].stats.seg2["DELAY"] = 0.
                     self.seg2_write(stream, file)
         self.main.function = "main"
         return True
@@ -918,9 +940,10 @@ class Data():
                 text string of a with minimum number of necessary decimals
 
             """
+            aa = float(a)
             for i in range(max_decimal):
-                if np.isclose(a, np.round(a, i)):
-                    atxt = f"{np.round(a, i)}"
+                if np.isclose(aa, np.round(aa, i)):
+                    atxt = f"{np.round(aa, i)}"
                     break
             return atxt
 

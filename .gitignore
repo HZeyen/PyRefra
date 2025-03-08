@@ -1,0 +1,13 @@
+E:\Sources_2010\Python_programs\pyrefra\pymagra.egg-info\
+E:\Sources_2010\Python_programs\pyrefra\pyrefra\__pycache__\
+E:\Sources_2010\Python_programs\pyrefra\pyrefra\data\__pycache__\
+E:\Sources_2010\Python_programs\pyrefra\pyrefra\plotting\__pycache__\
+E:\Sources_2010\Python_programs\pyrefra\pyrefra\utilities\__pycache__\
+.gitattributes
+/pymagra.egg-info
+/pyrefra.egg-info
+/pyrefra/__pycache__
+/pyrefra/data/__pycache__
+/pyrefra/plotting/__pycache__
+/pyrefra/utilities/__pycache__
+/pyrefrara.egg-info

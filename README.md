@@ -1,6 +1,6 @@
 # PyRefra
 
-<img src="https://github.com/HZeyen/PyRefra/blob/main/pyrefra/pyrefra_logo.png" alt="pyrefra" width="800"/>
+<img src="https://github.com/HZeyen/PyRefra/blob/main/PyRefra_Logo.png" alt="pyrefra" width="800"/>
 Software package for treatment and tomography of multishot refraction seismic data. Working under Linux and Windows OS.
 
 This program has doi number 10.5281/zenodo.10728121. When using, please cite the following publication:
@@ -17,3 +17,5 @@ For preparing your own dataset, [2_Data_preparation.md](./2_Data_preparation.md)
 
 
 All these instructions are combined in a file [PyRefra.pdf](./doc/PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the online version (.md files) is completely up to date, since it is more difficult to maintain. A user's guide [PyRefra_guide.pdf](./doc/PyRefra_guide.pdf) takes the opposite approach, explaining how to work with pyrefra.
+
+Thanks to my son Manuel Zeyen for creating the new icon !

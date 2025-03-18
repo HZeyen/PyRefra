@@ -109,7 +109,10 @@ class Data():
                         self.st[-1][itr].stats.seg2['SOURCE_STATION_NUMBER'] =\
                             self.st[-1][itr].stats.segy.\
                             trace_header.energy_source_point_number
-                self.time_0.append(self.st[-1][0].stats.seg2['DELAY'])
+                if "DELAY" in self.st[-1][0].stats.seg2:
+                    self.time_0.append(self.st[-1][0].stats.seg2['DELAY'])
+                else:
+                    self.time_0.append(0.)
 # get starting and end recording time
 # The original program was written for SUMMIT 2 instruments. With introduction
 # of SUMMIT X1, the extension has changes from sg2 to seg2 and the "DELAY" has
@@ -119,7 +122,10 @@ class Data():
 # same delay, therefore t0 is taken as the delay of the first trace of the
 # first file
                 if nf == 0:
-                    self.t0 = float(self.st[0][0].stats.seg2['DELAY'])
+                    if "DELAY" in self.st[-1][0].stats.seg2:
+                        self.t0 = float(self.st[0][0].stats.seg2['DELAY'])
+                    else:
+                        self.time_0.append(0.)
                     if self.st[0][0].stats.seg2.get("UNIT_UNIQUE_ID") is not\
                             None:
                         self.t0 *= -1

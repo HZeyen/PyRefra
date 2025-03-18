@@ -129,7 +129,8 @@ class Window(QMainWindow, Ui_MainWindow):
 # Title of main window
         self.setWindowTitle("Data window")
 # Get program icon
-        self.setWindowIcon(QtGui.QIcon(main.top+"/PyRefra_Logo.png"))
+        # self.setWindowIcon(QtGui.QIcon(main.top+"/PyRefra_Logo.png"))
+        self.setWindowIcon(QtGui.QIcon(main.top+"/PyRefra_Logo.ico"))
 # create a first figure in central widget
         self.fig = Figure()
         self.addMPL(self.fig)

@@ -26,6 +26,7 @@ if __name__ == "__main__":
     # dir0 = r"E:\Seg2Dat\504_nov24_actif"
     # dir0 = r"E:\Seg2Dat\Bois_passif\seg2_save"
     dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1"
+    dir0 = r"E:\Seg2Dat\Erreurs\UCT"
     # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1\seg2_save"
     # dir0 = r"E:\Seg2Dat\Fontaines-Salees\FS-passive\test"
 

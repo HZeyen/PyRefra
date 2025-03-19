@@ -54,11 +54,13 @@ class Geometry():
         try:
             with open(filename, "r") as fi:
                 d_text = fi.readlines()
-                nl = len(d_text)
+                nl = 0
                 data = []
                 nc = 4
                 for line in d_text:
                     val = line.split()
+                    if len(val) == 0:
+                        continue
                     if len(val) < 5:
                         data.append([int(val[0]), float(val[1]), float(val[2]),
                                      float(val[3])])
@@ -66,6 +68,7 @@ class Geometry():
                         nc = 5
                         data.append([int(val[0]), float(val[1]), float(val[2]),
                                      float(val[3]), val[4]])
+                    nl +=1
             # data = np.loadtxt(filename)
         except FileNotFoundError:
             _ = QtWidgets.QMessageBox.critical(

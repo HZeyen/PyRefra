@@ -180,14 +180,14 @@ class SEG2(object):
             # Split on space, dot (.), slash (/), and dash (-)
             date = list(filter(None, re.split("[, ./-]+", date)))
             hour, minute, second = int(time[0]), int(time[1]), float(time[2])
+#            day, month, year = int(date[0]), MONTHS[date[1].lower()], \
+#                int(date[2])
             try:
                 day, month, year = int(date[0]), MONTHS[date[1].lower()], \
                     int(date[2])
             except KeyError:
                 day, month, year = int(date[1]), MONTHS[date[0].lower()], \
                     int(date[2])
-            # day, month, year = int(date[0]), MONTHS[date[1].lower()], \
-            #     int(date[2])
             self.starttime = UTCDateTime(year, month, day, hour, minute,
                                          second)
         else:
@@ -243,13 +243,13 @@ class SEG2(object):
         header['delta'] = float(header['seg2']['SAMPLE_INTERVAL'])
         # Set to the file's start time.
         header['starttime'] = deepcopy(self.starttime)
-        # if 'DELAY' in header['seg2']:
-        #     if float(header['seg2']['DELAY']) != 0:
-        #         msg = "Non-zero value found in Trace's 'DELAY' field. " + \
-        #               "This is not supported/tested yet and might lead " + \
-        #               "to a wrong starttime of the Trace. Please contact " + \
-        #               "the ObsPy developers with a sample file."
-        #         warnings.warn(msg)
+#        if 'DELAY' in header['seg2']:
+#            if float(header['seg2']['DELAY']) != 0:
+#                msg = "Non-zero value found in Trace's 'DELAY' field. " + \
+#                      "This is not supported/tested yet and might lead " + \
+#                      "to a wrong starttime of the Trace. Please contact " + \
+#                      "the ObsPy developers with a sample file."
+#                warnings.warn(msg)
 
         if "DESCALING_FACTOR" in header["seg2"]:
             header['calib'] = float(header['seg2']['DESCALING_FACTOR'])
@@ -368,5 +368,5 @@ def _is_seg2(filename):
 def _read_seg2(filename, **kwargs):  # @UnusedVariable
     seg2 = SEG2()
     st = seg2.read_file(filename)
-    # warnings.warn(WARNING_HEADER)
+#     warnings.warn(WARNING_HEADER)
     return st

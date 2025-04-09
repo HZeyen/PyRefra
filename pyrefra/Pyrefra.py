@@ -736,6 +736,10 @@ class Dialog(QtWidgets.QWidget):
                 self.ckb[i].setText(lab)
                 self.main_layout.addWidget(self.ckb[i], il, 0, 1, 2)
                 self.ckb[i].stateChanged.connect(self.checked)
+                if values[i]:
+                    self.ckb[i].setChecked(True)
+                    self.ck_state[i] = True
+                    self.ck_order[i] = max(self.ck_order) + 1
                 ilin += 1
             elif types[i].lower() == 'b':
                 self.dlabels.append(None)

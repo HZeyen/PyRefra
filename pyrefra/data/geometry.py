@@ -54,11 +54,13 @@ class Geometry():
         try:
             with open(filename, "r") as fi:
                 d_text = fi.readlines()
-                nl = len(d_text)
+                nl = 0
                 data = []
                 nc = 4
                 for line in d_text:
                     val = line.split()
+                    if len(val) == 0:
+                        continue
                     if len(val) < 5:
                         data.append([int(val[0]), float(val[1]), float(val[2]),
                                      float(val[3])])
@@ -66,6 +68,7 @@ class Geometry():
                         nc = 5
                         data.append([int(val[0]), float(val[1]), float(val[2]),
                                      float(val[3]), val[4]])
+                    nl +=1
             # data = np.loadtxt(filename)
         except FileNotFoundError:
             _ = QtWidgets.QMessageBox.critical(
@@ -171,8 +174,12 @@ class Geometry():
             self.d_x = abs(x[1]-x[0])
             xmin_r = x.min()
             xmax_r = x.max()
-            xsort = np.sort(x)
-            self.dx_geo = abs(xsort[1]-xsort[0])
+            if len(x) == 1:
+                xsort = np.copy(x)
+                self.dx_geo = 1.
+            else:
+                xsort = np.sort(x)
+                self.dx_geo = abs(xsort[1]-xsort[0])
         else:
             self.x_dir = False
             self.d_x = abs(y[1]-y[0])
@@ -186,8 +193,12 @@ class Geometry():
                 dum = self.rec_dict[d]["x"]
                 self.rec_dict[d]["x"] = self.rec_dict[d]["y"]
                 self.rec_dict[d]["y"] = dum
-            xsort = np.sort(y)
-            self.dx_geo = abs(xsort[1]-xsort[0])
+            if len(y) == 1:
+                xsort = np.copy(y)
+                self.dx_geo = 1.
+            else:
+                xsort = np.sort(y)
+                self.dx_geo = abs(xsort[1]-xsort[0])
         del x, y
 
 # Read shot geometry file shots.geo
@@ -199,8 +210,12 @@ class Geometry():
         if self.x_dir:
             xmin_s = x.min()
             xmax_s = x.max()
-            xsort = np.sort(x)
-            self.dx_geo = min(self.dx_geo, abs(xsort[1]-xsort[0]))
+            if len(x) == 1:
+                xsort = np.copy(x)
+                self.dx_geo = 1.
+            else:
+                xsort = np.sort(x)
+                self.dx_geo = min(self.dx_geo, abs(xsort[1]-xsort[0]))
         else:
             xmin_s = y.min()
             xmax_s = y.max()
@@ -208,8 +223,12 @@ class Geometry():
                 dum = self.sht_dict[d]["x"]
                 self.sht_dict[d]["x"] = self.sht_dict[d]["y"]
                 self.sht_dict[d]["y"] = dum
-            xsort = np.sort(y)
-            self.dx_geo = min(self.dx_geo, abs(xsort[1]-xsort[0]))
+            if len(y) == 1:
+                xsort = np.copy(y)
+                self.dx_geo = 1.
+            else:
+                xsort = np.sort(y)
+                self.dx_geo = min(self.dx_geo, abs(xsort[1]-xsort[0]))
         self.xmin = min(xmin_r, xmin_s)
         self.xmax = max(xmax_r, xmax_s)
         self.unique_positions()

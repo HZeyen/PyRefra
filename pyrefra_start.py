@@ -17,17 +17,7 @@ from PyQt5 import QtWidgets
 from pyrefra import Pyrefra
 
 if __name__ == "__main__":
-    # dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
-    # dir0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
-    # dir0 = r"E:/Seg2Dat/Feroes/Eidi_21_07_23"
-    # dir0 = r"E:/Seg2Dat/Erreurs/Chidozie"
-    # dir0 = r"E:/Seg2Dat/Campus_haut"
-    # dir0 = r"E:/Seg2Dat/Rouvres2"
-    # dir0 = r"E:\Seg2Dat\504_nov24_actif"
-    # dir0 = r"E:\Seg2Dat\Bois_passif\seg2_save"
-    dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1"
-    dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1\seg2_save"
-    dir0 = r"E:\Seg2Dat\Chile_2025"
+    dir0 = r"E:\Seg2Dat\Erreurs\UCT"
 
     os.chdir(dir0)
 

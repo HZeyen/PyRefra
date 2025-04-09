@@ -623,8 +623,8 @@ class Utilities:
                                       + "parameters")
             msgbox.setDetailedText(f"Velocity: {vel:0.0f} m/s\nThickness: "
                                    + f"{tk:0.2f} m\nDepth of top: "
-                                   "{depth:0.2f} m\n"
-                                   f"Intercept: {tint*1000:0.1f} ms")
+                                   + f"{depth:0.2f} m\n"
+                                   + f"Intercept: {tint*1000:0.1f} ms")
             msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes |
                                       QtWidgets.QMessageBox.No |
                                       QtWidgets.QMessageBox.Retry)

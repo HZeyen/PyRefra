@@ -77,7 +77,16 @@ class Traces():
                 self.sht_rec_dict[(nsht, nrec)] = ntr
                 self.shot.append(nsht)
                 self.receiver.append(nrec)
-                self.component.append(geom.rec_dict[nrec]["type"])
+                try:
+                    self.component.append(geom.rec_dict[nrec]["type"])
+                except KeyError:
+                    _ = QtWidgets.QMessageBox.critical(
+                        None, "Error",
+                        f"Receiver #{nrec} found in data file but not in "
+                        + "geometry information.\n"
+                        + "File receivers.geo may be incomplete.\n\n"
+                        + "Program stops", QtWidgets.QMessageBox.Ok)
+                    raise Exception("Receiver point number missing.\n")
                 self.nsample_trace.append(self.data.st[nf][nt].stats.npts)
                 self.dt_trace.append(self.data.st[nf][nt].stats.delta)
                 self.t0_trace.append(self.data.time_0[nf])
@@ -93,7 +102,8 @@ class Traces():
                 else:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
-                        f"Shot {nsht} not found in sht_pt_dict\n\n"
+                        f"Shot #{nsht} found in data file but not in "
+                        + "geometry information.\n"
                         + "File shots.geo may be incomplete.\n\nProgram stops",
                         QtWidgets.QMessageBox.Ok)
                     raise Exception("Shot point number missing.\n")

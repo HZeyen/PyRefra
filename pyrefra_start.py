@@ -20,23 +20,22 @@ if __name__ == "__main__":
     # dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
     # dir0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
     # dir0 = r"E:/Seg2Dat/Feroes/Eidi_21_07_23"
-    # dir0 = r"E:/Seg2Dat/Erreurs/Chidozie"
+    # dir0 = r"E:\Seg2Dat\Souzy\Souzy_Line4"
     # dir0 = r"E:/Seg2Dat/Campus_haut"
     # dir0 = r"E:/Seg2Dat/Rouvres2"
     # dir0 = r"E:\Seg2Dat\504_nov24_actif"
     # dir0 = r"E:\Seg2Dat\Bois_passif\seg2_save"
     dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1"
-    dir0 = r"E:\Seg2Dat\Erreurs\UCT"
-    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1\seg2_save"
-    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\FS-passive\test"
+    # dir0 = r"E:\Seg2Dat\CapFrehel\cap-frehel_13jun2023_am_1\segy"
+    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\FS-passive\Test"
+    # dir0 = r"E:\Seg2Dat\Stage_2de_Felix"
 
     os.chdir(dir0)
 
     def my_exception_hook(exctype, value, tracebk):
         """
         Not clear what it is good for.
-        The problem is that usually no error messages are passed from
-        QT.
+        The problem is that usually no error messages are passed from QT.
         I found this in the internet, but it seems it does not work either...
 
         Parameters

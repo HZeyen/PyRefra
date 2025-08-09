@@ -1,3 +1,10 @@
+"""
+last modified on July 09, 2025
+
+@author: Hermann Zeyen, University Paris-Saclay, France
+         hermann.zeyen@universite-paris-saclay.fr
+
+"""
 import os
 from os.path import exists
 from copy import deepcopy
@@ -107,8 +114,8 @@ class Utilities:
         self.lin = None
         self.cidpress = None
         self.nd_start_slta = 0
-        self.tick_size_mod = 16
-        self.tick_size_sec = 12
+        self.tick_size_mod = 14
+        self.tick_size_sec = 8
         self.scheme = None
         self.px = None
         self.gx = []
@@ -2332,8 +2339,8 @@ class Utilities:
 
 # If code == 0, color scale and maximum depth for model plot are calculated
 #    automatically
-        self.tick_size_mod = 16
-        self.tick_size_sec = 12
+        self.tick_size_mod = 12
+        self.tick_size_sec = 8
 # Store picks in Gimli format (picks.sgt)
         if code != 67:
             self.traces.saveGimli()
@@ -2382,7 +2389,7 @@ class Utilities:
                     [self.zmax, self.smooth, self.s_fact, self.zSmooth,
                      self.maxiter, self.vmin, self.vmax, self.vmin_limit,
                      self.vmax_limit, None, self.v_scale_min, self.v_scale_max,
-                     None, None, -1], "Inversion parameters")
+                     None, None, None], "Inversion parameters")
 
             if not okButton:
                 print("\n Inversion cancelled")
@@ -2497,8 +2504,7 @@ class Utilities:
                                  + f"{c:0.2f}       {self.ncover[i]}    "
                                  + f"{' '.join(map(str,self.cell_rays[:,i]))}"
                                  + "\n")
-                self.cov_txt = "Coverage (cumulated ray lengths/cell_size) "\
-                    + "and rays"
+                self.cov_txt = "Coverage and rays"
                 del mesh_x, mesh_y, mesh_v
                 self.endModel = self.endModel_all[self.cover > 0.]
             except:
@@ -2638,19 +2644,19 @@ class Utilities:
             self.figinv.clf()
         self.figinv = self.w_tomo.fig
         plt.tight_layout()
-        self.gs = GridSpec(15, 13, figure=self.figinv)
+        self.gs = GridSpec(16, 13, figure=self.figinv)
 # Axis for final model
         self.ax_mod = self.figinv.add_subplot(self.gs[:6, :])
 # Acis for initial model
         self.ax_start = self.figinv.add_subplot(self.gs[8:11, 0:4])
 # Axis for ray and coverage plot
-        self.ax_rays = self.figinv.add_subplot(self.gs[12:15, 0:4])
+        self.ax_rays = self.figinv.add_subplot(self.gs[13:16, 0:4])
 # Axis for measured travel time plot
         self.ax_tt = self.figinv.add_subplot(self.gs[8:11, 5:8])
 # Axis for difference between measured and calculated travel times
-        self.ax_diff = self.figinv.add_subplot(self.gs[12:15, 5:8])
+        self.ax_diff = self.figinv.add_subplot(self.gs[13:16, 5:8])
 # Axis for average differences of shot gathers and receiver gathers
-        self.ax_av_diff = self.figinv.add_subplot(self.gs[12:15, 9:12])
+        self.ax_av_diff = self.figinv.add_subplot(self.gs[13:16, 9:12])
 # Axis for chi2-evolution
         self.ax_chi = self.figinv.add_subplot(self.gs[8:11, 9:12])
 # Define ticks for horizontal and vertical axes of model plots
@@ -2688,7 +2694,7 @@ class Utilities:
         xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
         ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
         txt = self.ax_start.text(xtxt, ytxt, "B", horizontalalignment="left",
-                                 verticalalignment="bottom", fontsize=18)
+                                 verticalalignment="bottom", fontsize=12)
         txt.set_bbox(dict(facecolor="white"))
 # Share x and y axis parameters with ray plot and plot of final model
         self.ax_rays.sharex(self.ax_start)
@@ -2721,7 +2727,7 @@ class Utilities:
         xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
         ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
         txt = self.ax_rays.text(xtxt, ytxt, "C", horizontalalignment="left",
-                                verticalalignment="bottom", fontsize=18)
+                                verticalalignment="bottom", fontsize=12)
         txt.set_bbox(dict(facecolor="white"))
         print("Rays plotted")
 # Interpolate coverage like final model
@@ -2760,13 +2766,15 @@ class Utilities:
             clip_path = Path(clip, codes)
             del x, clip
             self.ax_mod.set_clip_on(True)
-            for collection in gci0.collections:
-                collection.set_clip_path(clip_path,
-                                         transform=self.ax_mod.transData)
+            gci0.set_clip_path(clip_path, transform=self.ax_mod.transData)
+            # for collection in gci0.collections:
+            #     collection.set_clip_path(clip_path,
+            #                              transform=self.ax_mod.transData)
         del y
 # Define positions of ticks along vertical axis such that 4 to 5 numbers are
 # plotted
         dtk = round(self.zmax_plt/6., 0)
+        dtk = max(dtk, 1.)
         ticks_y_mod = self.window.set_ticks(-self.zmax_plt, 0., dtick=dtk)
 # Plot color bar
         if self.v_scale_max > 2000:
@@ -2780,13 +2788,12 @@ class Utilities:
         self.ax_mod.set_aspect('equal', adjustable='box', anchor='W')
         divider = make_axes_locatable(self.ax_mod)
         cax = divider.append_axes("right", size="2%", pad=0.2)
-        cax2 = divider.append_axes("top", size="2%", pad="10%")
         cb = plt.colorbar(
             gci0, cmap=cmp, cax=cax, format='%.0f', label="Velocity [m/s]",
             ticks=ticks_vel, orientation='vertical', aspect=25, shrink=0.9,
             extend='both')
 
-        cb.ax.tick_params(labelsize=14)
+        cb.ax.tick_params(labelsize=10)
         if self.rays_flag:
             _ = self.mgr.drawRayPaths(ax=self.ax_mod, color="black", lw=0.3,
                                       alpha=0.5)
@@ -2809,19 +2816,18 @@ class Utilities:
         self.ax_mod.text(
             ax_xmin, ax_ymax+(ax_ymax-ax_ymin)*0.01, self.main.dir_start,
             horizontalalignment="left", verticalalignment="bottom",
-            fontsize=18)
+            fontsize=14)
         self.ax_mod.text(
             ax_xmax, ax_ymax+(ax_ymax-ax_ymin)*0.01, self.main.dir_end,
             horizontalalignment="right", verticalalignment="bottom",
-            fontsize=18)
+            fontsize=14)
         xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
         ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
         txt = self.ax_mod.text(xtxt, ytxt, "A", horizontalalignment="left",
-                               verticalalignment="bottom", fontsize=18)
+                               verticalalignment="bottom", fontsize=12)
         txt.set_bbox(dict(facecolor="white"))
-        cax2.text(0.5, 0.5, self.main.title, fontsize=24, fontweight="heavy",
-                  ha="center", va="bottom")
-        cax2.axis('off')
+        self.figinv.suptitle(self.main.title, fontsize=16, fontweight="heavy")
+        self.figinv.subplots_adjust(top=0.92)
 
         print("Final model plotted")
 
@@ -2896,7 +2902,7 @@ class Utilities:
             self.ax_chi.plot(np.arange(nit)+1, chi_ev)
             self.ax_chi.set_ylabel("log10(chi2)", fontsize=self.tick_size_sec)
             self.ax_chi.set_xlabel("iteration #", fontsize=self.tick_size_sec)
-            self.ax_chi.set_title(f"smoothing: ini: {int(self.smooth)}, "
+            self.ax_chi.set_title(f"smoothing:\nini: {int(self.smooth)}, "
                                   + f"fac: {self.s_fact:0.2f}, "
                                   + f"z: {self.zSmooth:0.2f}",
                                   fontsize=self.tick_size_sec+2)
@@ -2909,7 +2915,7 @@ class Utilities:
             xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
             ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
             txt = self.ax_chi.text(xtxt, ytxt, "F", horizontalalignment="left",
-                                   verticalalignment="bottom", fontsize=18)
+                                   verticalalignment="bottom", fontsize=12)
             txt.set_bbox(dict(facecolor="white"))
 #            self.ax_chi.tick_params(axis='both', labelsize=18)
 
@@ -2920,8 +2926,7 @@ class Utilities:
                                        fontsize=self.tick_size_sec)
             self.ax_av_diff.set_xlabel("Position [m]",
                                        fontsize=self.tick_size_sec)
-            self.ax_av_diff.set_title("Average differences calc.-meas. "
-                                      + "arrival times",
+            self.ax_av_diff.set_title("Average differences\ncalc.-meas. ",
                                       fontsize=self.tick_size_sec+2)
             self.ax_chi.tick_params(axis='both', labelsize=self.tick_size_sec)
             self.ax_av_diff.grid(which='major', axis='x', color='k')
@@ -2934,7 +2939,7 @@ class Utilities:
             ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
             txt = self.ax_av_diff.text(xtxt, ytxt, "G",
                                        horizontalalignment="left",
-                                       verticalalignment="bottom", fontsize=18)
+                                       verticalalignment="bottom", fontsize=12)
             txt.set_bbox(dict(facecolor="white"))
 #            self.ax_av_diff.tick_params(axis='both', labelsize=18)
             print("Average differences plotted")
@@ -2967,7 +2972,7 @@ class Utilities:
             xtxt = ax_xmin+(ax_xmax-ax_xmin)*0.02
             ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
             txt = self.ax_tt.text(xtxt, ytxt, "D", horizontalalignment="left",
-                                  verticalalignment="bottom", fontsize=18)
+                                  verticalalignment="bottom", fontsize=12)
             txt.set_bbox(dict(facecolor="white"))
             _ = plt.colorbar(gci1, ax=self.ax_tt, format='%.0f',
                              label="Times (ms)", ticks=ticks,
@@ -2997,7 +3002,7 @@ class Utilities:
             ytxt = ax_ymin+(ax_ymax-ax_ymin)*0.05
             txt = self.ax_diff.text(xtxt, ytxt, "E",
                                     horizontalalignment="left",
-                                    verticalalignment="bottom", fontsize=18)
+                                    verticalalignment="bottom", fontsize=12)
             txt.set_bbox(dict(facecolor="white"))
             _ = plt.colorbar(gci3, ax=self.ax_diff, format='%.1f',
                              label="Calc - meas (ms)", ticks=ticks_d,

@@ -82,10 +82,16 @@ class Traces():
                 except KeyError:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
-                        f"Receiver #{nrec} found in data file but not in "
-                        + "geometry information.\n"
-                        + "File receivers.geo may be incomplete.\n\n"
-                        + "Program stops", QtWidgets.QMessageBox.Ok)
+                        f"Receiver # {nrec} found in data file but not in "
+                        + "geometry information.\n\n"
+                        + "Usually, this error happens when the file header "
+                        + "is not correctly filled\n"
+                        + "   (e.g. receiver point numbers are all zero).\n"
+                        + "Consider creating file 'file_corrections.dat' "
+                        + "(see manual for explanations)\n\n"
+                        + "It may also be that file receivers.geo is "
+                        + "incomplete.\n\nProgram stops",
+                        QtWidgets.QMessageBox.Ok)
                     raise Exception("Receiver point number missing.\n")
                 self.nsample_trace.append(self.data.st[nf][nt].stats.npts)
                 self.dt_trace.append(self.data.st[nf][nt].stats.delta)
@@ -102,9 +108,15 @@ class Traces():
                 else:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
-                        f"Shot #{nsht} found in data file but not in "
+                        f"Shot # {nsht} found in data file but not in "
                         + "geometry information.\n"
-                        + "File shots.geo may be incomplete.\n\nProgram stops",
+                        + "Usually, this error happens when the file header "
+                        + "is not correctly filled\n"
+                        + "   (e.g. shot point numbers are all zero).\n"
+                        + "Consider creating file 'file_corrections.dat' "
+                        + "(see manual for explanations)\n\n"
+                        + "It may also be that file shots.geo is "
+                        + "incomplete.\n\nProgram stops",
                         QtWidgets.QMessageBox.Ok)
                     raise Exception("Shot point number missing.\n")
                 if nrec in self.rec_pt_dict:
@@ -115,8 +127,14 @@ class Traces():
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
                         f"Receiver {nrec} not found in rec_pt_dict\n\n"
-                        + "File receivers.geo may be incomplete.\n\n"
-                        + "Program stops", QtWidgets.QMessageBox.Ok)
+                        + "Usually, this error happens when the file header "
+                        + "is not correctly filled\n"
+                        + "   (e.g. receiver point numbers are all zero).\n"
+                        + "Consider creating file 'file_corrections.dat' "
+                        + "(see manual for explanations)\n\n"
+                        + "It may also be that file receivers.geo is "
+                        + "incomplete.\n\nProgram stops",
+                        QtWidgets.QMessageBox.Ok)
                     raise Exception("Receiver point number missing.\n")
 
 # Check whether shot point from trace header exists in shot point dictionary
@@ -128,8 +146,14 @@ class Traces():
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
                         f"Shot point number {nsht+1} not found in shots.geo\n"
-                        + "\nFile shots.geo may be incomplete.\n\nProgram "
-                        + "stops", QtWidgets.QMessageBox.Ok)
+                        + "Usually, this error happens when the file header "
+                        + "is not correctly filled\n"
+                        + "   (e.g. shot point numbers are all zero).\n"
+                        + "Consider creating file 'file_corrections.dat' "
+                        + "(see manual for explanations)\n\n"
+                        + "It may also be that file shots.geo is "
+                        + "incomplete.\n\nProgram stops",
+                        QtWidgets.QMessageBox.Ok)
                     raise Exception("Shot point number missing.\n")
                 self.unique_s_pos.append(self.geom.get_unique_position(
                     xs, ys, zs))
@@ -146,9 +170,16 @@ class Traces():
                 else:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
-                        f"Receiver point number {nrec+1} not found in " +
-                        "receivers.geo\nFile receivers.geo may be incomplete."
-                        + "\n\nProgram stops", QtWidgets.QMessageBox.Ok)
+                        f"Receiver point number {nrec+1} not found in "
+                        + "receivers.geo\n"
+                        + "Usually, this error happens when the file header "
+                        + "is not correctly filled\n"
+                        + "   (e.g. receiver point numbers are all zero).\n"
+                        + "Consider creating file 'file_corrections.dat' "
+                        + "(see manual for explanations)\n\n"
+                        + "It may also be that file receivers.geo is "
+                        + "incomplete.\n\nProgram stops",
+                        QtWidgets.QMessageBox.Ok)
                     raise Exception("Receiver point number missing.\n")
                 self.unique_r_pos.append(self.geom.get_unique_position(
                     xr, yr, zr))

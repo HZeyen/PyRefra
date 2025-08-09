@@ -1,3 +1,11 @@
+"""
+last modified on July 07, 2025
+
+@author: Hermann Zeyen, University Paris-Saclay, France
+         hermann.zeyen@universite-paris-saclay.fr
+
+"""
+
 import os
 import sys
 from copy import deepcopy
@@ -101,14 +109,23 @@ class Data():
                         self.st[-1][itr].stats.seg2['DELAY'] =\
                             self.st[-1][itr].stats.segy.trace_header.\
                             delay_recording_time/1000.
+                        if  self.st[-1][itr].stats.segy.trace_header.\
+                                lag_time_A < 0:
+                            self.st[-1][itr].stats.seg2['DELAY'] =\
+                                self.st[-1][itr].stats.segy.trace_header.\
+                                    lag_time_A/1000.
                         self.st[-1][itr].stats.seg2["UNIT_UNIQUE_ID"] = None
                         self.st[-1][itr].stats.seg2['RECEIVER_STATION_NUMBER']\
                             = self.st[-1][itr].stats.segy.\
                             trace_header.\
                             trace_number_within_the_original_field_record
+                            
+# Attention: the "+1" in the next command is only provisorically in order to
+# be able to read a specific data file where the first SP has number 0.
+
                         self.st[-1][itr].stats.seg2['SOURCE_STATION_NUMBER'] =\
                             self.st[-1][itr].stats.segy.\
-                            trace_header.energy_source_point_number
+                            trace_header.energy_source_point_number+1
                 if "DELAY" in self.st[-1][0].stats.seg2:
                     self.time_0.append(self.st[-1][0].stats.seg2['DELAY'])
                 else:

@@ -16,7 +16,7 @@ class Traces():
         saveGimli
     """
 
-    def __init__(self, main, data, geom):
+    def __init__(self, main):
         self.file = []
         self.trace = []
         self.shot = []
@@ -43,21 +43,21 @@ class Traces():
         self.calc_picks = False
         self.save_su = False
         self.sht_rec_dict = {}
-        self.geom = geom
-        self.data = data
+        self.geom = main.geo
+        self.data = main.data
         self.main = main
         self.xcdp = []
 # Prepare dictionaries for shot and receiver points. For every shot and
 #    receiver point, three lists are prepared
         self.sht_pt_dict = {}
-        for ns in geom.sht_dict.keys():
+        for ns in self.geom.sht_dict.keys():
             self.sht_pt_dict[ns] = {}
             self.sht_pt_dict[ns]["file"] = []
             self.sht_pt_dict[ns]["trace"] = []
             self.sht_pt_dict[ns]["receiver"] = []
             self.sht_pt_dict[ns]["axes"] = []
         self.rec_pt_dict = {}
-        for nr in geom.rec_dict.keys():
+        for nr in self.geom.rec_dict.keys():
             self.rec_pt_dict[nr] = {}
             self.rec_pt_dict[nr]["file"] = []
             self.rec_pt_dict[nr]["trace"] = []
@@ -67,7 +67,7 @@ class Traces():
 # Prepare dictionaries for shot and receiver points. For every shot and
 #    receiver point, three lists are prepared
         ntr = -1
-        for nf, s in enumerate(data.st):
+        for nf, s in enumerate(self.data.st):
             for nt, tr in enumerate(s):
                 ntr += 1
                 self.file.append(nf)
@@ -78,7 +78,7 @@ class Traces():
                 self.shot.append(nsht)
                 self.receiver.append(nrec)
                 try:
-                    self.component.append(geom.rec_dict[nrec]["type"])
+                    self.component.append(self.geom.rec_dict[nrec]["type"])
                 except KeyError:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
@@ -138,10 +138,10 @@ class Traces():
                     raise Exception("Receiver point number missing.\n")
 
 # Check whether shot point from trace header exists in shot point dictionary
-                if nsht in geom.sht_dict:
-                    xs = geom.sht_dict[nsht]["x"]
-                    ys = geom.sht_dict[nsht]["y"]
-                    zs = geom.sht_dict[nsht]["z"]
+                if nsht in self.geom.sht_dict:
+                    xs = self.geom.sht_dict[nsht]["x"]
+                    ys = self.geom.sht_dict[nsht]["y"]
+                    zs = self.geom.sht_dict[nsht]["z"]
                 else:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
@@ -159,10 +159,10 @@ class Traces():
                     xs, ys, zs))
 # Check whether receiver point from trace header exists in shot point
 # dictionary
-                if nrec in geom.rec_dict:
-                    xr = geom.rec_dict[nrec]["x"]
-                    yr = geom.rec_dict[nrec]["y"]
-                    zr = geom.rec_dict[nrec]["z"]
+                if nrec in self.geom.rec_dict:
+                    xr = self.geom.rec_dict[nrec]["x"]
+                    yr = self.geom.rec_dict[nrec]["y"]
+                    zr = self.geom.rec_dict[nrec]["z"]
                     self.shot_pos.append(xs)
                     self.receiver_pos.append(xr)
                     off = np.sqrt((xs-xr)**2+(ys-yr)**2++(zs-zr)**2)
@@ -200,10 +200,10 @@ class Traces():
                 self.off_pt_dict[o]["shot"].append(nsht)
                 self.off_pt_dict[o]["receiver"].append(nrec)
                 self.amplitudes.append(self.data.general_sign)
-                if data.receiver_corr_flag:
-                    if nrec in data.receiver_corr_dict:
+                if self.data.receiver_corr_flag:
+                    if nrec in self.data.receiver_corr_dict:
                         self.amplitudes[-1] *=\
-                            data.receiver_corr_dict[nrec]["amp"]
+                            self.data.receiver_corr_dict[nrec]["amp"]
 # Check whether all shot points from file "shots.geo" exist.
 # Shot points that have not been recorded are eliminated from the dictionaries
         spt_dict = deepcopy(self.sht_pt_dict)

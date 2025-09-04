@@ -17,7 +17,7 @@ from PyQt5 import QtWidgets
 from pyrefra import Pyrefra
 
 if __name__ == "__main__":
-    # dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2021\2021-10-15_Profil3"
     # dir0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
     # dir0 = r"E:/Seg2Dat/Feroes/Eidi_21_07_23"
     # dir0 = r"E:\Seg2Dat\Souzy\Souzy_Line4"
@@ -77,10 +77,22 @@ if __name__ == "__main__":
 
     try:
         app = QtWidgets.QApplication(sys.argv)
+        screens = app.screens()
         sys._excepthook = sys.excepthook
         sys.excepthook = my_exception_hook
         main = Pyrefra.Main(str(top), dir0)
-        main.window.showMaximized()
+        # main.window.showMaximized()
+        main.screens = screens
+        if len(screens) > 1:
+            second_screen = screens[1]
+            geometry = second_screen.geometry()
+            print(f"Opening on second screen: {geometry}")
+# Move and resize window to fill the second screen
+            main.window.setGeometry(geometry)
+            main.window.showFullScreen()
+        else:
+            print("No secondary screen detected. Opening on primary screen.")
+            main.window.showMaximized()
         sys.exit(app.exec_())
     except Exception as error:
         print(f"An unexpected exception occurred: {error}.")

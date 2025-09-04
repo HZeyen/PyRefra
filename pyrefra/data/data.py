@@ -1029,7 +1029,7 @@ class Data():
                     elif key == "RECEIVER_STATION_NUMBER":
                         ASCII_trace_headers[-1].append(f"{key} {int(th[key])}")
                     elif key == "SAMPLE_INTERVAL":
-                        txt = print_float(th[key], 6)
+                        txt = print_float(float(th[key]), 6)
                         ASCII_trace_headers[-1].append(f"{key} {txt}")
                     elif key == "SHOT_SEQUENCE_NUMBER":
                         ASCII_trace_headers[-1].append(f"{key} {int(th[key])}")

@@ -61,13 +61,13 @@ class Utilities:
         atten_amp
     """
 
-    def __init__(self, main, files, data, traces, geom, window):
+    def __init__(self, main):
         self.main = main
-        self.files = files
-        self.data = data
-        self.traces = traces
-        self.geom = geom
-        self.window = window
+        self.files = main.files
+        self.data = main.data
+        self.traces = main.traces
+        self.geom = main.geo
+        self.window = main.window
         self.pmodel = []
         self.thick_l = []
         self.thick_r = []
@@ -2371,7 +2371,7 @@ class Utilities:
                     ["Maximum depth (m, positive down)",
                      "Initial smoothing parameter (<0: optimize)",
                      "Smoothing reduction per iteration",
-                     "Smoothing in z direction (0..1):",
+                     "Smoothing in z direction (0...1):",
                      "Maximum iterations (0 = automatic)",
                      "Initial velocity at surface [m/s]",
                      "Initial velocity at bottom [m/s]",
@@ -2767,9 +2767,6 @@ class Utilities:
             del x, clip
             self.ax_mod.set_clip_on(True)
             gci0.set_clip_path(clip_path, transform=self.ax_mod.transData)
-            # for collection in gci0.collections:
-            #     collection.set_clip_path(clip_path,
-            #                              transform=self.ax_mod.transData)
         del y
 # Define positions of ticks along vertical axis such that 4 to 5 numbers are
 # plotted

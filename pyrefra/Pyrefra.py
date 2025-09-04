@@ -134,8 +134,7 @@ class Main(QtWidgets.QWidget):
 # Input data
         self.file_open()
 # Initialize main frame widget
-        self.window = Window(self, self.files, self.data, self.traces,
-                             self.geo)
+        self.window = Window(self)
         if len(self.geo.types) > 1:
             self.window.component.setEnabled(True)
 # Check whether measured picks exist and if so, activate tomography button
@@ -144,8 +143,7 @@ class Main(QtWidgets.QWidget):
             self.window.Tomography.setEnabled(True)
             print(f"\n{sp} measured picks read")
 # Initialize utility routines
-        self.utilities = Utilities(self, self.files, self.data, self.traces,
-                                   self.geo, self.window)
+        self.utilities = Utilities(self)
         QtWidgets.qApp.installEventFilter(self)
 
 # Define actions for Menu buttons
@@ -457,7 +455,7 @@ class Main(QtWidgets.QWidget):
         self.geo.readGeom()
         self.data = Data(self)
         self.data.readData(self.files)
-        self.traces = Traces(self, self.data, self.geo)
+        self.traces = Traces(self)
         print("")
         self.function = "main"
 
@@ -484,28 +482,35 @@ class Main(QtWidgets.QWidget):
 
         Parameters
         ----------
-        labels : list of strings
-            Explanatory text put beside the fields foe data entrance.
-            If values==None, label is interpreted as information/Warning text
-            For a series of radiobuttons or Comboboxes, all corresponding
-            labels are given as a list within the list.
-        types : list of strings (length as labels).
-            Possible values:
-                "c": to define a check box
-                "e": to define an editable box (lineEdit)
-                "l": To define a simple label, comment text
-                'r': to define a series of radiobuttons (the corresponding list
-                     of labels is considered as one single label for the
-                     numbering of labels, types and values)
-                "b": to define a combobox (dropdown menu)
-        values : list of texts, numbers or Nones (length as labels)
-            Initial values given to editable fields. Should be None for check
-                boxes should be the number (natural numbering, starting at 1,
-                not at 0) of the radiobutton to be activated by default.
-                For labels, it may be "b" (bold text), "i" (italic) or anything
-                else, including None for standard text. Not used for combo box
-        title : str, default: "Title"
-            Title of the dialog box.
+      labels : list of strings
+        Explanatory text put beside the fields for data entrance.
+        If values==None, label is interpreted as information/Warning text.
+        For a series of Radiobuttons or Comboboxes, all corresponding labels
+        are given as a list within the list.
+      types : list of strings (length as labels).
+        Possible values:
+
+        - "c": to define a check box;
+        - "e": to define an editable box (lineEdit);
+        - "l": To define a simple label, comment text;
+        - "r": to define a series of radiobuttons (the corresponding list of
+          labels is considered as one single label for the numbering of
+          labels, types and values);
+        - "b": to define a combobox (dropdown menu).
+
+      values : list of texts, numbers or Nones (length as labels)
+        Initial values given to editable fields.
+
+        - Initial values for LineEdit fields (float, int or str)
+        - None for comboboxes
+        - > 0 for check box if it should be checked from the beginning, 0 else.
+        - Number of radiobutton to be activated by default (natural numbering,
+          starting at 1, not at 0).
+        - For labels, it may be "b" (bold text), "i" (italic) or anything else,
+          including None for standard text.
+
+      title : str, default: "Title"
+        Title of the dialog box.
 
         Returns
         -------
@@ -616,28 +621,35 @@ class Dialog(QtWidgets.QWidget):
         parent (Class object): Certain values are needed from the parent class
                                usually, the call will thus be:
                                Dialog(self,labels,types,values,title)
-        labels (list, string): labels explaining the different fields
-                               For a series of radiobuttons, labels[i] is
-                               itself a list
-        types (list,string): In the order of "labels", indicates the type
-                            of field the label belongs to. If labels[i] is
-                            itself a list, this is considered as one single
-                            label.
-                            May be
-                            'l' for label (no dialog entry, only information)
-                            'c' for checkbox
-                            'e' for LineEdit (to enter values)
-                            'r' for radiobutton
-                            'b' for combobox (dropdown menu)
-                            may be capital or not
-        values (list, string, float or int): initial values for LineEdit
-                           fields, number of radiobutton activated by default.
-                            for labels, it may be "b" (bold), "i" (italic), or
-                            anything else (usually None) for standard text
-                            Ignored for checkbox.
-                            Optional, default value: None
-        title (string): Title of the dialog window
-                            Optional, default value: "Title"
+      labels : list of strings
+        Explanatory text put beside the fields for data entrance.
+        If values==None, label is interpreted as information/Warning text.
+        For a series of Radiobuttons or Comboboxes, all corresponding labels
+        are given as a list within the list.
+      types : list of strings (length as labels).
+        Possible values:
+
+        - "c": to define a check box;
+        - "e": to define an editable box (lineEdit);
+        - "l": To define a simple label, comment text;
+        - "r": to define a series of radiobuttons (the corresponding list of
+          labels is considered as one single label for the numbering of
+          labels, types and values);
+        - "b": to define a combobox (dropdown menu).
+
+      values : list of texts, numbers or Nones (length as labels)
+        Initial values given to editable fields.
+
+        - Initial values for LineEdit fields (float, int or str)
+        - None for comboboxes
+        - > 0 for check box if it should be checked from the beginning, 0 else.
+        - Number of radiobutton to be activated by default (natural numbering,
+          starting at 1, not at 0).
+        - For labels, it may be "b" (bold text), "i" (italic) or anything else,
+          including None for standard text.
+
+      title : str, default: "Title"
+        Title of the dialog box.
     """
 
     def __init__(self, parent, labels, types, values=None, title="Title"):

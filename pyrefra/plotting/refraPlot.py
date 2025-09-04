@@ -112,20 +112,20 @@ class Window(QMainWindow, Ui_MainWindow):
     Class contains methods for plotting, zooming and picking
     """
 
-    def __init__(self, main, files, data, traces, geom):
+    def __init__(self, main):
         super(Window, self).__init__()
 # Set up main window based on file window.ui created with QT Designer
         self.setupUi(self)
 # main points to class Main (file PyRefra.py)
         self.main = main
 # files points to class Files (file refraData.py)
-        self.files = files
+        self.files = main.files
 # data points to class Data (file refraData.py)
-        self.data = data
+        self.data = main.data
 # traces points to class Traces (file refraData.py)
-        self.traces = traces
+        self.traces = main.traces
 # geom points to class Geometry (file refraData.py)
-        self.geom = geom
+        self.geom = main.geo
 # Title of main window
         self.setWindowTitle("Data window")
 # Get program icon
@@ -2003,7 +2003,7 @@ class Window(QMainWindow, Ui_MainWindow):
 # length of the first found trace, one of two possibilities exist: If the
 # actual trace is too long, cut it at the end; if the actual trace is shorter,
 # fill v with zeros at the end.
-                except (KeyError, IndexError, NameError):
+                except (KeyError, IndexError, NameError, ValueError):
                     nv = self.v.shape[1]
                     nd = len(self.data.st[ifile][nt].data)
                     if nv > nd:

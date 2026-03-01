@@ -9,13 +9,11 @@ Zeyen, H. and Léger, E. (2024): PyRefra – Refraction seismic data treatment a
 
 For installation instructions see [1. Installation instructions](./1_Installation.md).
 
-Once installed, you can test and get familiar with the codes by using the data in the [example](./example) folder. See the [README](./example/README.md) file there.
+Once installed, you can test and get familiar with the codes by using the data in the [example](./Example) folder. See the [README](./Example/README.md) file there.
 
 For preparing your own dataset, [2_Data_preparation.md](./2_Data_preparation.md) describes file naming conventions and necessary geometry files.
 
-[3_Running_PyRefra.md](./3_Running_PyRefra.md) is the main manual describing menu entries and other options.
 
-
-All these instructions are combined in a file [PyRefra.pdf](./doc/PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the online version (.md files) is completely up to date, since it is more difficult to maintain. A user's guide [PyRefra_guide.pdf](./doc/PyRefra_guide.pdf) takes the opposite approach, explaining how to work with pyrefra.
+The main manual describing menu entries and other options is located in file [PyRefra_manual.pdf](./doc/PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the above mentioned online version (.md files) is completely up to date, since it is more difficult to maintain. A user's guide [PyRefra_guide.pdf](./doc/PyRefra_guide.pdf) takes the opposite approach, explaining how to work with pyrefra.
 
 Thanks to my son Manuel Zeyen for creating the new icon !

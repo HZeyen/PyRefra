@@ -68,6 +68,7 @@ Contains the following functions:
     findNearest2ndDerivative
     corrPick
         onPress
+    search_corr_pick
     Sta_Lta
     ampPick
     ampPicks
@@ -2894,6 +2895,7 @@ class Window(QMainWindow, Ui_MainWindow):
             sim_s = []
             sim_r = []
             sim_cdp = []
+            d_trac = []
             for s in similar[0]:
                 if self.traces.npick[s] < 1:
                     continue
@@ -2903,19 +2905,30 @@ class Window(QMainWindow, Ui_MainWindow):
                 sim_s.append(self.traces.shot[s])
                 sim_r.append(self.traces.receiver[s])
                 sim_cdp.append(self.traces.xcdp[s])
+                d_trac.append(abs(trace-s))
             if len(sim_t) < 1:
                 continue
             sim_t = np.array(sim_t, dtype=int)
             sim_s = np.array(sim_s, dtype=int)
             sim_r = np.array(sim_r, dtype=int)
             sim_cdp = np.array(sim_cdp, dtype=float)
+            d_trac = np.array(d_trac, dtype=float)
             if self.sg_flag or self.fg_flag:
                 itr = np.argsort(abs(sim_cdp-self.traces.xcdp[trace]))
+                sim_t = sim_t[itr]
+                sim_cdp = sim_cdp[itr]
+                if len(sim_t) > 1:
+                    for k, cdp in enumerate(sim_cdp[1:]):
+                        if cdp != sim_cdp[0]:
+                            break
+                        if d_trac[k] < d_trac[0]:
+                            d_trac[0] = d_trac[k]
+                            sim_t[0] = sim_t[k]
                 t_pk = None
                 for i in range(min(len(itr), 6)):
                     try:
-                        t_pk = self.traces.pick_times[sim_t[itr[i]]][0]
-                        d = abs(self.traces.xcdp[sim_t[itr[i]]] -
+                        t_pk = self.traces.pick_times[sim_t[0]][0]
+                        d = abs(self.traces.xcdp[sim_t[0]] -
                                 self.traces.xcdp[trace])
                         break
                     except (KeyError, IndexError, NameError):
@@ -2957,6 +2970,9 @@ class Window(QMainWindow, Ui_MainWindow):
         for i in range(self.actual_number_traces):
             ipt = self.actual_traces[i]
             self.traces.npick[ipt] = 0
+            self.traces.pick_times[ipt] = []
+            self.traces.pick_times_min[ipt] = []
+            self.traces.pick_times_max[ipt] = []
         self.drawNew(True)
         self.setHelp(self.main_text)
         self.traces.storePicks()
@@ -3293,13 +3309,10 @@ class Window(QMainWindow, Ui_MainWindow):
             self.d_time = 0
 # Set some default values explained further up in the explanation of the
 # function
-            off_lim = 4
-            dt_pick = 0.01
-            t_half = 0.01
             if self.main.utilities.filtered:
-                umin = 4*self.data.dt
+                self.umin = 4*self.data.dt
             else:
-                umin = 2*self.data.dt
+                self.umin = 2*self.data.dt
 # If the left mouse button was pressed (manual pick set), come here
 # Search the trace where the pick has been defined
             if event.button == 1:
@@ -3309,24 +3322,24 @@ class Window(QMainWindow, Ui_MainWindow):
                 stn = self.traces.receiver[trace]
 # Set the reference time the the pick position
                 time_ref = event.ydata
+                self.time_ref = time_ref
                 print(f"\nshot {sht+1}, receiver {stn+1}, "
                       + f"picked time {time_ref*1000:0.2f}ms")
-                nt_ref = int((time_ref-self.time[0])/self.data.dt)
                 self.traces.npick[trace] = 1
                 try:
                     self.traces.pick_times[trace][0] = time_ref
                     self.traces.pick_times_min[trace][0] = \
-                        self.traces.pick_times[trace][0]-umin
+                        self.traces.pick_times[trace][0]-self.umin
                     self.traces.pick_times_max[trace][0] = \
-                        self.traces.pick_times[trace][0]+umin
+                        self.traces.pick_times[trace][0]+self.umin
                 except (KeyError, IndexError, NameError):
                     self.traces.pick_times[trace].append(time_ref)
                     self.traces.pick_times_min[trace].append(
-                        self.traces.pick_times[trace][0]-umin)
+                        self.traces.pick_times[trace][0]-self.umin)
                     self.traces.pick_times_max[trace].append(
-                        self.traces.pick_times[trace][0]+umin)
-                n_pick_ref = int(np.round((time_ref-self.data.t0)
-                                          / self.data.dt, 0))
+                        self.traces.pick_times[trace][0]+self.umin)
+                self.n_pick_ref = int(np.round((time_ref-self.data.t0)
+                                               / self.data.dt, 0))
                 trace_ref = self.n_tr
 # Calculate the width of the zone to find maxima in the correlation function
 # For this, search the first maximum behind the manual pick. The distance
@@ -3334,173 +3347,52 @@ class Window(QMainWindow, Ui_MainWindow):
 # maximum to be searched (the full width corresponds thus approximately to
 # half a wavelenght of the signal)
                 mapo, _, _, _ = self.main.utilities.min_max(
-                    self.v[trace_ref, n_pick_ref:], half_width=10)
+                    self.v[trace_ref, self.n_pick_ref:], half_width=10)
 # half_width is distance of next maximum from pickes position in number of
 # samples
-                half_width = max(mapo[0], 10)
-                print(f"Half-width: {half_width}")
+                self.half = max(mapo[0], 10)*2
+                print(f"Half-width: {self.half}")
                 n_ref1 = 0
-                nd = int(np.round(t_half/self.data.dt, 0))
-                n_ref1 = max(0, n_pick_ref-nd)
+                # nd = int(np.round(self.half/self.data.dt, 0))
+                n_ref1 = max(0, self.n_pick_ref-self.half)
                 n_max = self.v.shape[1]
-                n_ref2 = min(n_pick_ref+nd, n_max)
+                n_ref2 = min(self.n_pick_ref+self.half, n_max)
 # tr_ref will contain the "source signal"
                 tr_ref = self.v[trace_ref, n_ref1:n_ref2]
-                tr_ref = (tr_ref-np.mean(tr_ref))/np.std(tr_ref)
+                self.tr_ref = (tr_ref-np.mean(tr_ref))/np.std(tr_ref)
                 n_ref = len(tr_ref)
+                self.add_samp = n_ref1+n_ref
                 off0 = self.traces.offset[trace]
-                off0_a = abs(off0)
-                if trace_ref > 0:
-                    n_act = n_pick_ref
+                off_ref = off0
+                dtrac = abs(self.traces.offset[1]-self.traces.offset[0])
+                vmin = 1000.
+                self.shift_samp = int(dtrac/(vmin*self.data.dt))
+                dm = 0
 # Loop over the traces left of the reference trace
+                if trace_ref > 0:
                     for i in range(trace_ref-1, -1, -1):
                         if i < np.array(self.tr, dtype=int).min():
                             break
-                        trace = self.actual_traces[i]
-                        off = self.traces.offset[trace]
-                        off_a = abs(off)
-# If offset < 1cm, set pick tiöe to zero
-                        if off_a < 0.01:
-                            self.traces.npick[trace] = 1
-                            try:
-                                self.traces.pick_times[trace][0] = 0.
-                                self.traces.pick_times_min[trace][0] =\
-                                    -2*self.data.dt
-                                self.traces.pick_times_max[trace][0] =\
-                                    2*self.data.dt
-                            except (KeyError, IndexError, NameError):
-                                self.traces.pick_times[trace].append(0.)
-                                self.traces.pick_times_min[trace].append(
-                                    -2*self.data.dt)
-                                self.traces.pick_times_max[trace].append(
-                                    2*self.data.dt)
-                            continue
-                        nt_help = np.where(self.i_tr_help == i)[0]
-                        help_flag = False
-# Set signal tr2 to be correlated with the reference signal
-                        if nt_help > 0:
-                            n_act = int((
-                                self.t_pk_help[nt_help[0]]-self.data.t0)
-                                / self.data.dt)
-                            help_flag = True
-                        elif off0_a < off_a < off_lim:
-                            n_act += int(dt_pick/self.data.dt)
-                        elif off_a < off0_a and off_a < off_lim:
-                            n_act -= int(dt_pick/self.data.dt)
-                        off0 = off
-                        n_sam1 = int(max(0, n_act-nd))
-                        n_sam2 = int(min(n_act+nd, n_max))
-                        tr2 = self.v[i, n_sam1:n_sam2]
-                        s = np.std(tr2)
-# If trqce hqs no data (std = 0) skip picking
-                        if np.isclose(s, 0.):
-                            continue
-                        tr2 = (tr2-np.mean(tr2))/s
-# Do correlation
-                        cor = np.correlate(tr2, tr_ref, 'full')
-# Find maximum of correlation function
-                        n_disp = int(len(cor)/2)
-# If nearby picks exist, search maximum nearest to that time
-                        if help_flag:
-                            max_pos, _, _, _ = \
-                                self.main.utilities.min_max(
-                                    cor, half_width=half_width)
-                            if len(max_pos) > 0:
-                                i_max_pos = max_pos[np.argmin(
-                                    np.abs(max_pos-n_disp))]
-                                dm = i_max_pos-n_disp+n_act-n_pick_ref
-                            else:
-                                i_max_pos = np.argmax(cor)
-                                dm = i_max_pos-n_ref+1+n_sam1-n_ref1
-# If not, use absolute maximum
-                        else:
-                            i_max_pos = np.argmax(cor)
-                            dm = i_max_pos-n_ref+1+n_sam1-n_ref1
-                        dm += self.findNearest2ndDerivative(
-                            self.v[i, :], nt_ref+dm, int(half_width/2), 20)
-                        n_act = n_pick_ref+dm
-                        self.traces.pick_times[trace].\
-                            append(time_ref+dm*self.data.dt)
-                        self.traces.npick[trace] += 1
-                        self.traces.pick_times_min[trace].\
-                            append(self.traces.pick_times[trace][-1]-umin)
-                        self.traces.pick_times_max[trace].\
-                            append(self.traces.pick_times[trace][-1]+umin)
-# Now treat traces on the right side of the reference trace
+                        dm_last = dm
+                        off_last = dm
+                        dm, off0 = self.search_corr_pick(i, dm, off0)
+                        if dm is None:
+                            dm = dm_last
+                            off0 = off_last
+# Loop over the traces right of the reference trace
                 if trace_ref < self.actual_number_traces:
-                    n_act = n_pick_ref
+                    off0 = off_ref
+                    dm = 0
                     for i in range(trace_ref+1, self.actual_number_traces):
-                        if i > np.array(self.tr, dtype=int).max():
+                        if i < np.array(self.tr, dtype=int).min():
                             break
-                        trace = self.actual_traces[i]
-                        off = self.traces.offset[trace]
-                        off_a = abs(off)
-# If offset < 1cm, set pick tiöe to zero
-                        if off_a < 0.01:
-                            self.traces.npick[trace] = 1
-                            try:
-                                self.traces.pick_times[trace][0] = 0.
-                                self.traces.pick_times_min[trace][0] =\
-                                    -2*self.data.dt
-                                self.traces.pick_times_max[trace][0] =\
-                                    2*self.data.dt
-                            except (KeyError, IndexError, NameError):
-                                self.traces.pick_times[trace].append(0.)
-                                self.traces.pick_times_min[trace].append(
-                                    -2*self.data.dt)
-                                self.traces.pick_times_max[trace].append(
-                                    2*self.data.dt)
-                            continue
-# Set signal tr2 to be correlated with the reference signal
-                        nt_help = np.where(self.i_tr_help == i)[0]
-                        help_flag = False
-                        if nt_help > 0:
-                            n_act = int((self.t_pk_help[nt_help[0]] -
-                                         self.data.t0)/self.data.dt)
-                            help_flag = True
-                        elif off0_a < off_a < off_lim:
-                            n_act += int(dt_pick/self.dt)
-                        elif off_a < off0_a and off_a < off_lim:
-                            n_act -= int(dt_pick/self.data.dt)
-                        off0 = off
-                        n_sam1 = max(0, n_act-nd)
-                        n_sam2 = min(n_act+nd, n_max)
-                        tr2 = self.v[i, n_sam1:n_sam2]
-                        s = np.std(tr2)
-                        if np.isclose(s, 0.):
-                            continue
-                        tr2 = (tr2-np.mean(tr2))/s
-
-# Do correlation
-                        cor = np.correlate(tr2, tr_ref, 'full')
-# Find maximum of correlation function
-                        n_disp = int(len(cor)/2)
-# If nearby picks exist, search maximum nearest to that time
-                        if help_flag:
-                            max_pos, _, _, _ = \
-                                self.main.utilities.min_max(
-                                    cor, half_width=half_width)
-                            if len(max_pos > 0):
-                                i_max_pos = max_pos[np.argmin(
-                                    np.abs(max_pos-n_disp))]
-                            else:
-                                i_max_pos = np.argmax(cor)
-                            dm = i_max_pos-n_disp+n_act-n_pick_ref
-# If not, use absolute maximum
-                        else:
-                            i_max_pos = np.argmax(cor)
-                            dm = i_max_pos-n_ref+1+n_sam1-n_ref1
-                        dm += self.findNearest2ndDerivative(
-                            self.v[i, :], nt_ref+dm, int(half_width/2), 20)
-
-                        n_act = n_pick_ref+dm
-                        self.traces.pick_times[trace].\
-                            append(time_ref+dm*self.data.dt)
-                        self.traces.npick[trace] += 1
-                        self.traces.pick_times_min[trace].\
-                            append(self.traces.pick_times[trace][-1]-umin)
-                        self.traces.pick_times_max[trace].\
-                            append(self.traces.pick_times[trace][-1]+umin)
+                        dm_last = dm
+                        off_last = dm
+                        dm, off0 = self.search_corr_pick(i, dm, off0)
+                        if dm is None:
+                            dm = dm_last
+                            off0 = off_last
+                        
 # When all traces inside the zoom have been treated, leave the function
                 self.end = True
 # if any other than left button was pressed, cancel correlation picking
@@ -3509,8 +3401,6 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.setHelp(self.main_text)
                 self.main.function = "main"
                 return
-
-# Start function
 
 # Search picks done earlier in nearby gathers an plot a line connecting them
         self.x_pk_help, self.t_pk_help, self.i_tr_help = self.searchNearPicks()
@@ -3553,6 +3443,115 @@ class Window(QMainWindow, Ui_MainWindow):
         self.setHelp(self.main_text)
         self.traces.storePicks()
         self.main.function = "main"
+
+    def search_corr_pick(self, ntrac, dm, off0):
+        """
+        Search picks of one trace nearest to the pick of the trace beside or of
+        a pick done on another shot at the same offset and the nearest cmp.
+
+        Parameters
+        ----------
+        ntrac : int
+            Number of trace for which the pick is to be found.
+        dm : int
+            Shift of last calculated trace with respect to reference trace in
+            number of samples.
+        off0 : float
+            Offset of the last calculated trace.
+
+        Returns
+        -------
+        dm : int
+            Shift of the pick with respect to the reference trace in number of
+            samples. If the signal arrives earlier than in the reference trace,
+            dm is negative. If trace does not have data, dm is None
+        off : float
+            offset of the actual trace.
+
+        """
+        trace = self.actual_traces[ntrac]
+        off = self.traces.offset[trace]
+        off_a = abs(off)
+        n0 = abs(int(self.data.t0/self.data.dt))
+        n_act = self.n_pick_ref+dm
+        n_max = self.v.shape[1]
+# If offset < 1cm, set pick time to zero
+        if off_a < 0.01:
+            self.traces.npick[trace] = 1
+            try:
+                self.traces.pick_times[trace][0] = 0.
+                self.traces.pick_times_min[trace][0] =\
+                    -2*self.data.dt
+                self.traces.pick_times_max[trace][0] =\
+                    2*self.data.dt
+            except (KeyError, IndexError, NameError):
+                self.traces.pick_times[trace].append(0.)
+                self.traces.pick_times_min[trace].append(
+                    -2*self.data.dt)
+                self.traces.pick_times_max[trace].append(
+                    2*self.data.dt)
+                dm = n0-self.n_pick_ref
+            return dm, off
+        nt_help = np.where(self.i_tr_help == ntrac)[0]
+        help_flag = False
+# Set signal tr2 to be correlated with the reference signal
+        if nt_help > 0:
+            n_act = int((
+                self.t_pk_help[nt_help[0]]-self.data.t0)
+                / self.data.dt)
+            help_flag = True
+            dm = n_act-self.n_pick_ref
+        doff = off_a-abs(off0)
+        if doff < 0:
+            n_sam1 = int(max(0, n_act-self.shift_samp-self.half))
+            n_sam2 = int(min(n_act+self.shift_samp+self.half, n_max))
+        else:
+            n_sam1 = int(max(0, n_act-self.shift_samp))
+            n_sam2 = int(min(n_act+self.shift_samp+self.half, n_max))
+        # off0 = off
+        tr2 = self.v[ntrac, n_sam1:n_sam2]
+        s = np.std(tr2)
+# If trqce hqs no data (std = 0) skip picking
+        if np.isclose(s, 0.):
+            return None, None
+        tr2 = (tr2-np.mean(tr2))/s
+# Do correlation
+        cor = np.correlate(tr2, self.tr_ref, 'full')
+# Find maximum of correlation function
+# If nearby picks exist, search maximum nearest to that time
+        max_pos, max_val, _, _ = \
+            self.main.utilities.min_max(cor, half_width=int(self.half/4))
+        if len(max_pos > 0):
+            max_pos += 1+n_sam1-self.add_samp
+            index = np.where(max_pos+self.n_pick_ref >= n0)[0]
+            max_pos = max_pos[index]
+        if len(max_pos) == 0:
+            i_max_pos = np.argmax(cor)+1+n_sam1-self.add_samp
+        else:
+            if help_flag:
+                i_max_pos = max_pos[np.argmin(np.abs(max_pos-dm))]
+# If not, use absolute maximum
+            else:
+                if doff < 0:
+                    index = np.where(max_pos-dm <= 0)[0]
+                else:
+                    index = np.where(max_pos-dm >= 0)[0]
+                if len(index) > 0:
+                    mpos = max_pos[index]
+                else:
+                    mpos = max_pos-dm
+                i_max_pos = mpos[np.argmin(np.abs(mpos-dm))]
+        dm = i_max_pos
+        # dm += self.findNearest2ndDerivative(
+        #     self.v[i, :], nt_ref+dm, int(half_width/2), 20)
+        self.traces.pick_times[trace].\
+            append(self.time_ref+dm*self.data.dt)
+        self.traces.npick[trace] += 1
+        self.traces.pick_times_min[trace].\
+            append(self.traces.pick_times[trace][-1]-self.umin)
+        self.traces.pick_times_max[trace].\
+            append(self.traces.pick_times[trace][-1]+self.umin)
+        return dm, off
 
     def Sta_Lta(self):
         """

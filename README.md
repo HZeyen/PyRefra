@@ -14,6 +14,6 @@ Once installed, you can test and get familiar with the codes by using the data i
 For preparing your own dataset, [2_Data_preparation.md](./2_Data_preparation.md) describes file naming conventions and necessary geometry files.
 
 
-The main manual describing menu entries and other options is located in file [PyRefra_manual.pdf](./doc/PyRefra.pdf). **It is this file which describes always the last version.** No guaranty that the above mentioned online version (.md files) is completely up to date, since it is more difficult to maintain. A user's guide [PyRefra_guide.pdf](./doc/PyRefra_guide.pdf) takes the opposite approach, explaining how to work with pyrefra.
+The main manual describing menu entries and other options is located in file [PyRefra_manual.pdf](./doc/PyRefra_manual.pdf). **It is this file which describes always the last version.** No guaranty that the above mentioned online version (.md files) is completely up to date, since it is more difficult to maintain. A user's guide [PyRefra_guide.pdf](./doc/PyRefra_guide.pdf) takes the opposite approach, explaining how to work with pyrefra.
 
 Thanks to my son Manuel Zeyen for creating the new icon !

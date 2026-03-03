@@ -278,7 +278,8 @@ class Window(QMainWindow, Ui_MainWindow):
             + "right click to finish; "\
             + "SHFT+left click: accept picks along green line; "\
             + "blue dashed line: air-wave arrivals; "\
-            + "green dashed line: nearby earlier picks"
+            + "green dashed line: nearby earlier picks; "\
+            + "if green line exists: SHFT+left click: accept picks along the line"
         self.pick_move_text = "Move picks module: left click to choose pick, "\
             + "up/down or Numpad8/Numpad2 key to move pick, with "\
             + "SHFT 10 samples, with CTRL 1 ms; Right/Left key to "\
@@ -913,7 +914,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         def onPress(event):
             if event.button == 1:
-                self.searchTrace(event.xdata)
+                ret = self.searchTrace(event.xdata)
+                if not ret:
+                    return
                 trace = self.itrace
                 nf = self.traces.file[trace]
                 nt = self.traces.trace[trace]
@@ -1148,7 +1151,9 @@ class Window(QMainWindow, Ui_MainWindow):
 
         def onPress(event):
             if event.button == 1:
-                self.searchTrace(event.xdata)
+                ret = self.searchTrace(event.xdata)
+                if not ret:
+                    return
                 self.traces.amplitudes[self.itrace] *= -1
                 self.v[self.n_tr, :] *= -1
                 print("trace ", self.n_tr, " changed sign")
@@ -2485,6 +2490,8 @@ class Window(QMainWindow, Ui_MainWindow):
                 self.p_r: receiver number of selected trace
                 self.n_tr: number of trace on actual screen
         """
+        if x is None:
+            return False
         dmin = 1e10
         self.n_tr = 0
         for i in range(self.actual_number_traces):
@@ -2495,6 +2502,7 @@ class Window(QMainWindow, Ui_MainWindow):
         self.itrace = self.actual_traces[self.n_tr]
         self.p_s = self.traces.shot[self.itrace]
         self.p_r = self.traces.receiver[self.itrace]
+        return True
 
     def searchPick(self, x, t=0):
         """
@@ -2518,7 +2526,9 @@ class Window(QMainWindow, Ui_MainWindow):
                     None, "Warning", "No pick exists for this gather.\n",
                     QtWidgets.QMessageBox.Close)
                 return False
-        self.searchTrace(x)
+        ret = self.searchTrace(x)
+        if not ret:
+            return
 # If there are several picks for the trace, search pick nearest to time of
 # mouse position
         if self.traces.npick[self.itrace] > 0:
@@ -3008,12 +3018,14 @@ class Window(QMainWindow, Ui_MainWindow):
 
         def onPress(event):
             nonlocal tpk, npi
+            if not event.xdata:
+                return
             if event.button == 1:
                 modifiers = QtWidgets.QApplication.keyboardModifiers()
                 if modifiers == QtCore.Qt.ShiftModifier:
                     print("Shift modifier")
                     for i, _ in enumerate(self.i_pk):
-                        self.searchTrace(self.x_pk[i])
+                        _ = self.searchTrace(self.x_pk[i])
                         trace = self.itrace
                         sht = self.p_s
                         stn = self.p_r
@@ -3040,9 +3052,12 @@ class Window(QMainWindow, Ui_MainWindow):
 # Left mouse button pressed, define a new pick
 # First click at the position of the pick
                 if self.press == 0:
-                    self.press = 1
                     tpk = event.ydata
-                    self.searchTrace(event.xdata)
+                    ret = self.searchTrace(event.xdata)
+                    if not ret:
+                        print("Mouse outside axis")
+                        return
+                    self.press = 1
                     trace = self.itrace
                     sht = self.p_s
                     stn = self.p_r
@@ -3057,8 +3072,8 @@ class Window(QMainWindow, Ui_MainWindow):
                     self.canvas = self.lin.figure.canvas
                     x_coor = [self.x[self.n_tr]-0.3, self.x[self.n_tr]+0.3]
                     y_coor = [tpk, tpk]
-                    self.lin, = self.axes[self.fig_plotted].plot(x_coor,
-                                                                 y_coor, "r")
+                    self.lin, = self.axes[self.fig_plotted].plot(
+                        x_coor, y_coor, "r")
                     self.axes[self.fig_plotted].draw_artist(self.lin)
                     self.canvas.blit(self.axes[self.fig_plotted].bbox)
                 else:
@@ -3316,7 +3331,9 @@ class Window(QMainWindow, Ui_MainWindow):
 # If the left mouse button was pressed (manual pick set), come here
 # Search the trace where the pick has been defined
             if event.button == 1:
-                self.searchTrace(event.xdata)
+                ret = self.searchTrace(event.xdata)
+                if not ret:
+                    return
                 trace = self.itrace
                 sht = self.traces.shot[trace]
                 stn = self.traces.receiver[trace]
@@ -4314,7 +4331,7 @@ class Window(QMainWindow, Ui_MainWindow):
             max_off = xoff1
         else:
             max_off = x_unique[n_unique-1]
-# xpk will contain the offsets of existing pickks, ypk the corresponding times
+# xpk will contain the offsets of existing picks, ypk the corresponding times
 # (t_env_der_pick may contain NaNs). i_tr is the trace number of each pick
         xpk = []
         ypk = []
@@ -4328,7 +4345,7 @@ class Window(QMainWindow, Ui_MainWindow):
             if x_unique[n_off] <= max_off:
                 i_off_test = n_off
             while x_off[i] == x_unique[n_off]:
-                if np.isnan(y_test[i]) is False:
+                if not np.isnan(y_test[i]):
                     xpk.append(x_off[i])
                     ypk.append(y_test[i])
                     i_tr.append(i)

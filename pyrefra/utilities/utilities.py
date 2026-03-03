@@ -3664,7 +3664,7 @@ class Utilities:
                 amp_calc[nx_neg] = np.exp(y_data)
                 lamp_calc[nx_neg] = y_data.copy()
                 plt_txt = f" neg: Q=[{q_factor_neg[0]:0.2f}, "\
-                    + "{q_factor_neg[1]:0.2f}], R2 = {r2_neg:0.3f}"
+                    + f"{q_factor_neg[1]:0.2f}], R2 = {r2_neg:0.3f}"
 # If there are more than 3 traces on the positive side calculate attenuation
 # in positive direction
 # If less than 7 traces exist, fit one single line
@@ -3683,7 +3683,7 @@ class Utilities:
                                           + intercept_pos[0])
                 lamp_calc[nx_pos] = intercept_pos[0]+x[nx_pos]*slope_pos[0]
                 plt_txt += f" pos: Q={q_factor_pos[0]:0.2f}, "\
-                    + "R2 = {r2_pos:0.3f}"
+                    + f"R2 = {r2_pos:0.3f}"
 # If more than 6 traces exist, fit two line
 # Use function bestLines from refraPlot.py
             else:
@@ -3697,7 +3697,7 @@ class Utilities:
                 amp_calc[nx_pos] = np.exp(y_data)
                 lamp_calc[nx_pos] = y_data.copy()
                 plt_txt += f" pos: Q=[{q_factor_pos[0]:0.2f}, "\
-                    + "{q_factor_pos[1]:0.2f}], R2 = {r2_pos:0.3f}"
+                    + f"{q_factor_pos[1]:0.2f}], R2 = {r2_pos:0.3f}"
 # Plot results to screen
 #        self.window.drawNew(False)
 #        self.figatt =  self.window.figs[self.window.fig_plotted]
@@ -3715,11 +3715,11 @@ class Utilities:
         self.ax_amp.set_ylabel("Max amplitude [n.u.]", fontsize=18)
         if self.window.fg_flag:
             text = f"file {self.files.file_numbers[self.window.fig_plotted]}:"\
-                + " {plt_txt}"
+                + f" {plt_txt}"
             self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.sg_flag:
             text = f"shot {self.traces.shot[self.window.actual_traces[0]]+1}:"\
-                + " {plt_txt}"
+                + f" {plt_txt}"
             self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.rg_flag:
             text = "receiver "\

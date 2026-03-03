@@ -410,8 +410,11 @@ class Main(QtWidgets.QWidget):
         self.direction_end = np.array(["N", "NNE", "NE", "ENE", "E", "ESE",
                                        "SE", "SSE", "S", "SSW", "SW", "WSW",
                                        "W", "WNW", "NW", "NNW"], dtype=str)
-        if os.path.exists("PyRefra.config"):
-            with open("PyRefra.config", "r") as fo:
+        if os.path.exists("PyRefra.config") and\
+                not os.path.exists("line.config"):
+            os.rename('PyRefra.config', 'line.config')
+        if os.path.exists("line.config"):
+            with open("line.config", "r") as fo:
                 self.dir_flag = True
                 self.title = fo.readline().split("\n")[0]
                 print(f"Title: {self.title}")
@@ -427,18 +430,20 @@ class Main(QtWidgets.QWidget):
                 print("Profile direction in file PyRefra incorrect: "
                       + f"*{self.dir_start}*")
         else:
-            print("File PyRefra.config not found")
+            path = os.path.normpath(self.dir0)
+            name = path.split(os.sep)[-1]
+            print("File line.config not found")
             results, ok_button = self.dialog(
                     ["General title (name of profile...)",
                      "Geographic direction of profile start",
                      self.direction_start], ["e", "l", "b"],
-                    [self.dir0, None, None], "PyRefra configuration")
+                    [name, None, None], "Line configuration")
             if ok_button:
                 self.title = results[0]
                 self.dir_start = self.direction_start[int(results[2])]
                 self.dir_end = self.direction_end[int(results[2])]
                 self.config = True
-                with open("PyRefra.config", "w") as fo:
+                with open("line.config", "w") as fo:
                     fo.write(f"{self.title}\n")
                     fo.write(self.dir_start)
                 print(f"{self.title}\n"

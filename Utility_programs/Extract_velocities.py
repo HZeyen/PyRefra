@@ -30,6 +30,8 @@ sys_path = r"E:/Sources_2010/Python_programs"
 if sys_path not in sys.path:
     sys.path.append(sys_path)
 from Dialog_HZ import dialog
+dir0 = r"E:\Seg2Dat\Erreurs\Joana"
+os.chdir(dir0)
 
 # Get velocity file
 app = QtWidgets.QApplication(sys.argv)

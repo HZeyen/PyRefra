@@ -3112,9 +3112,12 @@ class Window(QMainWindow, Ui_MainWindow):
                 xx = self.x[self.n_tr]
                 x_c = [xx-0.3, xx+0.3, xx, xx, xx]
                 yy = self.traces.pick_times[trace][self.ipk]
-                yy1 = self.traces.pick_times_min[trace][self.ipk]
-                yy2 = self.traces.pick_times_max[trace][self.ipk]
-                y_c = [yy, yy, yy, yy1, yy2]
+                try:
+                    yy1 = self.traces.pick_times_min[trace][self.ipk]
+                    yy2 = self.traces.pick_times_max[trace][self.ipk]
+                    y_c = [yy, yy, yy, yy1, yy2]
+                except IndexError:
+                    y_c = [yy, yy, yy, yy, yy]
 # TO DO: I did not yet find a way to simply erase the drawing of a pick (except
 #        redrawing). Therefore, for the moment, the pick is only hidden,
 #        plotting it in white

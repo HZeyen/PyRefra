@@ -2709,7 +2709,7 @@ class Utilities:
         cov_min = np.min(self.cover[self.cover > -np.inf])
         cov_max = np.max(self.cover[self.cover < np.inf])
         cmp = cc.cm.fire_r
-        data = deepcopy(self.cover)
+        data = pg.RVector(self.cover)
         data[np.isclose(data, 0.)] = np.nan
         pg.viewer.showMesh(pg.Mesh(
             self.mgr.paraDomain), data=data, ax=self.ax_rays, cMap=cmp,

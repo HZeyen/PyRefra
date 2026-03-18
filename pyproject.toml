@@ -19,6 +19,7 @@ dependencies = [
 	"statsmodels",
 	"colorcet",
 	"PyQt5",
+	"setuptools<81",
 ]
 
 classifiers = [

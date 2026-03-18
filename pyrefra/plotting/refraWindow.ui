@@ -63,7 +63,7 @@
      <x>0</x>
      <y>0</y>
      <width>1500</width>
-     <height>31</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -97,6 +97,7 @@
     <addaction name="distanceGather"/>
     <addaction name="component"/>
     <addaction name="phaseAngles"/>
+    <addaction name="NumberOrder"/>
     <addaction name="separator"/>
     <addaction name="zoom"/>
     <addaction name="zoom_Out"/>
@@ -861,6 +862,17 @@
    </property>
    <property name="shortcut">
     <string>Shift+E</string>
+   </property>
+  </action>
+  <action name="NumberOrder">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Toggle x-axis by offset/number</string>
+   </property>
+   <property name="shortcut">
+    <string>N</string>
    </property>
   </action>
  </widget>

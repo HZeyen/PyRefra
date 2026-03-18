@@ -157,6 +157,7 @@ class Utilities:
 # model_colors contains the color maps that may be used for model plots
         self.model_colors = ["Special P (cyan=1500)", "Special S (cyan=500)",
                              "rainbow", "viridis", "seismic"]
+        self.color_number = 0
 # smooth, s_fact and zSmooth contain default smoothing parameters for the
 #    inversion. Values may be modified interactively
         self.smooth = 200
@@ -2389,7 +2390,7 @@ class Utilities:
                     [self.zmax, self.smooth, self.s_fact, self.zSmooth,
                      self.maxiter, self.vmin, self.vmax, self.vmin_limit,
                      self.vmax_limit, None, self.v_scale_min, self.v_scale_max,
-                     None, None, None], "Inversion parameters")
+                     None, self.color_number, None], "Inversion parameters")
 
             if not okButton:
                 print("\n Inversion cancelled")
@@ -2423,7 +2424,8 @@ class Utilities:
             except IndexError:
                 self.v_scale_min = 150
                 self.v_scale_max = 6000
-            color_scale = self.model_colors[int(results[13])]
+            self.color_number = int(results[13])
+            color_scale = self.model_colors[self.color_number]
             if "Special" in color_scale:
                 if "1500" in color_scale:
                     color_scale = "specialP"
@@ -2573,8 +2575,8 @@ class Utilities:
                  "Type of color scale:", self.model_colors,
                  "Maximum depth [m]", "Plot rays on final model"],
                 ["l", "e", "e", "l", "b", "e", "c"],
-                [None, self.v_scale_min, self.v_scale_max, None, 0,
-                 self.zmax_plt, None], "Change color scale")
+                [None, self.v_scale_min, self.v_scale_max, None,
+                 self.color_number, self.zmax_plt, None], "Change color scale")
             if okBut is False:
                 self.main.function = "main"
                 return
@@ -2707,7 +2709,7 @@ class Utilities:
         cov_min = np.min(self.cover[self.cover > -np.inf])
         cov_max = np.max(self.cover[self.cover < np.inf])
         cmp = cc.cm.fire_r
-        data = deepcopy(self.cover)
+        data = pg.RVector(self.cover)
         data[np.isclose(data, 0.)] = np.nan
         pg.viewer.showMesh(pg.Mesh(
             self.mgr.paraDomain), data=data, ax=self.ax_rays, cMap=cmp,
@@ -2896,7 +2898,7 @@ class Utilities:
 # Plot evolution of chi2
             chi_ev = np.log10(np.array(self.mgr.inv.chi2History))
             nit = len(chi_ev)
-            self.ax_chi.plot(np.arange(nit)+1, chi_ev)
+            self.ax_chi.plot(np.arange(nit), chi_ev)
             self.ax_chi.set_ylabel("log10(chi2)", fontsize=self.tick_size_sec)
             self.ax_chi.set_xlabel("iteration #", fontsize=self.tick_size_sec)
             self.ax_chi.set_title(f"smoothing:\nini: {int(self.smooth)}, "
@@ -2988,7 +2990,7 @@ class Utilities:
             self.ax_diff.set_ylabel("Source positions [m]",
                                     fontsize=self.tick_size_sec)
             self.ax_diff.set_title(
-                f"Misfit after {self.mgr.inv.inv.iter()+1} "
+                f"Misfit after {self.mgr.inv.inv.iter()} "
                 + f"iterations:\nchi2={self.mgr.inv.chi2():0.2f}; "
                 + f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms",
                 fontsize=self.tick_size_sec+2)
@@ -3664,7 +3666,7 @@ class Utilities:
                 amp_calc[nx_neg] = np.exp(y_data)
                 lamp_calc[nx_neg] = y_data.copy()
                 plt_txt = f" neg: Q=[{q_factor_neg[0]:0.2f}, "\
-                    + "{q_factor_neg[1]:0.2f}], R2 = {r2_neg:0.3f}"
+                    + f"{q_factor_neg[1]:0.2f}], R2 = {r2_neg:0.3f}"
 # If there are more than 3 traces on the positive side calculate attenuation
 # in positive direction
 # If less than 7 traces exist, fit one single line
@@ -3683,7 +3685,7 @@ class Utilities:
                                           + intercept_pos[0])
                 lamp_calc[nx_pos] = intercept_pos[0]+x[nx_pos]*slope_pos[0]
                 plt_txt += f" pos: Q={q_factor_pos[0]:0.2f}, "\
-                    + "R2 = {r2_pos:0.3f}"
+                    + f"R2 = {r2_pos:0.3f}"
 # If more than 6 traces exist, fit two line
 # Use function bestLines from refraPlot.py
             else:
@@ -3697,7 +3699,7 @@ class Utilities:
                 amp_calc[nx_pos] = np.exp(y_data)
                 lamp_calc[nx_pos] = y_data.copy()
                 plt_txt += f" pos: Q=[{q_factor_pos[0]:0.2f}, "\
-                    + "{q_factor_pos[1]:0.2f}], R2 = {r2_pos:0.3f}"
+                    + f"{q_factor_pos[1]:0.2f}], R2 = {r2_pos:0.3f}"
 # Plot results to screen
 #        self.window.drawNew(False)
 #        self.figatt =  self.window.figs[self.window.fig_plotted]
@@ -3715,11 +3717,11 @@ class Utilities:
         self.ax_amp.set_ylabel("Max amplitude [n.u.]", fontsize=18)
         if self.window.fg_flag:
             text = f"file {self.files.file_numbers[self.window.fig_plotted]}:"\
-                + " {plt_txt}"
+                + f" {plt_txt}"
             self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.sg_flag:
             text = f"shot {self.traces.shot[self.window.actual_traces[0]]+1}:"\
-                + " {plt_txt}"
+                + f" {plt_txt}"
             self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.rg_flag:
             text = "receiver "\

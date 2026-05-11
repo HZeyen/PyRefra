@@ -1210,12 +1210,16 @@ class Data():
             return
         if not file_out:
             file_out = f"rec{self.main.window.fig_plotted+1:0>5}.asc"
+        data = np.transpose(self.main.window.v)
+        for i in range(data.shape[1]):
+            if np.isclose(np.std(data[:, i]), 0.):
+                data[:, i] = np.nan
         with open(file_out, 'w') as fo:
-            fo.write(f"{self.main.window.v.shape[1]} "
-                     + f"{self.main.window.v.shape[0]} "
+            fo.write(f"{data.shape[0]} "
+                     + f"{data.shape[1]} "
                      + "lines=data; columns=receivers\n")
             fo.write(f"{self.dt} {self.t0} dt [seconds], t0 [seconds]\n")
-            np.savetxt(fo, np.transpose(self.main.window.v))
+            np.savetxt(fo, data)
 
     def saveHeader(self):
         """

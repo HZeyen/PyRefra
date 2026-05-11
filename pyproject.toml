@@ -13,12 +13,13 @@ authors = [{ name = "Hermann ZEYEN", email = "hermann.zeyen@universite-paris-sac
 dependencies = [
 	"pygimli",
     "scikit-learn",
-    "numpy",
+    "numpy<2",
     "matplotlib>3.6",
 	"obspy",
 	"statsmodels",
 	"colorcet",
 	"PyQt5",
+	"setuptools<81",
 ]
 
 classifiers = [

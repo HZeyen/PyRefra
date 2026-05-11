@@ -166,7 +166,7 @@ class Traces():
                     self.shot_pos.append(xs)
                     self.receiver_pos.append(xr)
                     off = np.sqrt((xs-xr)**2+(ys-yr)**2++(zs-zr)**2)
-                    self.xcdp.append(np.round(xs+xr, 0)*0.5)
+                    self.xcdp.append(np.round((xs+xr)*2., 0)*0.25)
                 else:
                     _ = QtWidgets.QMessageBox.critical(
                         None, "Error",
@@ -187,7 +187,7 @@ class Traces():
                 if xr < xs:
                     off = -off
                 self.offset.append(off)
-                self.off_round.append(round(off, 0))
+                self.off_round.append(round(off*2., 0)/2.)
                 o = int(np.round(abs(off), 0))
                 if o not in self.off_pt_dict:
                     self.off_pt_dict[o] = {}

@@ -17,24 +17,25 @@ from PyQt5 import QtWidgets
 from pyrefra import Pyrefra
 
 if __name__ == "__main__":
-    # dir0 = r"E:/Seg2Dat/Fontaines-Salees/2021/2021-10-17_Profil5"
+    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2021\2021-10-15_Profil3"
     # dir0 = r"E:/Seg2Dat/Brigaud/Beaufremont"
     # dir0 = r"E:/Seg2Dat/Feroes/Eidi_21_07_23"
-    # dir0 = r"E:\Seg2Dat\Erreurs\Giordano"
+    # dir0 = r"E:\Seg2Dat\Souzy\Souzy_Line4"
     # dir0 = r"E:/Seg2Dat/Campus_haut"
     # dir0 = r"E:/Seg2Dat/Rouvres2"
     # dir0 = r"E:\Seg2Dat\504_nov24_actif"
-    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2026\FS_passive\split2\win_whitening_10000_notch_freq_(50, 62)geo_min_0_geo_max_26\bloc01_correlation"
-    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2026\FS_passive\split2\win_whitening_10000_notch_freq_(50, 62)geo_min_0_geo_max_26\summed"
-    dir0 = r"E:\Seg2Dat\Normandie\line1"
+    # dir0 = r"E:\Seg2Dat\Bois_passif\seg2_save"
+    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\2023\Line1"
+    # dir0 = r"E:\Seg2Dat\CapFrehel\cap-frehel_13jun2023_am_1\segy"
+    # dir0 = r"E:\Seg2Dat\Fontaines-Salees\FS-passive\Test"
+    dir0 = r"E:\Seg2Dat\Villars\Line5"
 
     os.chdir(dir0)
 
     def my_exception_hook(exctype, value, tracebk):
         """
         Not clear what it is good for.
-        The problem is that usually no error messages are passed from
-        QT.
+        The problem is that usually no error messages are passed from QT.
         I found this in the internet, but it seems it does not work either...
 
         Parameters
@@ -76,10 +77,22 @@ if __name__ == "__main__":
 
     try:
         app = QtWidgets.QApplication(sys.argv)
+        screens = app.screens()
         sys._excepthook = sys.excepthook
         sys.excepthook = my_exception_hook
         main = Pyrefra.Main(str(top), dir0)
-        main.window.showMaximized()
+        # main.window.showMaximized()
+        main.screens = screens
+        if len(screens) > 1:
+            second_screen = screens[1]
+            geometry = second_screen.geometry()
+            print(f"Opening on second screen: {geometry}")
+# Move and resize window to fill the second screen
+            main.window.setGeometry(geometry)
+            main.window.showFullScreen()
+        else:
+            print("No secondary screen detected. Opening on primary screen.")
+            main.window.showMaximized()
         sys.exit(app.exec_())
     except Exception as error:
         print(f"An unexpected exception occurred: {error}.")

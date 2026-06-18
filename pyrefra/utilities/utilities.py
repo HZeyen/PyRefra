@@ -57,8 +57,11 @@ class Utilities:
         inversion
             vel_scale
         invCol
-        prepareSOFI2D
+        prepare_FWI
+        prepareShaVi
         atten_amp
+        pseudo
+        checkerboard
     """
 
     def __init__(self, main):
@@ -151,12 +154,14 @@ class Utilities:
         self.ax_chi = None
 # zmax will contain the maximum depth of the inversion model
         self.zmax = 0.
+        self.max_cell = 0.
 # xax_min and xax_max will contain the limits of the x_axis for model plots
         self.xax_min = 0.
         self.xax_max = 0.
 # model_colors contains the color maps that may be used for model plots
         self.model_colors = ["Special P (cyan=1500)", "Special S (cyan=500)",
                              "rainbow", "viridis", "seismic"]
+        self.color_number = 0
 # smooth, s_fact and zSmooth contain default smoothing parameters for the
 #    inversion. Values may be modified interactively
         self.smooth = 200
@@ -564,6 +569,12 @@ class Utilities:
             self.window.axes[self.window.fig_plotted].draw(renderer)
             dx = self.window.coor_x[1]-self.window.coor_x[0]
             if np.abs(dx) < np.abs(self.window.x[1]-self.window.x[0]):
+                _ = QtWidgets.QMessageBox.warning(
+                    None, "Warning",
+                    " Line too short!\n\nIt must have at least a length in X "
+                    "equal to the distance between two geophones.\n"
+                    "Try again",
+                    QtWidgets.QMessageBox.Close)
                 continue
             slope = (self.window.coor_y[1]-self.window.coor_y[0])/dx
             vel = np.round(1/np.abs(slope), 0)
@@ -624,14 +635,18 @@ class Utilities:
                 msgbox.setWindowTitle(f"Positive direction Layer {n_lay_r+1}")
             else:
                 msgbox.setWindowTitle(f"Negative direction Layer {n_lay_l+1}")
-            msgbox.setText("Another layer: Yes\n Finish model: No\n "
-                           + "Redo this layer: Retry")
-            msgbox.setInformativeText("Click 'More details' to see layer "
-                                      + "parameters")
-            msgbox.setDetailedText(f"Velocity: {vel:0.0f} m/s\nThickness: "
+            msgbox.setText(f"Velocity: {vel:0.0f} m/s\nThickness: "
                                    + f"{tk:0.2f} m\nDepth of top: "
                                    + f"{depth:0.2f} m\n"
-                                   + f"Intercept: {tint*1000:0.1f} ms")
+                                   + f"Intercept: {tint*1000:0.1f} ms\n\n"
+                                   + "Another layer: Yes\n Finish model: No\n "
+                                   + "Redo this layer: Retry")
+            # msgbox.setInformativeText("Click 'More details' to see layer "
+            #                           + "parameters")
+            # msgbox.setDetailedText(f"Velocity: {vel:0.0f} m/s\nThickness: "
+            #                        + f"{tk:0.2f} m\nDepth of top: "
+            #                        + f"{depth:0.2f} m\n"
+            #                        + f"Intercept: {tint*1000:0.1f} ms")
             msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes |
                                       QtWidgets.QMessageBox.No |
                                       QtWidgets.QMessageBox.Retry)
@@ -1373,12 +1388,12 @@ class Utilities:
         if self.high_cut_flag+self.low_cut_flag:
             results, okButton = self.main.dialog(
                 ["Low-cut  frequency", "High-cut frequency",
-                 "Use this filter (y/n)?", "Apply to all shots"],
-                ["e", "e", "e", "c"],
-                [int(self.fmin), int(self.fmax), "y", None],
+                 "Show spectrum again", "Apply to all shots"],
+                ["e", "e", "c", "c"],
+                [int(self.fmin), int(self.fmax), None, None],
                 "Frequency filter")
 
-            if okButton and results[2].lower() == "y":
+            if okButton and results[2] < 0:
                 if int(results[3]) < 0:
                     self.all_freq_filter = False
                 else:
@@ -1399,12 +1414,16 @@ class Utilities:
         ndat = np.size(self.window.v[0, :])
         tr_spec = self.window.actual_traces[tr1:tr2]
         F = np.zeros(ndat, dtype=np.complex128)
+        frequencies = np.arange(ndat)/(ndat*self.data.dt)
+        nf = int(ndat/5)
+        nf_200 = np.where(frequencies >= 200)[0][0]
+        nf = max(nf, nf_200)
         for it in range(tr1, tr2):
             s = np.std(self.window.v[it, :])
             if s > 0:
                 F += np.fft.fft(self.window.v[it, :])/s
-        Fabs = np.abs(F[0:int(ndat/5)])
-        freq = np.arange(np.size(Fabs))/(ndat*self.data.dt)
+        Fabs = np.abs(F[0:nf])
+        freq = frequencies[:nf]
         fmax = np.max(freq)
         self.window.drawNew(False)
         self.window.axes[self.window.fig_plotted].plot(freq, Fabs)
@@ -2369,6 +2388,7 @@ class Utilities:
 # Call dialog window for input of a number of inversion control parameters
             results, okButton = self.main.dialog(
                     ["Maximum depth (m, positive down)",
+                     "Maximum cell size [m2]",
                      "Initial smoothing parameter (<0: optimize)",
                      "Smoothing reduction per iteration",
                      "Smoothing in z direction (0...1):",
@@ -2384,12 +2404,12 @@ class Utilities:
                      "Type of color scale:",
                      self.model_colors,
                      "Plot rays on final model"],
-                    ["e", "e", "e", "e", "e", "e", "e", "e", "e", "l", "e",
-                     "e", "l", "b", "c"],
-                    [self.zmax, self.smooth, self.s_fact, self.zSmooth,
+                    ["e", "e", "e", "e", "e", "e", "e", "e", "e", "e", "l",
+                     "e", "e", "l", "b", "c"],
+                    [self.zmax, self.max_cell, self.smooth, self.s_fact, self.zSmooth,
                      self.maxiter, self.vmin, self.vmax, self.vmin_limit,
                      self.vmax_limit, None, self.v_scale_min, self.v_scale_max,
-                     None, None, None], "Inversion parameters")
+                     None, self.color_number, None], "Inversion parameters")
 
             if not okButton:
                 print("\n Inversion cancelled")
@@ -2397,15 +2417,16 @@ class Utilities:
                 return
 
             self.zmax = float(results[0])
-            self.smooth = float(results[1])
+            self.max_cell = float(results[1])
+            self.smooth = float(results[2])
             if self.smooth < 0:
                 opt_flag = True
                 self.smooth *= -1.
             else:
                 opt_flag = False
-            self.s_fact = float(results[2])
-            self.zSmooth = float(results[3])
-            self.maxiter = int(results[4])
+            self.s_fact = float(results[3])
+            self.zSmooth = float(results[4])
+            self.maxiter = int(results[5])
 # Avoid maximum number of iteration being 1, since this would not produce a
 #   final model (self.endModel is empty). It seems that pygimli counts the
 #   forward calculation of the starting model as first iteration.
@@ -2413,23 +2434,24 @@ class Utilities:
                 self.maxiter = max(self.maxiter, 2)
             else:
                 self.maxiter = 0
-            self.vmin = float(results[5])
-            self.vmax = float(results[6])
-            self.vmin_limit = float(results[7])
-            self.vmax_limit = float(results[8])
+            self.vmin = float(results[6])
+            self.vmax = float(results[7])
+            self.vmin_limit = float(results[8])
+            self.vmax_limit = float(results[9])
             try:
-                self.v_scale_min = float(results[10])
-                self.v_scale_max = float(results[11])
+                self.v_scale_min = float(results[11])
+                self.v_scale_max = float(results[12])
             except IndexError:
                 self.v_scale_min = 150
                 self.v_scale_max = 6000
-            color_scale = self.model_colors[int(results[13])]
+            self.color_number = int(results[14])
+            color_scale = self.model_colors[self.color_number]
             if "Special" in color_scale:
                 if "1500" in color_scale:
                     color_scale = "specialP"
                 else:
                     color_scale = "specialS"
-            if int(results[14]) > -1:
+            if int(results[15]) > -1:
                 self.rays_flag = True
             else:
                 self.rays_flag = False
@@ -2445,14 +2467,14 @@ class Utilities:
             if self.maxiter < 1:
                 if self.vmin_limit == 0 and self.vmax_limit == 0:
                     self.mgr.invert(
-                        self.scheme, secNodes=3, paraMaxCellSize=5.0,
+                        self.scheme, secNodes=3, paraMaxCellSize=self.max_cell,
                         zWeight=self.zSmooth, vTop=self.vmin,
                         vBottom=self.vmax, verbose=1, paraDepth=self.zmax,
                         dPhi=0.01, lam=self.smooth, lambdaFactor=self.s_fact,
                         maxIter=1000)
                 else:
                     self.mgr.invert(
-                        self.scheme, secNodes=3, paraMaxCellSize=5.0,
+                        self.scheme, secNodes=3, paraMaxCellSize=self.max_cell,
                         zWeight=self.zSmooth, vTop=self.vmin,
                         vBottom=self.vmax, verbose=1, paraDepth=self.zmax,
                         dPhi=0.01, lam=self.smooth,
@@ -2460,7 +2482,7 @@ class Utilities:
                         lambdaFactor=self.s_fact, maxIter=1000)
             else:
                 self.mgr.invert(
-                    self.scheme, secNodes=3, paraMaxCellSize=5.0,
+                    self.scheme, secNodes=3, paraMaxCellSize=self.max_cell,
                     zWeight=self.zSmooth, vTop=self.vmin, vBottom=self.vmax,
                     maxIter=self.maxiter, verbose=1, paraDepth=self.zmax,
                     dPhi=0.01, lam=self.smooth,
@@ -2551,6 +2573,7 @@ class Utilities:
             with open(os.path.join(self.p_aim, "inversion_parameters.txt"),
                       "w") as fo:
                 fo.write(f"maximum_depth: {self.zmax:0.1f}\n")
+                fo.write(f"Maximum cell size: {self.max_cell:0.1f}")
                 fo.write(f"initial_smoothing: {self.smooth:0.1f}\n")
                 fo.write(f"smoothing_reduction_factor: {self.s_fact:0.3f}\n")
                 fo.write(f"Z_smoothing: {self.zSmooth:0.1f}\n")
@@ -2573,8 +2596,8 @@ class Utilities:
                  "Type of color scale:", self.model_colors,
                  "Maximum depth [m]", "Plot rays on final model"],
                 ["l", "e", "e", "l", "b", "e", "c"],
-                [None, self.v_scale_min, self.v_scale_max, None, 0,
-                 self.zmax_plt, None], "Change color scale")
+                [None, self.v_scale_min, self.v_scale_max, None,
+                 self.color_number, self.zmax_plt, None], "Change color scale")
             if okBut is False:
                 self.main.function = "main"
                 return
@@ -2707,7 +2730,7 @@ class Utilities:
         cov_min = np.min(self.cover[self.cover > -np.inf])
         cov_max = np.max(self.cover[self.cover < np.inf])
         cmp = cc.cm.fire_r
-        data = deepcopy(self.cover)
+        data = pg.RVector(self.cover)
         data[np.isclose(data, 0.)] = np.nan
         pg.viewer.showMesh(pg.Mesh(
             self.mgr.paraDomain), data=data, ax=self.ax_rays, cMap=cmp,
@@ -2896,7 +2919,7 @@ class Utilities:
 # Plot evolution of chi2
             chi_ev = np.log10(np.array(self.mgr.inv.chi2History))
             nit = len(chi_ev)
-            self.ax_chi.plot(np.arange(nit)+1, chi_ev)
+            self.ax_chi.plot(np.arange(nit), chi_ev)
             self.ax_chi.set_ylabel("log10(chi2)", fontsize=self.tick_size_sec)
             self.ax_chi.set_xlabel("iteration #", fontsize=self.tick_size_sec)
             self.ax_chi.set_title(f"smoothing:\nini: {int(self.smooth)}, "
@@ -2988,7 +3011,7 @@ class Utilities:
             self.ax_diff.set_ylabel("Source positions [m]",
                                     fontsize=self.tick_size_sec)
             self.ax_diff.set_title(
-                f"Misfit after {self.mgr.inv.inv.iter()+1} "
+                f"Misfit after {self.mgr.inv.inv.iter()} "
                 + f"iterations:\nchi2={self.mgr.inv.chi2():0.2f}; "
                 + f"abs_rms={self.mgr.inv.inv.absrms()*1000:0.1f}ms",
                 fontsize=self.tick_size_sec+2)
@@ -3368,10 +3391,6 @@ class Utilities:
                 np.exp(-(np.pi**2)*(f**2)*(t**2))
             return t+t0, y
 
-        folder = "ShaVi"
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        os.chdir(folder)
         x = self.mgr.paraDomain.cellCenters().array()[:, 0]
         v = self.mgr.model.array()
 # Get some control parameters
@@ -3392,6 +3411,10 @@ class Utilities:
         if not okBut:
             print("\nShaVi output not written\n")
             return
+        folder = "ShaVi"
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        os.chdir(folder)
 # fc is the central frequency of the source signal
 # dx is the cell size, calculated following the stability criteria given in
 #    SOFI2D manual and rounded to the next lower 2.5 cm.
@@ -3664,7 +3687,7 @@ class Utilities:
                 amp_calc[nx_neg] = np.exp(y_data)
                 lamp_calc[nx_neg] = y_data.copy()
                 plt_txt = f" neg: Q=[{q_factor_neg[0]:0.2f}, "\
-                    + "{q_factor_neg[1]:0.2f}], R2 = {r2_neg:0.3f}"
+                    + f"{q_factor_neg[1]:0.2f}], R2 = {r2_neg:0.3f}"
 # If there are more than 3 traces on the positive side calculate attenuation
 # in positive direction
 # If less than 7 traces exist, fit one single line
@@ -3683,7 +3706,7 @@ class Utilities:
                                           + intercept_pos[0])
                 lamp_calc[nx_pos] = intercept_pos[0]+x[nx_pos]*slope_pos[0]
                 plt_txt += f" pos: Q={q_factor_pos[0]:0.2f}, "\
-                    + "R2 = {r2_pos:0.3f}"
+                    + f"R2 = {r2_pos:0.3f}"
 # If more than 6 traces exist, fit two line
 # Use function bestLines from refraPlot.py
             else:
@@ -3697,7 +3720,7 @@ class Utilities:
                 amp_calc[nx_pos] = np.exp(y_data)
                 lamp_calc[nx_pos] = y_data.copy()
                 plt_txt += f" pos: Q=[{q_factor_pos[0]:0.2f}, "\
-                    + "{q_factor_pos[1]:0.2f}], R2 = {r2_pos:0.3f}"
+                    + f"{q_factor_pos[1]:0.2f}], R2 = {r2_pos:0.3f}"
 # Plot results to screen
 #        self.window.drawNew(False)
 #        self.figatt =  self.window.figs[self.window.fig_plotted]
@@ -3715,11 +3738,11 @@ class Utilities:
         self.ax_amp.set_ylabel("Max amplitude [n.u.]", fontsize=18)
         if self.window.fg_flag:
             text = f"file {self.files.file_numbers[self.window.fig_plotted]}:"\
-                + " {plt_txt}"
+                + f" {plt_txt}"
             self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.sg_flag:
             text = f"shot {self.traces.shot[self.window.actual_traces[0]]+1}:"\
-                + " {plt_txt}"
+                + f" {plt_txt}"
             self.ax_att.set_title(f"Attenuation, {text}", fontsize=20)
         elif self.window.rg_flag:
             text = "receiver "\
@@ -3736,6 +3759,10 @@ class Utilities:
             mode = "w"
         with open("Q.dat", mode) as fo:
             fo.write(f"{text}\n")
+# Find maxima after pick
+        # itr = []
+        # amp_mx = []
+        # for i in 
         self.main.function = "main"
 
     def pseudo(self):

@@ -72,24 +72,32 @@ class Data():
                 if files.file_type == "seg2":
                     try:
                         self.st.append(seg2._read_seg2(ff))
+# If trace headers do not contain the keyword "RECEIVER_STATION_NUMBER", define
+#    this value as "CHANNEL NUMBER".
                         if 'RECEIVER_STATION_NUMBER' not in\
                                 self.st[-1][0].stats.seg2:
                             for itr, tr in enumerate(self.st[-1]):
-                                try:
-# If trace headers do not contain the keyword "RECEIVER_STATION_NUMBER", define
-#    this value as "CHANNEL NUMBER". In this case, normally also the key word
-#    "SOURCE_STATION_NUMBER" is missing. It is defined as the file number
+                                if 'CHANNEL_NUMBER' in self.st[-1][0].stats.seg2:
                                     tr.stats.seg2['RECEIVER_STATION_NUMBER'] =\
                                         tr.stats.seg2['CHANNEL_NUMBER']
-                                    tr.stats.seg2['SOURCE_STATION_NUMBER'] =\
-                                        files.numbers[nf]
-# If even the keyword "CHANNEL NUMBER" is missing, RECEIVER_STATION_NUMBER" is
-#    set as consecutive number of trace in the file
-                                except:
+                                else:
                                     tr.stats.seg2['RECEIVER_STATION_NUMBER'] =\
                                         itr
+# If trace headers do not contain the keyword "SOURCE_STATION_NUMBER",
+# Use the congents of keyword "SHOT_SEQUENCE_NUMBER" and if this does not
+# exist use the file number oas shot point number
+                        if 'SOURCE_STATION_NUMBER' not in\
+                                self.st[-1][0].stats.seg2:
+                            for itr, tr in enumerate(self.st[-1]):
+                                if 'SHOT_SEQUENCE_NUMBER' in\
+                                        self.st[-1][0].stats.seg2:
+                                    tr.stats.seg2['SOURCE_STATION_NUMBER'] =\
+                                        tr.stats.seg2['SHOT_SEQUENCE_NUMBER']
+                                else:
                                     tr.stats.seg2['SOURCE_STATION_NUMBER'] =\
                                         files.numbers[nf]
+# if any one of these replacements is incorrect, exit program with Data file
+# error.
                     except:
                         _ = QtWidgets.QMessageBox.critical(
                             None, "Error",
@@ -119,7 +127,7 @@ class Data():
                             = self.st[-1][itr].stats.segy.\
                             trace_header.\
                             trace_number_within_the_original_field_record
-                            
+
 # Attention: the "+1" in the next command is only provisorically in order to
 # be able to read a specific data file where the first SP has number 0.
 
@@ -127,12 +135,15 @@ class Data():
                             self.st[-1][itr].stats.segy.\
                             trace_header.energy_source_point_number+1
                 if "DELAY" in self.st[-1][0].stats.seg2:
-                    self.time_0.append(self.st[-1][0].stats.seg2['DELAY'])
+                    self.time_0.append(float(self.st[-1][0].stats.seg2['DELAY']))
+                    if "INSTRUMENT" in self.st[-1][0].stats.seg2:
+                        if "X One" in self.st[-1].stats.seg2["INSTRUMENT"]:
+                            self.time_0[-1] *= -1.
                 else:
                     self.time_0.append(0.)
 # get starting and end recording time
 # The original program was written for SUMMIT 2 instruments. With introduction
-# of SUMMIT X1, the extension has changes from sg2 to seg2 and the "DELAY" has
+# of SUMMIT X1, the extension has changed from sg2 to seg2 and the "DELAY" has
 # changed sign. A key word unique to Summit X1 is "UNIT_UNIQUE_ID". Check the
 # existance of this key word to set the correct time of the first sample with
 # respect to the trigger time. It is supposed that all recordings have the
@@ -145,7 +156,7 @@ class Data():
                         self.time_0.append(0.)
                     if self.st[0][0].stats.seg2.get("UNIT_UNIQUE_ID") is not\
                             None:
-                        self.t0 *= -1
+                        self.t0 *= -1.
                         self.general_sign = -1
 # It is also supposed that all data have the same sampling rate
                     self.nsamp = self.st[0][0].stats.npts
@@ -1210,12 +1221,16 @@ class Data():
             return
         if not file_out:
             file_out = f"rec{self.main.window.fig_plotted+1:0>5}.asc"
+        data = np.transpose(self.main.window.v)
+        for i in range(data.shape[1]):
+            if np.isclose(np.std(data[:, i]), 0.):
+                data[:, i] = np.nan
         with open(file_out, 'w') as fo:
-            fo.write(f"{self.main.window.v.shape[1]} "
-                     + f"{self.main.window.v.shape[0]} "
+            fo.write(f"{data.shape[0]} "
+                     + f"{data.shape[1]} "
                      + "lines=data; columns=receivers\n")
             fo.write(f"{self.dt} {self.t0} dt [seconds], t0 [seconds]\n")
-            np.savetxt(fo, np.transpose(self.main.window.v))
+            np.savetxt(fo, data)
 
     def saveHeader(self):
         """

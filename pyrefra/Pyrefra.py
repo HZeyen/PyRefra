@@ -167,6 +167,7 @@ class Main(QtWidgets.QWidget):
         self.window.distanceGather.triggered.connect(self.window.plotDG)
         self.window.component.triggered.connect(self.window.chooseComponent)
         self.window.phaseAngles.triggered.connect(self.window.phasePlot)
+        self.window.NumberOrder.triggered.connect(self.window.toggleNumber)
         self.window.zoom.triggered.connect(self.window.zooming)
         self.window.zoom_Out.triggered.connect(self.window.zoomOut)
         self.window.zoom_In.triggered.connect(self.window.zoomIn)
@@ -189,6 +190,8 @@ class Main(QtWidgets.QWidget):
         self.window.Animation.triggered.connect(self.window.animateLine)
         self.window.Attenuation.triggered.connect(self.utilities.atten_amp)
         self.window.Pseudo_velocity.triggered.connect(self.utilities.pseudo)
+        self.window.air_wave.triggered.connect(self.utilities.air_wave)
+        self.window.define_air_wave.triggered.connect(self.utilities.air_wave_parameters)
 # Actions for menu Picking
         self.window.ManualPicks.triggered.connect(self.window.pickManual)
         self.window.AmpPicks.triggered.connect(self.window.ampPicks)
@@ -302,6 +305,9 @@ class Main(QtWidgets.QWidget):
 # If Right arrow is pressed, choose next block to be plotted to the right
                 elif event.key() == 16777236:
                     self.window.nextBlock(1)
+# X toggles the display of trace numbers at the cursor position
+                elif event.key() == QtCore.Qt.Key_X:
+                    self.window.toggleHover()
 # in pickMove function, the keyboard arrows are checkes with possible SHFT
 # and CTRL
 # If Left arrow is pressed, choose next trace to the left
@@ -410,8 +416,11 @@ class Main(QtWidgets.QWidget):
         self.direction_end = np.array(["N", "NNE", "NE", "ENE", "E", "ESE",
                                        "SE", "SSE", "S", "SSW", "SW", "WSW",
                                        "W", "WNW", "NW", "NNW"], dtype=str)
-        if os.path.exists("PyRefra.config"):
-            with open("PyRefra.config", "r") as fo:
+        if os.path.exists("PyRefra.config") and\
+                not os.path.exists("line.config"):
+            os.rename('PyRefra.config', 'line.config')
+        if os.path.exists("line.config"):
+            with open("line.config", "r") as fo:
                 self.dir_flag = True
                 self.title = fo.readline().split("\n")[0]
                 print(f"Title: {self.title}")
@@ -427,18 +436,20 @@ class Main(QtWidgets.QWidget):
                 print("Profile direction in file PyRefra incorrect: "
                       + f"*{self.dir_start}*")
         else:
-            print("File PyRefra.config not found")
+            path = os.path.normpath(self.dir0)
+            name = path.split(os.sep)[-1]
+            print("File line.config not found")
             results, ok_button = self.dialog(
                     ["General title (name of profile...)",
                      "Geographic direction of profile start",
                      self.direction_start], ["e", "l", "b"],
-                    [self.dir0, None, None], "PyRefra configuration")
+                    [name, None, 0], "Line configuration")
             if ok_button:
                 self.title = results[0]
                 self.dir_start = self.direction_start[int(results[2])]
                 self.dir_end = self.direction_end[int(results[2])]
                 self.config = True
-                with open("PyRefra.config", "w") as fo:
+                with open("line.config", "w") as fo:
                     fo.write(f"{self.title}\n")
                     fo.write(self.dir_start)
                 print(f"{self.title}\n"
@@ -641,7 +652,7 @@ class Dialog(QtWidgets.QWidget):
         Initial values given to editable fields.
 
         - Initial values for LineEdit fields (float, int or str)
-        - None for comboboxes
+        - Default value of list in comboboxe (counting starts with 0)
         - > 0 for check box if it should be checked from the beginning, 0 else.
         - Number of radiobutton to be activated by default (natural numbering,
           starting at 1, not at 0).
@@ -762,6 +773,10 @@ class Dialog(QtWidgets.QWidget):
                 self.combo.append(QtWidgets.QComboBox())
                 for il, l in enumerate(lab):
                     self.combo[i].addItem(l)
+                if values[i] > -1:
+                    self.combo[i].setCurrentIndex(values[i])
+                else:
+                    self.combo[i].setCurrentIndex(0)
                 ilin += 1
                 self.main_layout.addWidget(self.combo[i], ilin, 0, 1, 1)
                 il_add += 1

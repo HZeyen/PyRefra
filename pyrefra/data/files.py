@@ -1,6 +1,6 @@
 import os
 import sys
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 
 class Files():
@@ -136,9 +136,21 @@ class Files():
         """
 # Open Explorer and show by default seg2 and sg2 files
         self.folder = None
-        files = list(QtWidgets.QFileDialog.getOpenFileNames(
-            None, "Select seismic data files", "",
-            filter="seg2 (*.seg2 *.sg2) ;; segy (*.sgy *.segy) ;; all (*.*)"))
+# Qt dialog (not the native one) with always-on-top flag: Windows does not
+# let a process started from another application take the foreground
+        dialog = QtWidgets.QFileDialog(None, "Select seismic data files")
+        dialog.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        dialog.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFiles)
+        dialog.setNameFilters(["seg2 (*.seg2 *.sg2)", "segy (*.sgy *.segy)",
+                               "all (*.*)"])
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        if dialog.exec_():
+            files = [dialog.selectedFiles(), dialog.selectedNameFilter()]
+        else:
+            files = [[], ""]
         files = self.check_names(files)
 
         self.folder = os.path.dirname(files[0])

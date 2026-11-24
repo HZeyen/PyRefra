@@ -63,7 +63,7 @@
      <x>0</x>
      <y>0</y>
      <width>1500</width>
-     <height>31</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -97,6 +97,7 @@
     <addaction name="distanceGather"/>
     <addaction name="component"/>
     <addaction name="phaseAngles"/>
+    <addaction name="NumberOrder"/>
     <addaction name="separator"/>
     <addaction name="zoom"/>
     <addaction name="zoom_Out"/>
@@ -126,6 +127,8 @@
     <addaction name="Animation"/>
     <addaction name="Attenuation"/>
     <addaction name="Pseudo_velocity"/>
+    <addaction name="air_wave"/>
+    <addaction name="define_air_wave"/>
    </widget>
    <widget class="QMenu" name="Picking">
     <property name="title">
@@ -861,6 +864,39 @@
    </property>
    <property name="shortcut">
     <string>Shift+E</string>
+   </property>
+  </action>
+  <action name="NumberOrder">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Toggle x-axis by offset/number</string>
+   </property>
+   <property name="shortcut">
+    <string>N</string>
+   </property>
+  </action>
+  <action name="air_wave">
+   <property name="text">
+    <string>Air wave visualization</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
+  </action>
+  <action name="define_air_wave">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Define air-wave parameters</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>false</bool>
    </property>
   </action>
  </widget>
